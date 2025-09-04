@@ -60,7 +60,7 @@ class _HomePageState extends State<HomePage> {
       'items': [
         {'title': 'Ordem de Serviço', 'icon': Icons.description},
         {'title': 'Agendamento', 'icon': Icons.support_agent, 'page': const AgendamentoPage()},
-        {'title': 'Checklist', 'icon': Icons.checklist, 'page': const Checklist()},
+        {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
       ],
     },
     {

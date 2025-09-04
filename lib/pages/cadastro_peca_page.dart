@@ -256,106 +256,134 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
-            controller: _nomeController,
-            decoration: const InputDecoration(labelText: 'Nome da Peça'),
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _nomeController,
+              decoration:
+                  const InputDecoration(labelText: 'Nome da Peça', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          DropdownButtonFormField<Fabricante>(
-            value: _fabricanteSelecionado,
-            decoration: const InputDecoration(labelText: 'Fabricante'),
-            items: _fabricantes.map((fabricante) {
-              return DropdownMenuItem<Fabricante>(value: fabricante, child: Text(fabricante.nome));
-            }).toList(),
-            onChanged: (Fabricante? newValue) {
-              setState(() => _fabricanteSelecionado = newValue);
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
-            validator: (v) => v == null ? 'Selecione um fabricante' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: DropdownButtonFormField<Fabricante>(
+              value: _fabricanteSelecionado,
+              decoration:
+                  const InputDecoration(labelText: 'Fabricante', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              items: _fabricantes.map((fabricante) {
+                return DropdownMenuItem<Fabricante>(value: fabricante, child: Text(fabricante.nome));
+              }).toList(),
+              onChanged: (Fabricante? newValue) {
+                setState(() => _fabricanteSelecionado = newValue);
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+              validator: (v) => v == null ? 'Selecione um fabricante' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+            ),
           ),
-          TextFormField(
-            controller: _codigoFabricanteController,
-            decoration: const InputDecoration(labelText: 'Código do Fabricante'),
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _codigoFabricanteController,
+              decoration: const InputDecoration(
+                  labelText: 'Código do Fabricante', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _precoUnitarioController,
-            decoration: const InputDecoration(labelText: 'Preço Unitário (Custo)'),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Informe o preço';
-              }
-              if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
-                return 'Digite apenas números e vírgula';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onChanged: (value) {
-              String newValue = value.replaceAll(RegExp(r'[^\d,]'), '');
-              if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
-                newValue = newValue.replaceFirst(RegExp(',.*'), ',');
-              }
-              if (newValue != value) {
-                _precoUnitarioController.value = TextEditingValue(
-                  text: newValue,
-                  selection: TextSelection.collapsed(offset: newValue.length),
-                );
-              }
-              _calcularPrecoFinal();
-            },
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _precoUnitarioController,
+              decoration: const InputDecoration(
+                  labelText: 'Preço Unitário (Custo)', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Informe o preço';
+                }
+                if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
+                  return 'Digite apenas números e vírgula';
+                }
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (value) {
+                String newValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+                if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
+                  newValue = newValue.replaceFirst(RegExp(',.*'), ',');
+                }
+                if (newValue != value) {
+                  _precoUnitarioController.value = TextEditingValue(
+                    text: newValue,
+                    selection: TextSelection.collapsed(offset: newValue.length),
+                  );
+                }
+                _calcularPrecoFinal();
+              },
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _quantidadeEstoqueController,
-            decoration: const InputDecoration(labelText: 'Quantidade em Estoque'),
-            keyboardType: TextInputType.number,
-            validator: (v) => v!.isEmpty ? 'Informe o estoque' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _quantidadeEstoqueController,
+              decoration: const InputDecoration(
+                  labelText: 'Quantidade em Estoque', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.number,
+              validator: (v) => v!.isEmpty ? 'Informe o estoque' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
           const Divider(thickness: 2, height: 40),
-          DropdownButtonFormField<Fornecedor>(
-            value: _fornecedorSelecionado,
-            decoration: const InputDecoration(labelText: 'Fornecedor'),
-            items: _fornecedores.map((fornecedor) {
-              return DropdownMenuItem<Fornecedor>(
-                  value: fornecedor, child: Text("${fornecedor.nome} (+${(fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"));
-            }).toList(),
-            onChanged: (Fornecedor? newValue) {
-              setState(() {
-                _fornecedorSelecionado = newValue;
-                _calcularPrecoFinal();
-              });
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
-            validator: (v) => v == null ? 'Selecione um fornecedor' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: DropdownButtonFormField<Fornecedor>(
+              value: _fornecedorSelecionado,
+              decoration:
+                  const InputDecoration(labelText: 'Fornecedor', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              items: _fornecedores.map((fornecedor) {
+                return DropdownMenuItem<Fornecedor>(
+                    value: fornecedor, child: Text("${fornecedor.nome} (+${(fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"));
+              }).toList(),
+              onChanged: (Fornecedor? newValue) {
+                setState(() {
+                  _fornecedorSelecionado = newValue;
+                  _calcularPrecoFinal();
+                });
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+              validator: (v) => v == null ? 'Selecione um fornecedor' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+            ),
           ),
-          TextFormField(
-            controller: _precoFinalController,
-            decoration: const InputDecoration(labelText: 'Preço Final (Venda)'),
-            enabled: false,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _precoFinalController,
+              decoration: const InputDecoration(
+                  labelText: 'Preço Final (Venda)', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              enabled: false,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(onPressed: _salvar, child: Text(_pecaEmEdicao != null ? 'Atualizar Peça' : 'Salvar')),

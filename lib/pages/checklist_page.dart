@@ -266,7 +266,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSectionTitle('4. Testes de Funcionamento'),
-              ...functionTestItems.map((item) => _buildCheckRow(item)).toList(),
+              ...functionTestItems.map((item) => _buildCheckRow(item)),
             ],
           ),
         ),
@@ -276,7 +276,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSectionTitle('5. Itens no Veículo'),
-              ...vehicleItemsList.map((item) => _buildCheckRow(item)).toList(),
+              ...vehicleItemsList.map((item) => _buildCheckRow(item)),
             ],
           ),
         ),
@@ -365,14 +365,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> {
       children: [
         Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.black54)),
         const SizedBox(height: 4),
-        SizedBox(
-          // slightly smaller heights to better fit tighter grid cells
-          height: isDense ? 34 : 40,
-          child: TextField(
-            decoration: InputDecoration(
-              isDense: isDense,
-              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: isDense ? 8 : 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6.0),
+          child: SizedBox(
+            height: isDense ? 34 : 40,
+            child: TextField(
+              decoration: InputDecoration(
+                isDense: isDense,
+                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: isDense ? 8 : 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              ),
             ),
           ),
         ),
@@ -386,7 +388,7 @@ class _StatusSelector extends StatefulWidget {
   final String label1;
   final String label2;
 
-  _StatusSelector({this.label1 = 'OK', this.label2 = 'Avaria'});
+  const _StatusSelector({this.label1 = 'OK', this.label2 = 'Avaria'});
 
   @override
   _StatusSelectorState createState() => _StatusSelectorState();
@@ -394,7 +396,7 @@ class _StatusSelector extends StatefulWidget {
 
 class _StatusSelectorState extends State<_StatusSelector> {
   // track selection index: 0 = first, 1 = second, null => none (both false)
-  List<bool> _selected = [false, false];
+  final List<bool> _selected = [false, false];
 
   @override
   Widget build(BuildContext context) {

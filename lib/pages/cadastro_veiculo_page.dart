@@ -266,82 +266,107 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
       key: _formKey,
       child: Column(
         children: [
-          TextFormField(
-            controller: _nome,
-            decoration: const InputDecoration(labelText: 'Nome'),
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _nome,
+              decoration: const InputDecoration(labelText: 'Nome', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
-          TextFormField(
-            controller: _placa,
-            decoration: const InputDecoration(labelText: 'Placa'),
-            inputFormatters: [_maskPlaca, _upperCaseFormatter],
-            textCapitalization: TextCapitalization.characters,
-            validator: (v) => v!.isEmpty ? 'Informe a placa' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _placa,
+              decoration: const InputDecoration(labelText: 'Placa', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              inputFormatters: [_maskPlaca, _upperCaseFormatter],
+              textCapitalization: TextCapitalization.characters,
+              validator: (v) => v!.isEmpty ? 'Informe a placa' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
-          TextFormField(
-            controller: _ano,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Ano'),
-            validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _ano,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Ano', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
-          TextFormField(
-            controller: _modelo,
-            decoration: const InputDecoration(labelText: 'Modelo'),
-            validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _modelo,
+              decoration: const InputDecoration(labelText: 'Modelo', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
-          DropdownButtonFormField<int>(
-            value: _marcaSelecionadaId,
-            onChanged: (int? newValue) {
-              setState(() {
-                _marcaSelecionadaId = newValue;
-              });
-            },
-            decoration: const InputDecoration(labelText: 'Marca'),
-            items: _marcas.map((marca) {
-              return DropdownMenuItem<int>(
-                value: marca.id,
-                child: Text(marca.marca),
-              );
-            }).toList(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: DropdownButtonFormField<int>(
+              value: _marcaSelecionadaId,
+              onChanged: (int? newValue) {
+                setState(() {
+                  _marcaSelecionadaId = newValue;
+                });
+              },
+              decoration: const InputDecoration(labelText: 'Marca', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              items: _marcas.map((marca) {
+                return DropdownMenuItem<int>(
+                  value: marca.id,
+                  child: Text(marca.marca),
+                );
+              }).toList(),
+            ),
           ),
-          DropdownButtonFormField<String>(
-            value: _categoriaSelecionada,
-            decoration: const InputDecoration(labelText: 'Categoria'),
-            items: _categorias.map((String categoria) {
-              return DropdownMenuItem<String>(
-                value: categoria,
-                child: Text(categoria),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              setState(() {
-                _categoriaSelecionada = newValue;
-              });
-            },
-            validator: (value) => value == null ? 'Selecione uma categoria' : null,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: DropdownButtonFormField<String>(
+              value: _categoriaSelecionada,
+              decoration: const InputDecoration(labelText: 'Categoria', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              items: _categorias.map((String categoria) {
+                return DropdownMenuItem<String>(
+                  value: categoria,
+                  child: Text(categoria),
+                );
+              }).toList(),
+              onChanged: (newValue) {
+                setState(() {
+                  _categoriaSelecionada = newValue;
+                });
+              },
+              validator: (value) => value == null ? 'Selecione uma categoria' : null,
+            ),
           ),
-          TextFormField(
-            controller: _cor,
-            decoration: const InputDecoration(labelText: 'Cor'),
-            validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _cor,
+              decoration: const InputDecoration(labelText: 'Cor', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
-          TextFormField(
-            controller: _quilometragem,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Quilometragem'),
-            validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _quilometragem,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration:
+                  const InputDecoration(labelText: 'Quilometragem', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(

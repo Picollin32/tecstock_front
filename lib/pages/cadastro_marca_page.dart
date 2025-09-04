@@ -166,15 +166,18 @@ class _MarcaPageState extends State<CadastroMarcaPage> {
       key: _formKey,
       child: Column(
         children: [
-          TextFormField(
-            controller: _marcaController,
-            decoration: const InputDecoration(labelText: 'Marca'),
-            validator: (v) => v!.isEmpty ? 'Informe a marca' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _marcaController,
+              decoration: const InputDecoration(labelText: 'Marca', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe a marca' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
           const SizedBox(height: 10),
           ElevatedButton(

@@ -208,86 +208,106 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
-            controller: _nomeController,
-            decoration: const InputDecoration(labelText: 'Nome do Fornecedor'),
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _nomeController,
+              decoration: InputDecoration(
+                  labelText: 'Nome do Fornecedor', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _cnpjController,
-            decoration: const InputDecoration(labelText: 'CNPJ'),
-            keyboardType: TextInputType.number,
-            inputFormatters: [_maskCnpj],
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Informe o CNPJ';
-              if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _cnpjController,
+              decoration: InputDecoration(labelText: 'CNPJ', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_maskCnpj],
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Informe o CNPJ';
+                if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _telefoneController,
-            decoration: const InputDecoration(labelText: 'Telefone'),
-            keyboardType: TextInputType.number,
-            inputFormatters: [_maskTelefone],
-            validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _telefoneController,
+              decoration: InputDecoration(labelText: 'Telefone', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_maskTelefone],
+              validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _emailController,
-            decoration: const InputDecoration(labelText: 'E-mail'),
-            keyboardType: TextInputType.emailAddress,
-            validator: (email) {
-              if (email == null || email.isEmpty) {
-                return 'Por favor, insira um e-mail';
-              }
-              final emailRegex = RegExp(
-                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-              );
-              if (!emailRegex.hasMatch(email)) {
-                return 'Por favor, insira um e-mail com formato válido';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _emailController,
+              decoration: InputDecoration(labelText: 'E-mail', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.emailAddress,
+              validator: (email) {
+                if (email == null || email.isEmpty) {
+                  return 'Por favor, insira um e-mail';
+                }
+                final emailRegex = RegExp(
+                  r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                );
+                if (!emailRegex.hasMatch(email)) {
+                  return 'Por favor, insira um e-mail com formato válido';
+                }
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _margemLucroController,
-            decoration: const InputDecoration(labelText: 'Margem de Lucro (%)', suffixText: '%', hintText: 'Ex: 10'),
-            keyboardType: TextInputType.number,
-            inputFormatters: [_maskMargemLucro],
-            validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Informe a margem de lucro';
-              }
-              final value = int.tryParse(v);
-              if (value == null) {
-                return 'Valor inválido';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _margemLucroController,
+              decoration: InputDecoration(
+                  labelText: 'Margem de Lucro (%)',
+                  suffixText: '%',
+                  hintText: 'Ex: 10',
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.number,
+              inputFormatters: [_maskMargemLucro],
+              validator: (v) {
+                if (v == null || v.isEmpty) {
+                  return 'Informe a margem de lucro';
+                }
+                final value = int.tryParse(v);
+                if (value == null) {
+                  return 'Valor inválido';
+                }
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(onPressed: _salvarFornecedor, child: const Text('Salvar')),

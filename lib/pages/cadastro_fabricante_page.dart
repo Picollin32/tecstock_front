@@ -183,15 +183,19 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> {
       key: _formKey,
       child: Column(
         children: [
-          TextFormField(
-            controller: _nomeController,
-            decoration: const InputDecoration(labelText: 'Nome'),
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _nomeController,
+              decoration: const InputDecoration(
+                  labelText: 'Nome do Fabricante', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(

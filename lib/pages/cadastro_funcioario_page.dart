@@ -246,90 +246,112 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> {
       key: _formKey,
       child: Column(
         children: [
-          TextFormField(
-            controller: _nomeController,
-            decoration: const InputDecoration(labelText: 'Nome'),
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _nomeController,
+              decoration: const InputDecoration(labelText: 'Nome', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _telefoneController,
-            decoration: const InputDecoration(labelText: 'Telefone'),
-            inputFormatters: [_maskTelefone],
-            keyboardType: TextInputType.phone,
-            validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _telefoneController,
+              decoration: const InputDecoration(labelText: 'Telefone', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              inputFormatters: [_maskTelefone],
+              keyboardType: TextInputType.phone,
+              validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _emailController,
-            decoration: const InputDecoration(labelText: 'E-mail'),
-            keyboardType: TextInputType.emailAddress,
-            validator: (email) {
-              if (email == null || email.isEmpty) {
-                return 'Por favor, insira um e-mail';
-              }
-              final emailRegex = RegExp(
-                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-              );
-              if (!emailRegex.hasMatch(email)) {
-                return 'Por favor, insira um e-mail com formato válido';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _emailController,
+              decoration: const InputDecoration(labelText: 'E-mail', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              keyboardType: TextInputType.emailAddress,
+              validator: (email) {
+                if (email == null || email.isEmpty) {
+                  return 'Por favor, insira um e-mail';
+                }
+                final emailRegex = RegExp(
+                  r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                );
+                if (!emailRegex.hasMatch(email)) {
+                  return 'Por favor, insira um e-mail com formato válido';
+                }
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _cpfController,
-            decoration: const InputDecoration(labelText: 'CPF'),
-            inputFormatters: [_maskCpf],
-            keyboardType: TextInputType.number,
-            validator: (cpf) {
-              if (cpf == null || cpf.isEmpty) {
-                return 'Por favor, insira um CPF';
-              }
-              if (!CPFValidator.isValid(cpf)) {
-                return 'CPF inválido';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            onEditingComplete: () {
-              Form.of(context).validate();
-              FocusScope.of(context).nextFocus();
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _cpfController,
+              decoration: const InputDecoration(labelText: 'CPF', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              inputFormatters: [_maskCpf],
+              keyboardType: TextInputType.number,
+              validator: (cpf) {
+                if (cpf == null || cpf.isEmpty) {
+                  return 'Por favor, insira um CPF';
+                }
+                if (!CPFValidator.isValid(cpf)) {
+                  return 'CPF inválido';
+                }
+                return null;
+              },
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onEditingComplete: () {
+                Form.of(context).validate();
+                FocusScope.of(context).nextFocus();
+              },
+            ),
           ),
-          TextFormField(
-            controller: _dataNascimentoController,
-            decoration: const InputDecoration(labelText: 'Data de Nascimento', suffixIcon: Icon(Icons.calendar_today)),
-            readOnly: true,
-            onTap: () => _selectDate(context),
-            validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: TextFormField(
+              controller: _dataNascimentoController,
+              decoration: const InputDecoration(
+                  labelText: 'Data de Nascimento',
+                  suffixIcon: Icon(Icons.calendar_today),
+                  contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              readOnly: true,
+              onTap: () => _selectDate(context),
+              validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+            ),
           ),
-          DropdownButtonFormField<int>(
-            value: _nivelAcessoSelecionado,
-            decoration: const InputDecoration(labelText: 'Nível de Acesso'),
-            items: const [
-              DropdownMenuItem(value: 1, child: Text('Consultor(a)')),
-              DropdownMenuItem(value: 2, child: Text('Mecânico(a)')),
-            ],
-            onChanged: (v) => setState(() => _nivelAcessoSelecionado = v),
-            validator: (v) {
-              if (v == null) return 'Informe o nível de acesso';
-              return null;
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: DropdownButtonFormField<int>(
+              value: _nivelAcessoSelecionado,
+              decoration:
+                  InputDecoration(labelText: 'Nível de Acesso', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('Consultor(a)')),
+                DropdownMenuItem(value: 2, child: Text('Mecânico(a)')),
+              ],
+              onChanged: (v) => setState(() => _nivelAcessoSelecionado = v),
+              validator: (v) {
+                if (v == null) return 'Informe o nível de acesso';
+                return null;
+              },
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton(

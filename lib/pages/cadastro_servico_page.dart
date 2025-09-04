@@ -186,7 +186,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         );
       },
@@ -217,9 +217,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> {
             },
             onChanged: (v) {
               String newValue = v.replaceAll(RegExp(r'[^\d,]'), '');
-              if (newValue != v)
+              if (newValue != v) {
                 _precoPasseioController.value =
                     TextEditingValue(text: newValue, selection: TextSelection.collapsed(offset: newValue.length));
+              }
             },
           ),
           const SizedBox(height: 8),
@@ -234,9 +235,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> {
             },
             onChanged: (v) {
               String newValue = v.replaceAll(RegExp(r'[^\d,]'), '');
-              if (newValue != v)
+              if (newValue != v) {
                 _precoCaminhoneteController.value =
                     TextEditingValue(text: newValue, selection: TextSelection.collapsed(offset: newValue.length));
+              }
             },
           ),
           const SizedBox(height: 20),

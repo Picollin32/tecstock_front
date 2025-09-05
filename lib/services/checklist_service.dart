@@ -16,6 +16,22 @@ class ChecklistService {
     }
   }
 
+  static Future<Checklist?> buscarChecklistPorId(int id) async {
+    String baseUrl = 'http://localhost:8081/api/checklists/buscar/$id';
+
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return Checklist.fromJson(jsonData);
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao buscar checklist: $e');
+      return null;
+    }
+  }
+
   static Future<List<Checklist>> listarChecklists() async {
     String baseUrl = 'http://localhost:8081/api/checklists/listarTodos';
     try {

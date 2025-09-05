@@ -13,7 +13,7 @@ class CadastroVeiculoPage extends StatefulWidget {
   State<CadastroVeiculoPage> createState() => _CadastroVeiculoPageState();
 }
 
-class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
+class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nome = TextEditingController();
   final TextEditingController _placa = TextEditingController();
@@ -26,7 +26,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
 
   final List<String> _categorias = ['Passeio', 'Caminhonete'];
   String? _categoriaSelecionada;
-
   final _maskPlaca = MaskTextInputFormatter(
       mask: 'AAA-#X##',
       filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
@@ -42,20 +41,42 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
   final TextEditingController _searchController = TextEditingController();
   List<Veiculo> _veiculos = [];
   List<Veiculo> _veiculosFiltrados = [];
-  bool _showForm = false;
   Veiculo? _veiculoEmEdicao;
+
+  bool _isLoading = false;
+  bool _isLoadingVeiculos = true;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  static const Color primaryColor = Color(0xFF2196F3);
+  static const Color secondaryColor = Color(0xFF03DAC6);
+  static const Color errorColor = Color(0xFFE53E3E);
+  static const Color successColor = Color(0xFF38A169);
+  static const Color shadowColor = Color(0x1A000000);
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
     _limparFormulario();
     _carregarMarcas();
     _carregarVeiculos();
     _searchController.addListener(_filtrarVeiculos);
   }
 
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut));
+    _fadeController.forward();
+  }
+
   @override
   void dispose() {
+    _fadeController.dispose();
     _searchController.removeListener(_filtrarVeiculos);
     _searchController.dispose();
     _nome.dispose();
@@ -72,11 +93,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
 
     setState(() {
       if (unmaskedQuery.isEmpty) {
-        _veiculosFiltrados = _veiculos.take(3).toList();
+        _veiculosFiltrados = _veiculos.take(6).toList();
       } else {
         _veiculosFiltrados = _veiculos.where((veiculo) {
           final placaSemMascara = veiculo.placa.replaceAll('-', '');
-
           return placaSemMascara.toUpperCase().contains(unmaskedQuery);
         }).toList();
       }
@@ -84,22 +104,37 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
   }
 
   Future<void> _carregarVeiculos() async {
-    final lista = await VeiculoService.listarVeiculos();
-    setState(() {
-      _veiculos = lista.reversed.toList();
-      _filtrarVeiculos();
-    });
+    setState(() => _isLoadingVeiculos = true);
+    try {
+      final lista = await VeiculoService.listarVeiculos();
+      setState(() {
+        _veiculos = lista.reversed.toList();
+        _filtrarVeiculos();
+      });
+    } catch (e) {
+      _showErrorSnackBar('Erro ao carregar veículos');
+    } finally {
+      setState(() => _isLoadingVeiculos = false);
+    }
   }
 
   Future<void> _carregarMarcas() async {
-    final lista = await MarcaService.listarMarcas();
-    setState(() {
-      _marcas = lista;
-    });
+    try {
+      final lista = await MarcaService.listarMarcas();
+      setState(() {
+        _marcas = lista;
+      });
+    } catch (e) {
+      _showErrorSnackBar('Erro ao carregar marcas');
+    }
   }
 
   void _salvarVeiculo() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
       Marca? marcaSelecionada;
       if (_marcaSelecionadaId != null) {
         marcaSelecionada = _marcas.firstWhere(
@@ -126,17 +161,17 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
           : await VeiculoService.salvarVeiculo(veiculo);
 
       if (sucesso) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_veiculoEmEdicao != null ? "Veículo atualizado com sucesso" : "Veículo cadastrado com sucesso")),
-        );
+        _showSuccessSnackBar(_veiculoEmEdicao != null ? "Veículo atualizado com sucesso" : "Veículo cadastrado com sucesso");
         _limparFormulario();
         await _carregarVeiculos();
-        setState(() => _showForm = false);
+        Navigator.of(context).pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erro ao cadastrar veículo")),
-        );
+        _showErrorSnackBar("Erro ao salvar veículo");
       }
+    } catch (e) {
+      _showErrorSnackBar("Erro inesperado ao salvar veículo");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -150,42 +185,67 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
       _cor.text = veiculo.cor;
       _quilometragem.text = veiculo.quilometragem.toString().replaceAll('.', ',');
       _categoriaSelecionada = veiculo.categoria;
-      _showForm = true;
       _veiculoEmEdicao = veiculo;
     });
+    _showFormModal();
   }
 
   void _confirmarExclusao(Veiculo veiculo) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: Text('Deseja excluir o veículo ${veiculo.nome}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      builder: (_) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: DialogTheme(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 8,
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final sucesso = await VeiculoService.excluirVeiculo(veiculo.id!);
-              if (sucesso) {
-                await _carregarVeiculos();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Veículo excluído com sucesso')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Erro ao excluir veículo')),
-                );
-              }
-            },
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+        ),
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Confirmar Exclusão'),
+            ],
           ),
-        ],
+          content: Text('Deseja excluir o veículo ${veiculo.nome}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _excluirVeiculo(veiculo);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _excluirVeiculo(Veiculo veiculo) async {
+    setState(() => _isLoading = true);
+    try {
+      final sucesso = await VeiculoService.excluirVeiculo(veiculo.id!);
+      if (sucesso) {
+        await _carregarVeiculos();
+        _showSuccessSnackBar('Veículo excluído com sucesso');
+      } else {
+        _showErrorSnackBar('Erro ao excluir veículo');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Erro inesperado ao excluir veículo');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _limparFormulario() {
@@ -201,63 +261,343 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
     _veiculoEmEdicao = null;
   }
 
-  Widget _buildListaVeiculos() {
-    if (_veiculosFiltrados.isEmpty) {
-      return Center(
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: successColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: errorColor,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showFormModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _veiculoEmEdicao != null ? Icons.edit : Icons.add,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _veiculoEmEdicao != null ? 'Editar Veículo' : 'Novo Veículo',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: _buildFormulario(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        inputFormatters: [_maskPlaca, _upperCaseFormatter],
+        decoration: InputDecoration(
+          hintText: 'Pesquisar por placa...',
+          prefixIcon: Icon(Icons.search, color: primaryColor),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVehicleGrid() {
+    if (_isLoadingVeiculos) {
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Text(_searchController.text.isEmpty
-              ? 'Nenhum veículo cadastrado.'
-              : 'Nenhum veículo encontrado para "${_searchController.text}".'),
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            _searchController.text.isEmpty ? 'Últimos Veículos Cadastrados' : 'Resultados da Busca',
-            style: Theme.of(context).textTheme.titleLarge,
+    if (_veiculosFiltrados.isEmpty) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(
+                _searchController.text.isEmpty ? Icons.directions_car_outlined : Icons.search_off,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchController.text.isEmpty ? 'Nenhum veículo cadastrado' : 'Nenhum resultado encontrado',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_searchController.text.isEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Comece adicionando seu primeiro veículo',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ],
           ),
         ),
-        ..._veiculosFiltrados.map((veiculo) {
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: ListTile(
-              isThreeLine: true,
-              title: Text(veiculo.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text('Placa: ${veiculo.placa}'),
-                  Text('Modelo: ${veiculo.modelo} - ${veiculo.ano}'),
-                  Text('Marca: ${veiculo.marca?.marca ?? "Não informada"}'),
-                  Text('Categoria: ${veiculo.categoria}'),
-                  Text('Cor: ${veiculo.cor}'),
-                  Text('Quilometragem: ${veiculo.quilometragem.toStringAsFixed(0)} km'),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.orange),
-                    onPressed: () => _editarVeiculo(veiculo),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 1;
+        if (constraints.maxWidth > 900) {
+          crossAxisCount = 3;
+        } else if (constraints.maxWidth > 600) {
+          crossAxisCount = 2;
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 1.1,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: _veiculosFiltrados.length,
+          itemBuilder: (context, index) => _buildVehicleCard(_veiculosFiltrados[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildVehicleCard(Veiculo veiculo) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarVeiculo(veiculo),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        veiculo.categoria == 'Passeio' ? Icons.directions_car : Icons.local_shipping,
+                        color: primaryColor,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        veiculo.nome,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarVeiculo(veiculo);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(veiculo);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.pin_drop, veiculo.placa),
+                _buildInfoRow(Icons.build, '${veiculo.modelo} - ${veiculo.ano}'),
+                _buildInfoRow(Icons.business, veiculo.marca?.marca ?? "Não informada"),
+                _buildInfoRow(Icons.palette, veiculo.cor),
+                _buildInfoRow(Icons.speed, '${veiculo.quilometragem.toStringAsFixed(0)} km'),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: secondaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _confirmarExclusao(veiculo),
+                  child: Text(
+                    veiculo.categoria,
+                    style: TextStyle(
+                      color: secondaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        }),
-      ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey[600]),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -266,164 +606,281 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> {
       key: _formKey,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _nome,
-              decoration: const InputDecoration(labelText: 'Nome', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
+          _buildTextField(
+            controller: _nome,
+            label: 'Nome do Veículo',
+            icon: Icons.directions_car,
+            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _placa,
+            label: 'Placa',
+            icon: Icons.pin_drop,
+            inputFormatters: [_maskPlaca, _upperCaseFormatter],
+            textCapitalization: TextCapitalization.characters,
+            validator: (v) => v!.isEmpty ? 'Informe a placa' : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _ano,
+                  label: 'Ano',
+                  icon: Icons.calendar_today,
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _modelo,
+                  label: 'Modelo',
+                  icon: Icons.build,
+                  validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildDropdownField(
+            value: _marcaSelecionadaId,
+            label: 'Marca',
+            icon: Icons.business,
+            items: _marcas
+                .map((marca) => DropdownMenuItem<int>(
+                      value: marca.id,
+                      child: Text(marca.marca),
+                    ))
+                .toList(),
+            onChanged: (value) => setState(() => _marcaSelecionadaId = value),
+          ),
+          const SizedBox(height: 16),
+          _buildDropdownField(
+            value: _categoriaSelecionada,
+            label: 'Categoria',
+            icon: Icons.category,
+            items: _categorias
+                .map((categoria) => DropdownMenuItem<String>(
+                      value: categoria,
+                      child: Text(categoria),
+                    ))
+                .toList(),
+            onChanged: (value) => setState(() => _categoriaSelecionada = value),
+            validator: (value) => value == null ? 'Selecione uma categoria' : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _cor,
+                  label: 'Cor',
+                  icon: Icons.palette,
+                  validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _quilometragem,
+                  label: 'Quilometragem',
+                  icon: Icons.speed,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _salvarVeiculo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _veiculoEmEdicao != null ? 'Atualizar Veículo' : 'Cadastrar Veículo',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _placa,
-              decoration: const InputDecoration(labelText: 'Placa', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              inputFormatters: [_maskPlaca, _upperCaseFormatter],
-              textCapitalization: TextCapitalization.characters,
-              validator: (v) => v!.isEmpty ? 'Informe a placa' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _ano,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Ano', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _modelo,
-              decoration: const InputDecoration(labelText: 'Modelo', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: DropdownButtonFormField<int>(
-              value: _marcaSelecionadaId,
-              onChanged: (int? newValue) {
-                setState(() {
-                  _marcaSelecionadaId = newValue;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'Marca', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              items: _marcas.map((marca) {
-                return DropdownMenuItem<int>(
-                  value: marca.id,
-                  child: Text(marca.marca),
-                );
-              }).toList(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: DropdownButtonFormField<String>(
-              value: _categoriaSelecionada,
-              decoration: const InputDecoration(labelText: 'Categoria', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              items: _categorias.map((String categoria) {
-                return DropdownMenuItem<String>(
-                  value: categoria,
-                  child: Text(categoria),
-                );
-              }).toList(),
-              onChanged: (newValue) {
-                setState(() {
-                  _categoriaSelecionada = newValue;
-                });
-              },
-              validator: (value) => value == null ? 'Selecione uma categoria' : null,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _cor,
-              decoration: const InputDecoration(labelText: 'Cor', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _quilometragem,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration:
-                  const InputDecoration(labelText: 'Quilometragem', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () => FocusScope.of(context).nextFocus(),
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _salvarVeiculo,
-            child: const Text('Salvar'),
-          ),
-          const Divider(thickness: 2, height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    List<TextInputFormatter>? inputFormatters,
+    TextInputType? keyboardType,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      inputFormatters: inputFormatters,
+      keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorColor),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildDropdownField<T>({
+    required T? value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+    String? Function(T?)? validator,
+  }) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      onChanged: onChanged,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      items: items,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastro de Veículos')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ElevatedButton.icon(
-              icon: Icon(_showForm ? Icons.close : Icons.add),
-              label: Text(_showForm ? 'Cancelar Cadastro' : 'Novo Veículo'),
-              onPressed: () => setState(() {
-                _limparFormulario();
-                _showForm = !_showForm;
-              }),
-            ),
-            const SizedBox(height: 10),
-            if (_showForm) _buildFormulario(),
-            if (!_showForm)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: TextField(
-                  controller: _searchController,
-                  inputFormatters: [_maskPlaca, _upperCaseFormatter],
-                  keyboardType: TextInputType.text,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar por Placa',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gestão de Veículos',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildSearchBar()),
+                  const SizedBox(width: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                            },
-                          )
-                        : null,
+                    child: IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        _showFormModal();
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                    ),
                   ),
-                  textCapitalization: TextCapitalization.characters,
-                ),
+                ],
               ),
-            _buildListaVeiculos(),
-          ],
+              const SizedBox(height: 24),
+              if (_searchController.text.isEmpty && !_isLoadingVeiculos && _veiculosFiltrados.isNotEmpty)
+                Text(
+                  'Últimos Veículos Cadastrados',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              if (_searchController.text.isNotEmpty && !_isLoadingVeiculos)
+                Text(
+                  'Resultados da Busca (${_veiculosFiltrados.length})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildVehicleGrid(),
+            ],
+          ),
         ),
       ),
     );

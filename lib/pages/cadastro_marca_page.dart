@@ -1,34 +1,55 @@
-import 'package:TecStock/model/marca.dart';
 import 'package:flutter/material.dart';
+import 'package:TecStock/model/marca.dart';
 import '../services/marca_service.dart';
 
 class CadastroMarcaPage extends StatefulWidget {
   const CadastroMarcaPage({super.key});
 
   @override
-  State<CadastroMarcaPage> createState() => _MarcaPageState();
+  State<CadastroMarcaPage> createState() => _CadastroMarcaPageState();
 }
 
-class _MarcaPageState extends State<CadastroMarcaPage> {
+class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _marcaController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
-  List<Marca> _categorias = [];
-  List<Marca> _categoriasFiltradas = [];
-  bool _showForm = false;
-  Marca? _categoriaEmEdicao;
+  List<Marca> _marcas = [];
+  List<Marca> _marcasFiltradas = [];
+  Marca? _marcaEmEdicao;
+
+  bool _isLoading = false;
+  bool _isLoadingMarcas = true;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  static const Color primaryColor = Color(0xFFDC2626);
+  static const Color errorColor = Color(0xFFDC2626);
+  static const Color successColor = Color(0xFF16A34A);
+  static const Color shadowColor = Color(0x1A000000);
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
     _limparFormulario();
     _carregarMarcas();
     _searchController.addListener(_filtrarMarcas);
   }
 
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut));
+    _fadeController.forward();
+  }
+
   @override
   void dispose() {
+    _fadeController.dispose();
     _searchController.removeListener(_filtrarMarcas);
     _searchController.dispose();
     _marcaController.dispose();
@@ -36,128 +57,446 @@ class _MarcaPageState extends State<CadastroMarcaPage> {
   }
 
   void _filtrarMarcas() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      if (_searchController.text.isEmpty) {
-        _categoriasFiltradas = _categorias;
+      if (query.isEmpty) {
+        _marcasFiltradas = _marcas.take(8).toList();
       } else {
-        _categoriasFiltradas =
-            _categorias.where((marca) => marca.marca.toLowerCase().contains(_searchController.text.toLowerCase())).toList();
+        _marcasFiltradas = _marcas.where((marca) {
+          return marca.marca.toLowerCase().contains(query);
+        }).toList();
       }
     });
   }
 
+  Future<void> _carregarMarcas() async {
+    setState(() => _isLoadingMarcas = true);
+    try {
+      final lista = await MarcaService.listarMarcas();
+      setState(() {
+        _marcas = lista.reversed.toList();
+        _filtrarMarcas();
+      });
+    } catch (e) {
+      _showErrorSnackBar('Erro ao carregar marcas');
+    } finally {
+      setState(() => _isLoadingMarcas = false);
+    }
+  }
+
   void _salvarMarca() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
       final marca = Marca(
         marca: _marcaController.text,
       );
 
-      final sucesso = _categoriaEmEdicao != null
-          ? await MarcaService.atualizarMarca(_categoriaEmEdicao!.id!, marca)
-          : await MarcaService.salvarMarca(marca);
+      final sucesso =
+          _marcaEmEdicao != null ? await MarcaService.atualizarMarca(_marcaEmEdicao!.id!, marca) : await MarcaService.salvarMarca(marca);
 
       if (sucesso) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_categoriaEmEdicao != null ? "Marca atualizada com sucesso" : "Marca cadastrada com sucesso")),
-        );
+        _showSuccessSnackBar(_marcaEmEdicao != null ? "Marca atualizada com sucesso" : "Marca cadastrada com sucesso");
         _limparFormulario();
-        _carregarMarcas();
-        setState(() => _showForm = false);
+        await _carregarMarcas();
+        Navigator.of(context).pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erro ao cadastrar marca")),
-        );
+        _showErrorSnackBar("Erro ao salvar marca");
       }
+    } catch (e) {
+      _showErrorSnackBar("Erro inesperado ao salvar marca");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   void _editarMarca(Marca marca) {
     setState(() {
       _marcaController.text = marca.marca;
-      _showForm = true;
-      _categoriaEmEdicao = marca;
+      _marcaEmEdicao = marca;
     });
+    _showFormModal();
   }
 
   void _confirmarExclusao(Marca marca) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: Text('Deseja excluir a marca ${marca.marca}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+      builder: (_) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: DialogTheme(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 8,
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final sucesso = await MarcaService.excluirMarca(marca.id!);
-              if (sucesso) {
-                _carregarMarcas();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Marca excluída com sucesso')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Erro ao excluir marca')),
-                );
-              }
-            },
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+        ),
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Confirmar Exclusão'),
+            ],
           ),
-        ],
+          content: Text('Deseja excluir a marca ${marca.marca}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _excluirMarca(marca);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _carregarMarcas() async {
-    final lista = await MarcaService.listarMarcas();
-    setState(() {
-      _categorias = lista;
-      _categoriasFiltradas = lista;
-    });
+  Future<void> _excluirMarca(Marca marca) async {
+    setState(() => _isLoading = true);
+    try {
+      final sucesso = await MarcaService.excluirMarca(marca.id!);
+      if (sucesso) {
+        await _carregarMarcas();
+        _showSuccessSnackBar('Marca excluída com sucesso');
+      } else {
+        _showErrorSnackBar('Erro ao excluir marca');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Erro inesperado ao excluir marca');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _limparFormulario() {
     _formKey.currentState?.reset();
     _marcaController.clear();
-    _categoriaEmEdicao = null;
+    _marcaEmEdicao = null;
   }
 
-  Widget _buildListaMarcas() {
-    if (_categoriasFiltradas.isEmpty) {
-      return Center(
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: successColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: errorColor,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showFormModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _marcaEmEdicao != null ? Icons.edit : Icons.add,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _marcaEmEdicao != null ? 'Editar Marca' : 'Nova Marca',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: _buildFormulario(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Pesquisar marcas...',
+          prefixIcon: Icon(Icons.search, color: primaryColor),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrandGrid() {
+    if (_isLoadingMarcas) {
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Text(
-              _searchController.text.isEmpty ? 'Nenhuma marca cadastrada.' : 'Nenhuma marca encontrada para "${_searchController.text}".'),
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
         ),
       );
     }
 
-    return Column(
-      children: _categoriasFiltradas.map((marca) {
-        return Card(
-          child: ListTile(
-            title: Text(marca.marca),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.orange),
-                  onPressed: () => _editarMarca(marca),
+    if (_marcasFiltradas.isEmpty) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(
+                _searchController.text.isEmpty ? Icons.branding_watermark_outlined : Icons.search_off,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchController.text.isEmpty ? 'Nenhuma marca cadastrada' : 'Nenhum resultado encontrado',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _confirmarExclusao(marca),
+              ),
+              if (_searchController.text.isEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Comece adicionando sua primeira marca',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 2;
+        if (constraints.maxWidth > 1200) {
+          crossAxisCount = 4;
+        } else if (constraints.maxWidth > 800) {
+          crossAxisCount = 3;
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 1.4,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: _marcasFiltradas.length,
+          itemBuilder: (context, index) => _buildBrandCard(_marcasFiltradas[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildBrandCard(Marca marca) {
+    String initials = marca.marca.isNotEmpty ? marca.marca.substring(0, 1).toUpperCase() : '?';
+
+    if (marca.marca.contains(' ')) {
+      final words = marca.marca.split(' ');
+      if (words.length >= 2) {
+        initials = words[0].substring(0, 1).toUpperCase() + words[1].substring(0, 1).toUpperCase();
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarMarca(marca),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarMarca(marca);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(marca);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  marca.marca,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Icon(Icons.business, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      'ID: ${marca.id}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 
@@ -166,26 +505,80 @@ class _MarcaPageState extends State<CadastroMarcaPage> {
       key: _formKey,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _marcaController,
-              decoration: const InputDecoration(labelText: 'Marca', contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe a marca' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
+          _buildTextField(
+            controller: _marcaController,
+            label: 'Nome da Marca',
+            icon: Icons.branding_watermark,
+            validator: (v) => v!.isEmpty ? 'Informe o nome da marca' : null,
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _salvarMarca,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _marcaEmEdicao != null ? 'Atualizar Marca' : 'Cadastrar Marca',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: _salvarMarca,
-            child: const Text('Salvar'),
-          ),
-          const Divider(thickness: 2),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorColor),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
       ),
     );
   }
@@ -193,36 +586,78 @@ class _MarcaPageState extends State<CadastroMarcaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastro de Marcas')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ElevatedButton.icon(
-              icon: Icon(_showForm ? Icons.close : Icons.add),
-              label: Text(_showForm ? 'Cancelar Cadastro' : 'Nova Marca'),
-              onPressed: () => setState(() => _showForm = !_showForm),
-            ),
-            const SizedBox(height: 10),
-            if (_showForm) _buildFormulario(),
-            if (!_showForm)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar marca',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.clear), onPressed: () => _searchController.clear())
-                        : null,
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gestão de Marcas',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildSearchBar()),
+                  const SizedBox(width: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        _showFormModal();
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (_searchController.text.isEmpty && !_isLoadingMarcas && _marcasFiltradas.isNotEmpty)
+                Text(
+                  'Últimas Marcas Cadastradas',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
                   ),
                 ),
-              ),
-            const SizedBox(height: 10),
-            _buildListaMarcas(),
-          ],
+              if (_searchController.text.isNotEmpty && !_isLoadingMarcas)
+                Text(
+                  'Resultados da Busca (${_marcasFiltradas.length})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildBrandGrid(),
+            ],
+          ),
         ),
       ),
     );

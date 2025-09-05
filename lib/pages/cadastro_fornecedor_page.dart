@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../model/fornecedor.dart';
@@ -11,36 +12,56 @@ class CadastroFornecedorPage extends StatefulWidget {
   State<CadastroFornecedorPage> createState() => _CadastroFornecedorPageState();
 }
 
-class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
+class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-
   final _nomeController = TextEditingController();
   final _cnpjController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _margemLucroController = TextEditingController();
+  final _searchController = TextEditingController();
+
   final _maskCnpj = MaskTextInputFormatter(mask: '##.###.###/####-##', filter: {"#": RegExp(r'[0-9]')});
   final _maskTelefone = MaskTextInputFormatter(mask: '(##) #####-####', filter: {"#": RegExp(r'[0-9]')});
-  final _maskMargemLucro = MaskTextInputFormatter(
-    mask: '###',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
-  final _searchController = TextEditingController();
+  final _maskMargemLucro = MaskTextInputFormatter(mask: '###', filter: {"#": RegExp(r'[0-9]')});
+
   List<Fornecedor> _fornecedores = [];
   List<Fornecedor> _fornecedoresFiltrados = [];
-  bool _showForm = false;
   Fornecedor? _fornecedorEmEdicao;
+
+  bool _isLoading = false;
+  bool _isLoadingFornecedores = true;
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  static const Color primaryColor = Color(0xFF059669);
+  static const Color errorColor = Color(0xFFDC2626);
+  static const Color successColor = Color(0xFF16A34A);
+  static const Color warningColor = Color(0xFFF59E0B);
+  static const Color shadowColor = Color(0x1A000000);
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
     _limparFormulario();
     _carregarFornecedores();
     _searchController.addListener(_filtrarFornecedores);
   }
 
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut));
+    _fadeController.forward();
+  }
+
   @override
   void dispose() {
+    _fadeController.dispose();
     _searchController.removeListener(_filtrarFornecedores);
     _searchController.dispose();
     _nomeController.dispose();
@@ -51,33 +72,41 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
     super.dispose();
   }
 
-  List<Fornecedor> _getFiltrados(List<Fornecedor> allFornecedores) {
-    final query = _maskCnpj.unmaskText(_searchController.text);
-    if (query.isEmpty) {
-      return allFornecedores.take(3).toList();
-    } else {
-      return allFornecedores.where((fornecedor) {
-        return fornecedor.cnpj.contains(query);
-      }).toList();
-    }
-  }
-
   void _filtrarFornecedores() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      _fornecedoresFiltrados = _getFiltrados(_fornecedores);
+      if (query.isEmpty) {
+        _fornecedoresFiltrados = _fornecedores.take(6).toList();
+      } else {
+        _fornecedoresFiltrados = _fornecedores.where((fornecedor) {
+          final cnpjSemMascara = _maskCnpj.unmaskText(query);
+          return fornecedor.cnpj.contains(cnpjSemMascara) || fornecedor.nome.toLowerCase().contains(query);
+        }).toList();
+      }
     });
   }
 
   Future<void> _carregarFornecedores() async {
-    final lista = await FornecedorService.listarFornecedores();
-    setState(() {
-      _fornecedores = lista.reversed.toList();
-      _fornecedoresFiltrados = _getFiltrados(_fornecedores);
-    });
+    setState(() => _isLoadingFornecedores = true);
+    try {
+      final lista = await FornecedorService.listarFornecedores();
+      setState(() {
+        _fornecedores = lista.reversed.toList();
+        _filtrarFornecedores();
+      });
+    } catch (e) {
+      _showErrorSnackBar('Erro ao carregar fornecedores');
+    } finally {
+      setState(() => _isLoadingFornecedores = false);
+    }
   }
 
   void _salvarFornecedor() async {
-    if (_formKey.currentState!.validate()) {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
       final fornecedor = Fornecedor(
         id: _fornecedorEmEdicao?.id,
         nome: _nomeController.text,
@@ -92,17 +121,17 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
           : await FornecedorService.salvarFornecedor(fornecedor);
 
       if (sucesso) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_fornecedorEmEdicao != null ? "Fornecedor atualizado com sucesso" : "Fornecedor cadastrado com sucesso")),
-        );
+        _showSuccessSnackBar(_fornecedorEmEdicao != null ? "Fornecedor atualizado com sucesso" : "Fornecedor cadastrado com sucesso");
         _limparFormulario();
         await _carregarFornecedores();
-        setState(() => _showForm = false);
+        Navigator.of(context).pop();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erro ao salvar fornecedor")),
-        );
+        _showErrorSnackBar("Erro ao salvar fornecedor");
       }
+    } catch (e) {
+      _showErrorSnackBar("Erro inesperado ao salvar fornecedor");
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -119,35 +148,67 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
         _telefoneController.text = fornecedor.telefone.length == 11 ? _maskTelefone.maskText(fornecedor.telefone) : fornecedor.telefone;
       }
 
-      _showForm = true;
       _fornecedorEmEdicao = fornecedor;
     });
+    _showFormModal();
   }
 
   void _confirmarExclusao(Fornecedor fornecedor) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: Text('Deseja excluir o fornecedor ${fornecedor.nome}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final sucesso = await FornecedorService.excluirFornecedor(fornecedor.id!);
-              if (sucesso) {
-                await _carregarFornecedores();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fornecedor excluído com sucesso')));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao excluir fornecedor')));
-              }
-            },
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+      builder: (_) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: DialogTheme(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 8,
           ),
-        ],
+        ),
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Confirmar Exclusão'),
+            ],
+          ),
+          content: Text('Deseja excluir o fornecedor ${fornecedor.nome}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _excluirFornecedor(fornecedor);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _excluirFornecedor(Fornecedor fornecedor) async {
+    setState(() => _isLoading = true);
+    try {
+      final sucesso = await FornecedorService.excluirFornecedor(fornecedor.id!);
+      if (sucesso) {
+        await _carregarFornecedores();
+        _showSuccessSnackBar('Fornecedor excluído com sucesso');
+      } else {
+        _showErrorSnackBar('Erro ao excluir fornecedor');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Erro inesperado ao excluir fornecedor');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _limparFormulario() {
@@ -160,45 +221,367 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
     _fornecedorEmEdicao = null;
   }
 
-  Widget _buildListaFornecedores() {
-    if (_fornecedoresFiltrados.isEmpty) {
-      return Center(
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: successColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: errorColor,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showFormModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _fornecedorEmEdicao != null ? Icons.edit : Icons.add,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _fornecedorEmEdicao != null ? 'Editar Fornecedor' : 'Novo Fornecedor',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: _buildFormulario(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Pesquisar por nome ou CNPJ...',
+          prefixIcon: Icon(Icons.search, color: primaryColor),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _searchController.clear(),
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupplierGrid() {
+    if (_isLoadingFornecedores) {
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Text(_searchController.text.isEmpty
-              ? 'Nenhum fornecedor cadastrado.'
-              : 'Nenhum fornecedor encontrado para "${_searchController.text}".'),
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
         ),
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            _searchController.text.isEmpty ? 'Últimos Fornecedores Cadastrados' : 'Resultados da Busca',
-            style: Theme.of(context).textTheme.titleLarge,
+
+    if (_fornecedoresFiltrados.isEmpty) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(
+                _searchController.text.isEmpty ? Icons.store_outlined : Icons.search_off,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchController.text.isEmpty ? 'Nenhum fornecedor cadastrado' : 'Nenhum resultado encontrado',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_searchController.text.isEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Comece adicionando seu primeiro fornecedor',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ],
           ),
         ),
-        ..._fornecedoresFiltrados.map((fornecedor) {
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: ListTile(
-              title: Text(fornecedor.nome, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text("CNPJ: ${_maskCnpj.maskText(fornecedor.cnpj)}\nTelefone: ${_maskTelefone.maskText(fornecedor.telefone)}"),
-              isThreeLine: true,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(icon: const Icon(Icons.edit, color: Colors.orange), onPressed: () => _editarFornecedor(fornecedor)),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _confirmarExclusao(fornecedor)),
-                ],
-              ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 1;
+        if (constraints.maxWidth > 900) {
+          crossAxisCount = 2;
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: 1.2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: _fornecedoresFiltrados.length,
+          itemBuilder: (context, index) => _buildSupplierCard(_fornecedoresFiltrados[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildSupplierCard(Fornecedor fornecedor) {
+    final margem = (fornecedor.margemLucro ?? 0) * 100;
+    Color margemColor = successColor;
+
+    if (margem < 10) {
+      margemColor = errorColor;
+    } else if (margem < 20) {
+      margemColor = warningColor;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarFornecedor(fornecedor),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.store,
+                        color: primaryColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            fornecedor.nome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: margemColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '+${margem.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: margemColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarFornecedor(fornecedor);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(fornecedor);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildInfoRow(Icons.badge, _maskCnpj.maskText(fornecedor.cnpj)),
+                _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
+                _buildInfoRow(Icons.email, fornecedor.email),
+                const Spacer(),
+                Row(
+                  children: [
+                    Icon(Icons.trending_up, size: 16, color: margemColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Margem: ${margem.toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        color: margemColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          );
-        }),
-      ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -206,112 +589,155 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
     return Form(
       key: _formKey,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _nomeController,
-              decoration: InputDecoration(
-                  labelText: 'Nome do Fornecedor', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
-            ),
+          _buildTextField(
+            controller: _nomeController,
+            label: 'Nome do Fornecedor',
+            icon: Icons.store,
+            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _cnpjController,
-              decoration: InputDecoration(labelText: 'CNPJ', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              keyboardType: TextInputType.number,
-              inputFormatters: [_maskCnpj],
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Informe o CNPJ';
-                if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
-                return null;
-              },
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
-            ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _cnpjController,
+            label: 'CNPJ',
+            icon: Icons.badge,
+            keyboardType: TextInputType.number,
+            inputFormatters: [_maskCnpj],
+            validator: (v) {
+              if (v == null || v.isEmpty) return 'Informe o CNPJ';
+              if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
+              return null;
+            },
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _telefoneController,
-              decoration: InputDecoration(labelText: 'Telefone', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              keyboardType: TextInputType.number,
-              inputFormatters: [_maskTelefone],
-              validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(labelText: 'E-mail', contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              keyboardType: TextInputType.emailAddress,
-              validator: (email) {
-                if (email == null || email.isEmpty) {
-                  return 'Por favor, insira um e-mail';
-                }
-                final emailRegex = RegExp(
-                  r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                );
-                if (!emailRegex.hasMatch(email)) {
-                  return 'Por favor, insira um e-mail com formato válido';
-                }
-                return null;
-              },
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: TextFormField(
-              controller: _margemLucroController,
-              decoration: InputDecoration(
-                  labelText: 'Margem de Lucro (%)',
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _telefoneController,
+                  label: 'Telefone',
+                  icon: Icons.phone,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_maskTelefone],
+                  validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _margemLucroController,
+                  label: 'Margem de Lucro',
+                  icon: Icons.trending_up,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_maskMargemLucro],
                   suffixText: '%',
-                  hintText: 'Ex: 10',
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12)),
-              keyboardType: TextInputType.number,
-              inputFormatters: [_maskMargemLucro],
-              validator: (v) {
-                if (v == null || v.isEmpty) {
-                  return 'Informe a margem de lucro';
-                }
-                final value = int.tryParse(v);
-                if (value == null) {
-                  return 'Valor inválido';
-                }
-                return null;
-              },
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              onEditingComplete: () {
-                Form.of(context).validate();
-                FocusScope.of(context).nextFocus();
-              },
+                  validator: (v) {
+                    if (v == null || v.isEmpty) {
+                      return 'Informe a margem';
+                    }
+                    final value = int.tryParse(v);
+                    if (value == null) {
+                      return 'Valor inválido';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _emailController,
+            label: 'E-mail',
+            icon: Icons.email,
+            keyboardType: TextInputType.emailAddress,
+            validator: (email) {
+              if (email == null || email.isEmpty) {
+                return 'Por favor, insira um e-mail';
+              }
+              final emailRegex = RegExp(
+                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+              );
+              if (!emailRegex.hasMatch(email)) {
+                return 'Por favor, insira um e-mail válido';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _salvarFornecedor,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _fornecedorEmEdicao != null ? 'Atualizar Fornecedor' : 'Cadastrar Fornecedor',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: _salvarFornecedor, child: const Text('Salvar')),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
+    String? suffixText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixText: suffixText,
+        prefixIcon: Icon(icon, color: primaryColor),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorColor),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
       ),
     );
   }
@@ -319,40 +745,78 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastro de Fornecedores')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ElevatedButton.icon(
-              icon: Icon(_showForm ? Icons.close : Icons.add),
-              label: Text(_showForm ? 'Cancelar Cadastro' : 'Novo Fornecedor'),
-              onPressed: () => setState(() {
-                if (_showForm) _limparFormulario();
-                _showForm = !_showForm;
-              }),
-            ),
-            const SizedBox(height: 10),
-            if (_showForm) _buildFormulario(),
-            if (!_showForm)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar por CNPJ',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.clear), onPressed: () => _searchController.clear())
-                        : null,
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gestão de Fornecedores',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildSearchBar()),
+                  const SizedBox(width: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        _showFormModal();
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                    ),
                   ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [_maskCnpj],
-                ),
+                ],
               ),
-            if (!_showForm) _buildListaFornecedores(),
-          ],
+              const SizedBox(height: 24),
+              if (_searchController.text.isEmpty && !_isLoadingFornecedores && _fornecedoresFiltrados.isNotEmpty)
+                Text(
+                  'Últimos Fornecedores Cadastrados',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              if (_searchController.text.isNotEmpty && !_isLoadingFornecedores)
+                Text(
+                  'Resultados da Busca (${_fornecedoresFiltrados.length})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildSupplierGrid(),
+            ],
+          ),
         ),
       ),
     );

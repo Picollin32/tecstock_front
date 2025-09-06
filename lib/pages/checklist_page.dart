@@ -134,7 +134,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
     _testesFuncionamento.updateAll((key, value) => '');
 
- 
     _itensVeiculo.updateAll((key, value) => '');
   }
 
@@ -186,7 +185,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _loadRecentChecklists();
     _searchController.addListener(_filtrarRecentes);
 
-
     _fadeController.forward();
     _slideController.forward();
   }
@@ -209,7 +207,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _veiculoQuilometragemController.dispose();
     _queixaPrincipalController.dispose();
     _checklistNumberController.dispose();
-
 
     _inspecaoVisualObs.forEach((key, controller) => controller.dispose());
 
@@ -259,13 +256,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => [
-
           _buildPdfHeader(),
           pw.SizedBox(height: 16),
-
           _buildPdfClientVehicleData(),
           pw.SizedBox(height: 12),
-
           _buildPdfSection(
             'QUEIXA PRINCIPAL / SERVIÇO SOLICITADO',
             [],
@@ -273,10 +267,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             compact: true,
           ),
           pw.SizedBox(height: 12),
-
           _buildPdfInspectionTable(),
           pw.SizedBox(height: 12),
-
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -286,7 +278,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
           pw.SizedBox(height: 12),
-
           _buildPdfSection(
             'NÍVEL DE COMBUSTÍVEL',
             [],
@@ -684,9 +675,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
         ),
-
         pw.Spacer(),
-
         pw.Container(
           decoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColors.grey300),
@@ -704,7 +693,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 ),
               ),
               pw.SizedBox(height: 40),
-
               pw.Column(
                 children: [
                   pw.Container(
@@ -731,9 +719,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   ),
                 ],
               ),
-
               pw.SizedBox(height: 32),
-
               pw.Column(
                 children: [
                   pw.Container(
@@ -760,9 +746,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   ),
                 ],
               ),
-
               pw.SizedBox(height: 24),
-
               pw.Container(
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
@@ -778,9 +762,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
         ),
-
         pw.SizedBox(height: 16),
-
         pw.Center(
           child: pw.Text(
             'TecStock - Sistema de Gestão Automotiva',
@@ -794,6 +776,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       ],
     );
   }
+
   pw.Widget _buildResumoItem(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
@@ -848,7 +831,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 children: [
                   _buildModernHeader(colorScheme),
                   const SizedBox(height: 32),
-
                   if (_showForm) _buildFullForm(),
                   if (!_showForm) ...[
                     _buildSearchSection(colorScheme),
@@ -935,12 +917,19 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  if (_showForm) {
-                    _clearFormFields();
-                  } else {
-                    _clearFormFields();
-                  }
-                  setState(() => _showForm = !_showForm);
+                  setState(() {
+                    if (_showForm) {
+                      _clearFormFields();
+                      _editingChecklistId = null;
+                      _checklistNumberController.clear();
+                      _showForm = false;
+                    } else {
+                      _clearFormFields();
+                      _editingChecklistId = null;
+                      _checklistNumberController.clear();
+                      _showForm = true;
+                    }
+                  });
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -1484,7 +1473,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ],
             ),
           ),
-
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -1513,35 +1501,24 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     ),
                   ),
                 if (_editingChecklistId != null) const SizedBox(height: 24),
-
                 _buildFormSection('1. Dados do Cliente e Veículo', Icons.person_outline),
                 const SizedBox(height: 16),
                 _buildClientVehicleInfo(),
                 const SizedBox(height: 32),
-
                 _buildFormSection('2. Queixa Principal / Serviço Solicitado', Icons.report_problem_outlined),
                 const SizedBox(height: 16),
                 _buildComplaintSection(),
                 const SizedBox(height: 32),
-
                 _buildFormSection('3. Inspeção Visual (Avarias)', Icons.visibility_outlined),
                 const SizedBox(height: 16),
                 _buildVisualInspection(),
                 const SizedBox(height: 32),
-
                 _buildTestsAndItems(),
                 const SizedBox(height: 32),
-
                 _buildFormSection('6. Nível de Combustível', Icons.local_gas_station_outlined),
                 const SizedBox(height: 16),
                 _buildFuelLevel(),
                 const SizedBox(height: 32),
-
-                _buildFormSection('7. Assinaturas', Icons.edit_outlined),
-                const SizedBox(height: 16),
-                _buildSignatures(),
-                const SizedBox(height: 32),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -1679,7 +1656,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
   Future<void> _salvarChecklist() async {
     final numeroParaUsar = _editingChecklistId != null ? _checklistNumberController.text : '';
-    String _getStatusForBackend(String key, Map<String, String> source) {
+    String getStatusForBackend(String key, Map<String, String> source) {
       return source[key] ?? '';
     }
 
@@ -1700,19 +1677,19 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       veiculoQuilometragem: _veiculoQuilometragemController.text,
       queixaPrincipal: _queixaPrincipalController.text,
       nivelCombustivel: (_fuelLevel * 25).toInt(),
-      parachoquesDianteiro: _getStatusForBackend('Para-choque Dianteiro', _inspecaoVisualStatus),
-      parachoquesTraseiro: _getStatusForBackend('Para-choque Traseiro', _inspecaoVisualStatus),
-      capo: _getStatusForBackend('Capô', _inspecaoVisualStatus),
-      portaMalas: _getStatusForBackend('Porta-malas', _inspecaoVisualStatus),
-      portaDiantEsq: _getStatusForBackend('Porta Diant. Esq.', _inspecaoVisualStatus),
-      portaTrasEsq: _getStatusForBackend('Porta Tras. Esq.', _inspecaoVisualStatus),
-      portaDiantDir: _getStatusForBackend('Porta Diant. Dir.', _inspecaoVisualStatus),
-      portaTrasDir: _getStatusForBackend('Porta Tras. Dir.', _inspecaoVisualStatus),
-      teto: _getStatusForBackend('Teto', _inspecaoVisualStatus),
-      paraBrisa: _getStatusForBackend('Para-brisa', _inspecaoVisualStatus),
-      retrovisores: _getStatusForBackend('Retrovisores', _inspecaoVisualStatus),
-      pneusRodas: _getStatusForBackend('Pneus e Rodas', _inspecaoVisualStatus),
-      estepe: _getStatusForBackend('Estepe', _inspecaoVisualStatus),
+      parachoquesDianteiro: getStatusForBackend('Para-choque Dianteiro', _inspecaoVisualStatus),
+      parachoquesTraseiro: getStatusForBackend('Para-choque Traseiro', _inspecaoVisualStatus),
+      capo: getStatusForBackend('Capô', _inspecaoVisualStatus),
+      portaMalas: getStatusForBackend('Porta-malas', _inspecaoVisualStatus),
+      portaDiantEsq: getStatusForBackend('Porta Diant. Esq.', _inspecaoVisualStatus),
+      portaTrasEsq: getStatusForBackend('Porta Tras. Esq.', _inspecaoVisualStatus),
+      portaDiantDir: getStatusForBackend('Porta Diant. Dir.', _inspecaoVisualStatus),
+      portaTrasDir: getStatusForBackend('Porta Tras. Dir.', _inspecaoVisualStatus),
+      teto: getStatusForBackend('Teto', _inspecaoVisualStatus),
+      paraBrisa: getStatusForBackend('Para-brisa', _inspecaoVisualStatus),
+      retrovisores: getStatusForBackend('Retrovisores', _inspecaoVisualStatus),
+      pneusRodas: getStatusForBackend('Pneus e Rodas', _inspecaoVisualStatus),
+      estepe: getStatusForBackend('Estepe', _inspecaoVisualStatus),
       parachoquesDianteiroObs: _inspecaoVisualObs['Para-choque Dianteiro']?.text,
       parachoquesTraseiroObs: _inspecaoVisualObs['Para-choque Traseiro']?.text,
       capoObs: _inspecaoVisualObs['Capô']?.text,
@@ -1726,20 +1703,20 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       retrovisoresObs: _inspecaoVisualObs['Retrovisores']?.text,
       pneusRodasObs: _inspecaoVisualObs['Pneus e Rodas']?.text,
       estepeObs: _inspecaoVisualObs['Estepe']?.text,
-      buzina: _getStatusForBackend('Buzina', _testesFuncionamento),
-      farolBaixoAlto: _getStatusForBackend('Farol Baixo / Alto', _testesFuncionamento),
-      setasPiscaAlerta: _getStatusForBackend('Setas / Pisca-alerta', _testesFuncionamento),
-      luzFreio: _getStatusForBackend('Luz de Freio', _testesFuncionamento),
-      limpadorParaBrisa: _getStatusForBackend('Limpador de para-brisa', _testesFuncionamento),
-      arCondicionado: _getStatusForBackend('Ar Condicionado', _testesFuncionamento),
-      radioMultimidia: _getStatusForBackend('Rádio / Multimídia', _testesFuncionamento),
-      manualLivreto: _getStatusForBackend('Manual / Livreto', _itensVeiculo),
-      crlv: _getStatusForBackend('CRLV', _itensVeiculo),
-      chaveReserva: _getStatusForBackend('Chave Reserva', _itensVeiculo),
-      macaco: _getStatusForBackend('Macaco', _itensVeiculo),
-      chaveRoda: _getStatusForBackend('Chave de Roda', _itensVeiculo),
-      triangulo: _getStatusForBackend('Triângulo', _itensVeiculo),
-      tapetes: _getStatusForBackend('Tapetes', _itensVeiculo),
+      buzina: getStatusForBackend('Buzina', _testesFuncionamento),
+      farolBaixoAlto: getStatusForBackend('Farol Baixo / Alto', _testesFuncionamento),
+      setasPiscaAlerta: getStatusForBackend('Setas / Pisca-alerta', _testesFuncionamento),
+      luzFreio: getStatusForBackend('Luz de Freio', _testesFuncionamento),
+      limpadorParaBrisa: getStatusForBackend('Limpador de para-brisa', _testesFuncionamento),
+      arCondicionado: getStatusForBackend('Ar Condicionado', _testesFuncionamento),
+      radioMultimidia: getStatusForBackend('Rádio / Multimídia', _testesFuncionamento),
+      manualLivreto: getStatusForBackend('Manual / Livreto', _itensVeiculo),
+      crlv: getStatusForBackend('CRLV', _itensVeiculo),
+      chaveReserva: getStatusForBackend('Chave Reserva', _itensVeiculo),
+      macaco: getStatusForBackend('Macaco', _itensVeiculo),
+      chaveRoda: getStatusForBackend('Chave de Roda', _itensVeiculo),
+      triangulo: getStatusForBackend('Triângulo', _itensVeiculo),
+      tapetes: getStatusForBackend('Tapetes', _itensVeiculo),
     );
 
     bool sucesso = false;
@@ -2121,7 +2098,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
           ),
           const SizedBox(height: 12),
-          ...items.map((item) => _buildInspectionRow(item)).toList(),
+          ...items.map((item) => _buildInspectionRow(item)),
         ],
       ),
     );
@@ -2360,61 +2337,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildSignatures() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSignatureLine('Assinatura do Cliente'),
-          _buildSignatureLine('Assinatura do Recepcionista'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSignatureLine(String label) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          children: [
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!, width: 2, style: BorderStyle.solid),
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.white,
-              ),
-              child: Center(
-                child: Text(
-                  'Área de Assinatura',
-                  style: TextStyle(
-                    color: Colors.grey[400],
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _StatusSelector extends StatefulWidget {

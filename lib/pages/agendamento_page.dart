@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../model/agendamento.dart';
 import '../model/veiculo.dart';
+import '../model/funcionario.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/agendamento_service.dart';
 import '../services/veiculo_service.dart';
+import '../services/funcionario_service.dart';
 
 enum AgendamentoStep { calendario, horarios }
 
@@ -26,6 +28,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   final Map<DateTime, List<Agendamento>> _events = {};
 
   List<Veiculo> _veiculos = [];
+  List<Funcionario> _funcionarios = [];
   final _maskPlaca = MaskTextInputFormatter(
       mask: 'AAA-#X##',
       filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
@@ -33,6 +36,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   final _upperCaseFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
     return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
   });
+
+  bool _placaExiste(String placa) {
+    return _veiculos.any((veiculo) => veiculo.placa == placa);
+  }
+
+  bool _mecanicoExiste(String nome) {
+    return _funcionarios.any((funcionario) => funcionario.nome == nome);
+  }
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -69,6 +80,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     _initializeAnimations();
     _loadEvents();
     _carregarVeiculos();
+    _carregarMecanicos();
   }
 
   void _initializeAnimations() {
@@ -85,6 +97,20 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     setState(() {
       _veiculos = lista.reversed.toList();
     });
+  }
+
+  Future<void> _carregarMecanicos() async {
+    try {
+      final lista = await Funcionarioservice.listarFuncionarios();
+      setState(() {
+        _funcionarios = lista.reversed.toList();
+      });
+    } catch (e) {
+      print('Erro ao carregar funcionários: $e');
+      setState(() {
+        _funcionarios = [];
+      });
+    }
   }
 
   @override
@@ -123,6 +149,123 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       });
       _selectedEvents.value = _getEventsForDay(selectedDay);
     }
+  }
+
+  void _showDatePicker() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        int selectedYear = _focusedDay.year;
+        int selectedMonth = _focusedDay.month;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                dialogTheme: DialogTheme(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 8,
+                ),
+              ),
+              child: AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.date_range, color: primaryColor),
+                    const SizedBox(width: 12),
+                    const Text('Selecionar Mês/Ano'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonFormField<int>(
+                        value: selectedYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Ano',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        items: List.generate(26, (index) => 2025 + index)
+                            .map((year) => DropdownMenuItem(
+                                  value: year,
+                                  child: Text(year.toString()),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedYear = value);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonFormField<int>(
+                        value: selectedMonth,
+                        decoration: const InputDecoration(
+                          labelText: 'Mês',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(Icons.event),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 1, child: Text('Janeiro')),
+                          DropdownMenuItem(value: 2, child: Text('Fevereiro')),
+                          DropdownMenuItem(value: 3, child: Text('Março')),
+                          DropdownMenuItem(value: 4, child: Text('Abril')),
+                          DropdownMenuItem(value: 5, child: Text('Maio')),
+                          DropdownMenuItem(value: 6, child: Text('Junho')),
+                          DropdownMenuItem(value: 7, child: Text('Julho')),
+                          DropdownMenuItem(value: 8, child: Text('Agosto')),
+                          DropdownMenuItem(value: 9, child: Text('Setembro')),
+                          DropdownMenuItem(value: 10, child: Text('Outubro')),
+                          DropdownMenuItem(value: 11, child: Text('Novembro')),
+                          DropdownMenuItem(value: 12, child: Text('Dezembro')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedMonth = value);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime(selectedYear, selectedMonth, 1);
+                      });
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Aplicar'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Map<String, dynamic> _getServiceInfo(String service) {
@@ -191,33 +334,9 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         opacity: _fadeAnimation,
         child: Column(
           children: [
-            if (_currentStep == AgendamentoStep.horarios) _buildBackButton(),
             Expanded(child: _buildCurrentStepView()),
             if (_currentStep == AgendamentoStep.calendario) _buildLegend(),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackButton() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.arrow_back),
-          label: const Text("Voltar para o Calendário"),
-          onPressed: () => setState(() => _currentStep = AgendamentoStep.calendario),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: primaryColor,
-            elevation: 2,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
         ),
       ),
     );
@@ -258,12 +377,53 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               children: [
                 Icon(Icons.calendar_month, color: Colors.white, size: 24),
                 const SizedBox(width: 12),
-                Text(
-                  'Selecione uma Data',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    'Selecione uma Data',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                AnimatedScale(
+                  scale: 1.0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _showDatePicker,
+                      borderRadius: BorderRadius.circular(8),
+                      splashColor: Colors.white.withOpacity(0.3),
+                      highlightColor: Colors.white.withOpacity(0.1),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.date_range, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -299,7 +459,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               ),
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
-                weekendTextStyle: const TextStyle(color: Colors.red),
+                weekendTextStyle: const TextStyle(color: Colors.black),
                 holidayTextStyle: const TextStyle(color: Colors.red),
                 selectedDecoration: BoxDecoration(
                   color: secondaryColor,
@@ -314,23 +474,57 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   shape: BoxShape.circle,
                 ),
                 markersMaxCount: 3,
+                defaultTextStyle: TextStyle(color: primaryColor),
+              ),
+              calendarBuilders: CalendarBuilders(
+                defaultBuilder: (context, day, focusedDay) {
+                  if (day.weekday == DateTime.sunday) {
+                    return Container(
+                      margin: const EdgeInsets.all(4.0),
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        day.day.toString(),
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  }
+                  return null;
+                },
+                dowBuilder: (context, day) {
+                  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+                  final dayText = labels[day.weekday - 1];
+                  final isRed = day.weekday == DateTime.sunday;
+
+                  return Container(
+                    alignment: Alignment.center,
+                    child: Text(
+                      dayText,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isRed ? Colors.red : primaryColor,
+                      ),
+                    ),
+                  );
+                },
               ),
               daysOfWeekStyle: DaysOfWeekStyle(
                 weekdayStyle: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: primaryColor,
                 ),
-                weekendStyle: const TextStyle(
+                weekendStyle: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.red,
+                  color: primaryColor,
                 ),
-                dowTextFormatter: (date, locale) {
-                  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-                  return labels[date.weekday - 1];
-                },
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                ),
               ),
-              firstDay: DateTime.utc(2020),
-              lastDay: DateTime.utc(2030),
+              firstDay: DateTime.utc(2025),
+              lastDay: DateTime.utc(2050),
               focusedDay: _focusedDay,
               calendarFormat: _calendarFormat,
               selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
@@ -377,22 +571,50 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.today, color: Colors.white, size: 32),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    AnimatedScale(
+                      scale: 1.0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => setState(() => _currentStep = AgendamentoStep.calendario),
+                          borderRadius: BorderRadius.circular(12),
+                          splashColor: Colors.white.withOpacity(0.3),
+                          highlightColor: Colors.white.withOpacity(0.1),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_new,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
                         _formatDate(_selectedDay!),
                         style: const TextStyle(
                           color: Colors.white,
@@ -400,47 +622,67 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.schedule, color: Colors.white.withOpacity(0.9), size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${agendamentosDodia.length} agendamento${agendamentosDodia.length != 1 ? 's' : ''}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                if (agendamentosDodia.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.schedule, color: Colors.white, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_calculateDuration(agendamentosOrdenados)}h',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showHorarioSelectionDialog(),
+                        borderRadius: BorderRadius.circular(12),
+                        splashColor: Colors.white.withOpacity(0.3),
+                        highlightColor: Colors.white.withOpacity(0.1),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_circle_outline, color: Colors.white, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Novo',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.event, color: Colors.white.withOpacity(0.9), size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${agendamentosDodia.length} agendamento${agendamentosDodia.length != 1 ? 's' : ''}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -462,44 +704,9 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           ] else
             _buildEnhancedEmptyState(),
           const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [secondaryColor, secondaryColor.withOpacity(0.8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: secondaryColor.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.add_circle_outline, size: 24),
-              label: const Text(
-                'Novo Agendamento',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              onPressed: () => _showHorarioSelectionDialog(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                shadowColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
           if (agendamentosOrdenados.isNotEmpty) ...[
-            const SizedBox(height: 20),
             _buildQuickStats(agendamentosOrdenados),
+            const SizedBox(height: 20),
           ],
         ],
       ),
@@ -523,35 +730,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     ];
 
     return '${date.day} de ${months[date.month - 1]}';
-  }
-
-  String _calculateDuration(List<Agendamento> agendamentos) {
-    if (agendamentos.isEmpty) return '0.0';
-
-    double totalHours = 0;
-    for (var agendamento in agendamentos) {
-      if (agendamento.horaInicio != null &&
-          agendamento.horaFim != null &&
-          agendamento.horaInicio!.isNotEmpty &&
-          agendamento.horaFim!.isNotEmpty) {
-        final inicio = _parseTime(agendamento.horaInicio!);
-        final fim = _parseTime(agendamento.horaFim!);
-        if (inicio != null && fim != null) {
-          final diffMinutes = fim.difference(inicio).inMinutes;
-          if (diffMinutes > 0) {
-            totalHours += diffMinutes / 60.0;
-          } else {
-            totalHours += 1.0;
-          }
-        } else {
-          totalHours += 1.0;
-        }
-      } else {
-        totalHours += 1.0;
-      }
-    }
-
-    return totalHours.toStringAsFixed(1);
   }
 
   DateTime? _parseTime(String timeStr) {
@@ -1265,15 +1443,68 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextField(
-                        controller: mecanicoController,
-                        decoration: InputDecoration(
-                          labelText: 'Mecânico',
-                          prefixIcon: Icon(Icons.person, color: secondaryColor),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                      Autocomplete<String>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          final query = textEditingValue.text.toLowerCase();
+                          if (query.isEmpty) return const Iterable<String>.empty();
+                          return _funcionarios.map((funcionario) => funcionario.nome).where((nome) {
+                            return nome.toLowerCase().contains(query);
+                          });
+                        },
+                        displayStringForOption: (option) => option,
+                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                          if (textEditingController.text.isEmpty && mecanicoController.text.isNotEmpty) {
+                            textEditingController.text = mecanicoController.text;
+                            textEditingController.selection = mecanicoController.selection;
+                          }
+                          textEditingController.addListener(() {
+                            if (mecanicoController.text != textEditingController.text) {
+                              mecanicoController.text = textEditingController.text;
+                              mecanicoController.selection = textEditingController.selection;
+                            }
+                          });
+
+                          return TextField(
+                            controller: textEditingController,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Mecânico',
+                              prefixIcon: Icon(Icons.person, color: secondaryColor),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          final optList = options.toList();
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              borderRadius: BorderRadius.circular(8),
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 250),
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  padding: EdgeInsets.zero,
+                                  itemCount: optList.length,
+                                  itemBuilder: (context, index) {
+                                    final option = optList[index];
+                                    return ListTile(
+                                      dense: true,
+                                      title: Text(option),
+                                      onTap: () => onSelected(option),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        onSelected: (String selection) {
+                          mecanicoController.text = selection;
+                        },
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -1353,6 +1584,16 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       ElevatedButton(
                         onPressed: () async {
                           if (placaController.text.isNotEmpty && mecanicoController.text.isNotEmpty && selectedService != null) {
+                            if (!_placaExiste(placaController.text)) {
+                              _showErrorSnackBar('Esta placa não está cadastrada no sistema');
+                              return;
+                            }
+
+                            if (!_mecanicoExiste(mecanicoController.text)) {
+                              _showErrorSnackBar('Este mecânico não está cadastrado no sistema');
+                              return;
+                            }
+
                             String? horaInicioFormatada = _formatarHorario(inicioPref);
                             String? horaFimFormatada = _formatarHorario(fimPref);
 

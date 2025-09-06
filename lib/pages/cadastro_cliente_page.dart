@@ -72,14 +72,17 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   }
 
   void _filtrarClientes() {
-    final query = _searchController.text.toLowerCase();
+    final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
         _clientesFiltrados = _clientes.take(6).toList();
       } else {
-        final cpfSemMascara = _maskCpf.unmaskText(query);
         _clientesFiltrados = _clientes.where((cliente) {
-          return cliente.cpf.contains(cpfSemMascara) || cliente.nome.toLowerCase().contains(query);
+          final nomeMatch = cliente.nome.toLowerCase().contains(query);
+          final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
+          final cpfMatch = cliente.cpf.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
+
+          return nomeMatch || cpfMatch;
         }).toList();
       }
     });

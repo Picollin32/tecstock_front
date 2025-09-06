@@ -323,9 +323,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
         }
 
-        // Limitar a 5 atividades mais recentes
-        if (_recentActivities.length > 5) {
-          _recentActivities = _recentActivities.take(5).toList();
+        if (_recentActivities.length > 100) {
+          _recentActivities = _recentActivities.take(100).toList();
         }
 
         _isLoadingStats = false;

@@ -74,14 +74,17 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   }
 
   void _filtrarFornecedores() {
-    final query = _searchController.text.toLowerCase();
+    final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
         _fornecedoresFiltrados = _fornecedores.take(6).toList();
       } else {
         _fornecedoresFiltrados = _fornecedores.where((fornecedor) {
-          final cnpjSemMascara = _maskCnpj.unmaskText(query);
-          return fornecedor.cnpj.contains(cnpjSemMascara) || fornecedor.nome.toLowerCase().contains(query);
+          final nomeMatch = fornecedor.nome.toLowerCase().contains(query);
+          final cnpjSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
+          final cnpjMatch = fornecedor.cnpj.contains(cnpjSemMascara) && cnpjSemMascara.isNotEmpty;
+
+          return nomeMatch || cnpjMatch;
         }).toList();
       }
     });

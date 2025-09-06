@@ -78,14 +78,17 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   }
 
   void _filtrarFuncionarios() {
-    final query = _searchController.text.toLowerCase();
+    final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
         _funcionariosFiltrados = _funcionarios.take(6).toList();
       } else {
-        final cpfSemMascara = _maskCpf.unmaskText(query);
         _funcionariosFiltrados = _funcionarios.where((funcionario) {
-          return funcionario.cpf.contains(cpfSemMascara) || funcionario.nome.toLowerCase().contains(query);
+          final nomeMatch = funcionario.nome.toLowerCase().contains(query);
+          final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
+          final cpfMatch = funcionario.cpf.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
+
+          return nomeMatch || cpfMatch;
         }).toList();
       }
     });

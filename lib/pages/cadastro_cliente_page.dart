@@ -143,20 +143,26 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         dataNascimento: dataNascimentoFormatada,
       );
 
-      final sucesso = _clienteEmEdicao != null
+      final resultado = _clienteEmEdicao != null
           ? await ClienteService.atualizarCliente(_clienteEmEdicao!.id!, cliente)
           : await ClienteService.salvarCliente(cliente);
 
-      if (sucesso) {
-        _showSuccessSnackBar(_clienteEmEdicao != null ? "Cliente atualizado com sucesso" : "Cliente cadastrado com sucesso");
+      if (resultado['success']) {
+        _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarClientes();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar cliente");
+        _showErrorSnackBar(resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar cliente");
+      String errorMessage = "Erro inesperado ao salvar cliente";
+      if (e.toString().contains('CPF já cadastrado')) {
+        errorMessage = "Este CPF já está cadastrado no sistema";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Dados já cadastrados no sistema";
+      }
+      _showErrorSnackBar(errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -564,6 +570,24 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                 _buildInfoRow(Icons.email, cliente.email),
                 _buildInfoRow(Icons.cake, DateFormat('dd/MM/yyyy').format(cliente.dataNascimento)),
                 const Spacer(),
+                if (cliente.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(cliente.createdAt!)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Row(
                   children: [
                     Icon(Icons.person, size: 16, color: Colors.grey[600]),

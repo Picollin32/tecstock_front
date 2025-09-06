@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../services/fabricante_service.dart';
 
@@ -435,13 +436,14 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'ID: ${fabricante.id}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                      if (fabricante.createdAt != null)
+                        Text(
+                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(fabricante.createdAt!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

@@ -33,6 +33,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   bool _isLoading = false;
   bool _isLoadingPecas = true;
+  bool _filtrarApenasCriticas = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -119,12 +120,24 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   void _filtrarPecas() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      if (query.isEmpty) {
-        _pecasFiltradas = _pecas.take(6).toList();
-      } else {
-        _pecasFiltradas = _pecas.where((peca) {
+      List<Peca> pecasFiltradas = _pecas;
+
+      if (query.isNotEmpty) {
+        pecasFiltradas = pecasFiltradas.where((peca) {
           return peca.codigoFabricante.toLowerCase().contains(query) || peca.nome.toLowerCase().contains(query);
         }).toList();
+      }
+
+      if (_filtrarApenasCriticas) {
+        pecasFiltradas = pecasFiltradas.where((peca) {
+          return peca.quantidadeEstoque <= 6;
+        }).toList();
+      }
+
+      if (query.isEmpty && !_filtrarApenasCriticas) {
+        _pecasFiltradas = pecasFiltradas.take(6).toList();
+      } else {
+        _pecasFiltradas = pecasFiltradas;
       }
     });
   }
@@ -407,32 +420,50 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     }
 
     if (_pecasFiltradas.isEmpty) {
+      String emptyMessage;
+      String emptySubtitle;
+      IconData emptyIcon;
+
+      if (_filtrarApenasCriticas) {
+        emptyMessage = 'Nenhuma peça crítica encontrada';
+        emptySubtitle = 'Todas as peças têm estoque adequado!';
+        emptyIcon = Icons.check_circle_outline;
+      } else if (_searchController.text.isNotEmpty) {
+        emptyMessage = 'Nenhum resultado encontrado';
+        emptySubtitle = 'Tente ajustar os termos da busca';
+        emptyIcon = Icons.search_off;
+      } else {
+        emptyMessage = 'Nenhuma peça cadastrada';
+        emptySubtitle = 'Comece adicionando sua primeira peça';
+        emptyIcon = Icons.inventory_2_outlined;
+      }
+
       return Center(
         child: Container(
           padding: const EdgeInsets.all(40),
           child: Column(
             children: [
               Icon(
-                _searchController.text.isEmpty ? Icons.inventory_2_outlined : Icons.search_off,
+                emptyIcon,
                 size: 64,
-                color: Colors.grey[400],
+                color: _filtrarApenasCriticas ? successColor : Colors.grey[400],
               ),
               const SizedBox(height: 16),
               Text(
-                _searchController.text.isEmpty ? 'Nenhuma peça cadastrada' : 'Nenhum resultado encontrado',
+                emptyMessage,
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey[600],
+                  color: _filtrarApenasCriticas ? successColor : Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (_searchController.text.isEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Comece adicionando sua primeira peça',
-                  style: TextStyle(color: Colors.grey[500]),
+              const SizedBox(height: 8),
+              Text(
+                emptySubtitle,
+                style: TextStyle(
+                  color: _filtrarApenasCriticas ? successColor.withOpacity(0.7) : Colors.grey[500],
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -592,11 +623,15 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Map<String, dynamic> _getStockStatus(int quantidade) {
     if (quantidade <= 0) {
       return {'icon': Icons.error, 'color': errorColor};
-    } else if (quantidade <= 10) {
+    } else if (quantidade <= 6) {
       return {'icon': Icons.warning, 'color': warningColor};
     } else {
       return {'icon': Icons.check_circle, 'color': successColor};
     }
+  }
+
+  int _contarPecasCriticas() {
+    return _pecas.where((peca) => peca.quantidadeEstoque <= 6).length;
   }
 
   Widget _buildInfoRow(IconData icon, String text, {bool isPrice = false, bool isFinalPrice = false}) {
@@ -902,7 +937,66 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               Row(
                 children: [
                   Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _filtrarApenasCriticas ? errorColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_filtrarApenasCriticas ? errorColor : Colors.grey).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _filtrarApenasCriticas = !_filtrarApenasCriticas;
+                            });
+                            _filtrarPecas();
+                          },
+                          icon: Icon(
+                            Icons.warning_amber,
+                            color: _filtrarApenasCriticas ? Colors.white : Colors.grey[600],
+                          ),
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          tooltip: _filtrarApenasCriticas ? 'Mostrar todas as peças' : 'Filtrar peças críticas (estoque baixo/zerado)',
+                        ),
+                      ),
+                      if (_contarPecasCriticas() > 0 && !_filtrarApenasCriticas)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: errorColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              '${_contarPecasCriticas()}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
                   Container(
                     decoration: BoxDecoration(
                       color: primaryColor,
@@ -928,7 +1022,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ],
               ),
               const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
+              if (_searchController.text.isEmpty && !_filtrarApenasCriticas && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
                 Text(
                   'Últimas Peças Cadastradas',
                   style: TextStyle(
@@ -937,13 +1031,28 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     color: Colors.grey[800],
                   ),
                 ),
+              if (_filtrarApenasCriticas && _searchController.text.isEmpty && !_isLoadingPecas)
+                Row(
+                  children: [
+                    Icon(Icons.warning_amber, color: errorColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Peças com Estoque Crítico (${_pecasFiltradas.length})',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: errorColor,
+                      ),
+                    ),
+                  ],
+                ),
               if (_searchController.text.isNotEmpty && !_isLoadingPecas)
                 Text(
-                  'Resultados da Busca (${_pecasFiltradas.length})',
+                  'Resultados da Busca${_filtrarApenasCriticas ? ' - Apenas Críticas' : ''} (${_pecasFiltradas.length})',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+                    color: _filtrarApenasCriticas ? errorColor : Colors.grey[800],
                   ),
                 ),
               const SizedBox(height: 16),

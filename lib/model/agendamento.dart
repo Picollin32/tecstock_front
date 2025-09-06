@@ -6,6 +6,7 @@ class Agendamento {
   final String placaVeiculo;
   final String nomeMecanico;
   final String cor;
+  final DateTime? createdAt;
 
   Agendamento({
     this.id,
@@ -15,6 +16,7 @@ class Agendamento {
     required this.placaVeiculo,
     required this.nomeMecanico,
     required this.cor,
+    this.createdAt,
   });
 
   factory Agendamento.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class Agendamento {
       placaVeiculo: json['placaVeiculo'],
       nomeMecanico: json['nomeMecanico'],
       cor: json['cor'],
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
   }
 
@@ -46,6 +49,7 @@ class Agendamento {
       'placaVeiculo': placaVeiculo,
       'nomeMecanico': nomeMecanico,
       'cor': cor,
+      'createdAt': createdAt?.toIso8601String(),
     };
     if (horaInicio != null) map['horaInicio'] = horaInicio;
     if (horaFim != null) map['horaFim'] = horaFim;

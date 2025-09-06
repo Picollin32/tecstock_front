@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../model/servico.dart';
 import '../services/servico_service.dart';
 
@@ -598,19 +599,20 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                   ),
                 ],
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.auto_fix_high, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'ID: ${servico.id}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
+                if (servico.createdAt != null)
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Cadastrado em ${DateFormat('dd/MM/yyyy').format(servico.createdAt!)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),

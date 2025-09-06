@@ -5,6 +5,7 @@ class Cliente {
   String email;
   String cpf;
   DateTime dataNascimento;
+  DateTime? createdAt;
 
   Cliente({
     this.id,
@@ -13,6 +14,7 @@ class Cliente {
     required this.email,
     required this.cpf,
     required this.dataNascimento,
+    this.createdAt,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class Cliente {
       email: json['email'],
       cpf: json['cpf'],
       dataNascimento: DateTime.parse(json['dataNascimento']),
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
   }
 
@@ -34,6 +37,7 @@ class Cliente {
       'email': email,
       'cpf': cpf,
       'dataNascimento': dataNascimento.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }

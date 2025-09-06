@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:TecStock/model/marca.dart';
+import 'package:intl/intl.dart';
 import '../services/marca_service.dart';
 
 class CadastroMarcaPage extends StatefulWidget {
@@ -479,19 +480,20 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Spacer(),
-                Row(
-                  children: [
-                    Icon(Icons.business, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'ID: ${marca.id}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
+                if (marca.createdAt != null)
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Cadastrado em ${DateFormat('dd/MM/yyyy').format(marca.createdAt!)}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),

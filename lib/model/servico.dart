@@ -3,12 +3,14 @@ class Servico {
   String nome;
   double? precoPasseio;
   double? precoCaminhonete;
+  DateTime? createdAt;
 
   Servico({
     this.id,
     required this.nome,
     this.precoPasseio,
     this.precoCaminhonete,
+    this.createdAt,
   });
 
   factory Servico.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class Servico {
       nome: json['nome'] ?? '',
       precoPasseio: parseDouble(json['precoPasseio']),
       precoCaminhonete: parseDouble(json['precoCaminhonete']),
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
     );
   }
 
@@ -32,6 +35,7 @@ class Servico {
       'nome': nome,
       'precoPasseio': precoPasseio,
       'precoCaminhonete': precoCaminhonete,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../model/agendamento.dart';
 import '../model/veiculo.dart';
@@ -185,33 +186,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonFormField<int>(
-                        value: selectedYear,
-                        decoration: const InputDecoration(
-                          labelText: 'Ano',
-                          border: InputBorder.none,
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
-                        items: List.generate(26, (index) => 2025 + index)
-                            .map((year) => DropdownMenuItem(
-                                  value: year,
-                                  child: Text(year.toString()),
-                                ))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setDialogState(() => selectedYear = value);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButtonFormField<int>(
                         value: selectedMonth,
                         decoration: const InputDecoration(
                           labelText: 'Mês',
@@ -235,6 +209,33 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         onChanged: (value) {
                           if (value != null) {
                             setDialogState(() => selectedMonth = value);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey[300]!),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonFormField<int>(
+                        value: selectedYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Ano',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        items: List.generate(26, (index) => 2025 + index)
+                            .map((year) => DropdownMenuItem(
+                                  value: year,
+                                  child: Text(year.toString()),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedYear = value);
                           }
                         },
                       ),
@@ -275,6 +276,25 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           'icon': Icons.work,
           'lightColor': Colors.grey[100],
         };
+  }
+
+  List<Color> _getCoresServicosNoDia(DateTime day) {
+    final agendamentosNoDia = _getEventsForDay(day);
+    final tiposServicos = <String>{};
+
+    for (final agendamento in agendamentosNoDia) {
+      tiposServicos.add(agendamento.cor);
+    }
+
+    final tiposOrdenados = tiposServicos.toList()..sort();
+    final coresOrdenadas = <Color>[];
+
+    for (final tipo in tiposOrdenados) {
+      final serviceInfo = _getServiceInfo(tipo);
+      coresOrdenadas.add(serviceInfo['color']);
+    }
+
+    return coresOrdenadas;
   }
 
   void _showSuccessSnackBar(String message) {
@@ -469,11 +489,10 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   color: primaryColor.withOpacity(0.7),
                   shape: BoxShape.circle,
                 ),
-                markerDecoration: BoxDecoration(
-                  color: successColor,
-                  shape: BoxShape.circle,
+                markerDecoration: const BoxDecoration(
+                  color: Colors.transparent,
                 ),
-                markersMaxCount: 3,
+                markersMaxCount: 0,
                 defaultTextStyle: TextStyle(color: primaryColor),
               ),
               calendarBuilders: CalendarBuilders(
@@ -492,6 +511,30 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     );
                   }
                   return null;
+                },
+                markerBuilder: (context, day, events) {
+                  final cores = _getCoresServicosNoDia(day);
+                  if (cores.isEmpty) return null;
+
+                  return Positioned(
+                    bottom: 4,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: cores
+                          .take(3)
+                          .map((cor) => Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color: cor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 1),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  );
                 },
                 dowBuilder: (context, day) {
                   const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -945,6 +988,22 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             ),
                           ],
                         ),
+                        if (agendamento.createdAt != null) ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Cadastrado em ${DateFormat('dd/MM/yyyy').format(agendamento.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1170,6 +1229,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               color: Colors.grey[700],
             ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            'As bolinhas coloridas indicam os tipos de serviços agendados no dia',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 16,
@@ -1178,12 +1245,21 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(entry.value['icon'], color: entry.value['color'], size: 16),
-                  const SizedBox(width: 6),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: entry.value['color'],
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     entry.key,
                     style: TextStyle(
                       fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: Colors.grey[700],
                     ),
                   ),

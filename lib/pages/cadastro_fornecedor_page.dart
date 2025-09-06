@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../model/fornecedor.dart';
@@ -116,20 +117,26 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         margemLucro: (int.tryParse(_margemLucroController.text) ?? 0) / 100,
       );
 
-      final sucesso = _fornecedorEmEdicao != null
+      final resultado = _fornecedorEmEdicao != null
           ? await FornecedorService.atualizarFornecedor(_fornecedorEmEdicao!.id!, fornecedor)
           : await FornecedorService.salvarFornecedor(fornecedor);
 
-      if (sucesso) {
-        _showSuccessSnackBar(_fornecedorEmEdicao != null ? "Fornecedor atualizado com sucesso" : "Fornecedor cadastrado com sucesso");
+      if (resultado['success']) {
+        _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarFornecedores();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar fornecedor");
+        _showErrorSnackBar(resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar fornecedor");
+      String errorMessage = "Erro inesperado ao salvar fornecedor";
+      if (e.toString().contains('CNPJ já cadastrado')) {
+        errorMessage = "Este CNPJ já está cadastrado no sistema";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Dados já cadastrados no sistema";
+      }
+      _showErrorSnackBar(errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -540,6 +547,24 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
                 _buildInfoRow(Icons.email, fornecedor.email),
                 const Spacer(),
+                if (fornecedor.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(fornecedor.createdAt!)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Row(
                   children: [
                     Icon(Icons.trending_up, size: 16, color: margemColor),

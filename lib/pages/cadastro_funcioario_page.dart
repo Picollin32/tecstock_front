@@ -566,6 +566,24 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                 _buildInfoRow(Icons.email, funcionario.email),
                 _buildInfoRow(Icons.cake, '$idade anos'),
                 const Spacer(),
+                if (funcionario.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(funcionario.createdAt!)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Row(
                   children: [
                     Icon(Icons.work, size: 16, color: Colors.grey[600]),

@@ -3,6 +3,7 @@ import 'package:TecStock/model/veiculo.dart';
 import 'package:TecStock/services/marca_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/veiculo_service.dart';
 
@@ -156,20 +157,26 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         categoria: _categoriaSelecionada!,
       );
 
-      final sucesso = _veiculoEmEdicao != null
+      final resultado = _veiculoEmEdicao != null
           ? await VeiculoService.atualizarVeiculo(veiculo.id!, veiculo)
           : await VeiculoService.salvarVeiculo(veiculo);
 
-      if (sucesso) {
-        _showSuccessSnackBar(_veiculoEmEdicao != null ? "Veículo atualizado com sucesso" : "Veículo cadastrado com sucesso");
+      if (resultado['success']) {
+        _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarVeiculos();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar veículo");
+        _showErrorSnackBar(resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar veículo");
+      String errorMessage = "Erro inesperado ao salvar veículo";
+      if (e.toString().contains('Placa já cadastrada')) {
+        errorMessage = "Esta placa já está cadastrada no sistema";
+      } else if (e.toString().contains('já cadastrada')) {
+        errorMessage = "Dados já cadastrados no sistema";
+      }
+      _showErrorSnackBar(errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -555,6 +562,24 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                 _buildInfoRow(Icons.palette, veiculo.cor),
                 _buildInfoRow(Icons.speed, '${veiculo.quilometragem.toStringAsFixed(0)} km'),
                 const Spacer(),
+                if (veiculo.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(veiculo.createdAt!)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(

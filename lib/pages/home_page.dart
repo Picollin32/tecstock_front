@@ -10,6 +10,12 @@ import 'package:TecStock/services/agendamento_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
 import 'package:TecStock/services/veiculo_service.dart';
 import 'package:TecStock/services/checklist_service.dart';
+import 'package:TecStock/services/marca_service.dart';
+import 'package:TecStock/services/fabricante_service.dart';
+import 'package:TecStock/services/servico_service.dart';
+import 'package:TecStock/services/fornecedor_service.dart';
+import 'package:TecStock/services/funcionario_service.dart';
+import 'package:TecStock/services/peca_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -167,6 +173,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final clientes = await ClienteService.listarClientes();
       final veiculos = await VeiculoService.listarVeiculos();
       final checklists = await ChecklistService.listarChecklists();
+      final marcas = await MarcaService.listarMarcas();
+      final fabricantes = await FabricanteService.listarFabricantes();
+      final servicos = await ServicoService.listarServicos();
+      final fornecedores = await FornecedorService.listarFornecedores();
+      final funcionarios = await Funcionarioservice.listarFuncionarios();
+      final pecas = await PecaService.listarPecas();
+
       final today = DateTime.now();
       int agendamentosHoje = 0;
 
@@ -188,7 +201,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         if (checklists.isNotEmpty) {
           final sortedChecklists = List.from(checklists)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          for (int i = 0; i < sortedChecklists.length && i < 2; i++) {
+          for (int i = 0; i < sortedChecklists.length && i < 1; i++) {
             final checklist = sortedChecklists[i];
             _recentActivities.add({
               'title': 'Checklist realizado',
@@ -202,7 +215,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         if (agendamentos.isNotEmpty) {
           final sortedAgendamentos = List.from(agendamentos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          for (int i = 0; i < sortedAgendamentos.length && i < 2; i++) {
+          for (int i = 0; i < sortedAgendamentos.length && i < 1; i++) {
             final agendamento = sortedAgendamentos[i];
             _recentActivities.add({
               'title': 'Agendamento criado',
@@ -226,8 +239,93 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
         }
 
-        if (_recentActivities.length > 3) {
-          _recentActivities = _recentActivities.take(3).toList();
+        if (veiculos.isNotEmpty) {
+          final sortedVeiculos = List.from(veiculos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final veiculo = sortedVeiculos.first;
+          _recentActivities.add({
+            'title': 'Veículo cadastrado',
+            'subtitle': '${veiculo.modelo} - Placa: ${veiculo.placa}',
+            'icon': Icons.directions_car,
+            'color': const Color(0xFF9C27B0),
+            'time': _getRelativeTime(veiculo.id ?? 0),
+          });
+        }
+
+        if (marcas.isNotEmpty) {
+          final sortedMarcas = List.from(marcas)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final marca = sortedMarcas.first;
+          _recentActivities.add({
+            'title': 'Marca cadastrada',
+            'subtitle': marca.marca,
+            'icon': Icons.branding_watermark,
+            'color': const Color(0xFFDC2626),
+            'time': _getRelativeTime(marca.id ?? 0),
+          });
+        }
+
+        if (fabricantes.isNotEmpty) {
+          final sortedFabricantes = List.from(fabricantes)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final fabricante = sortedFabricantes.first;
+          _recentActivities.add({
+            'title': 'Fabricante cadastrado',
+            'subtitle': fabricante.nome,
+            'icon': Icons.precision_manufacturing,
+            'color': const Color(0xFF7C3AED),
+            'time': _getRelativeTime(fabricante.id ?? 0),
+          });
+        }
+
+        if (servicos.isNotEmpty) {
+          final sortedServicos = List.from(servicos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final servico = sortedServicos.first;
+          _recentActivities.add({
+            'title': 'Serviço cadastrado',
+            'subtitle': servico.nome,
+            'icon': Icons.build,
+            'color': const Color(0xFF8B5CF6),
+            'time': _getRelativeTime(servico.id ?? 0),
+          });
+        }
+
+        if (fornecedores.isNotEmpty) {
+          final sortedFornecedores = List.from(fornecedores)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final fornecedor = sortedFornecedores.first;
+          _recentActivities.add({
+            'title': 'Fornecedor cadastrado',
+            'subtitle': fornecedor.nome,
+            'icon': Icons.local_shipping,
+            'color': const Color(0xFF059669),
+            'time': _getRelativeTime(fornecedor.id ?? 0),
+          });
+        }
+
+        if (funcionarios.isNotEmpty) {
+          final sortedFuncionarios = List.from(funcionarios)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final funcionario = sortedFuncionarios.first;
+          _recentActivities.add({
+            'title': 'Funcionário cadastrado',
+            'subtitle': funcionario.nome,
+            'icon': Icons.emoji_people,
+            'color': const Color(0xFF0EA5E9),
+            'time': _getRelativeTime(funcionario.id ?? 0),
+          });
+        }
+
+        if (pecas.isNotEmpty) {
+          final sortedPecas = List.from(pecas)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+          final peca = sortedPecas.first;
+          _recentActivities.add({
+            'title': 'Peça cadastrada',
+            'subtitle': peca.nome,
+            'icon': Icons.settings,
+            'color': const Color(0xFFEF4444),
+            'time': _getRelativeTime(peca.id ?? 0),
+          });
+        }
+
+        // Limitar a 5 atividades mais recentes
+        if (_recentActivities.length > 5) {
+          _recentActivities = _recentActivities.take(5).toList();
         }
 
         _isLoadingStats = false;
@@ -802,21 +900,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   String _getRelativeTime(int id) {
-    if (id == 0) return 'Há alguns minutos';
-
-    final now = DateTime.now();
-    final diff = now.millisecondsSinceEpoch - (id * 60000);
-    final minutes = (diff / 60000).abs().round();
-
-    if (minutes < 60) {
-      return minutes <= 1 ? '1 min atrás' : '$minutes min atrás';
-    } else if (minutes < 1440) {
-      final hours = (minutes / 60).round();
-      return hours == 1 ? '1 hora atrás' : '$hours horas atrás';
-    } else {
-      final days = (minutes / 1440).round();
-      return days == 1 ? '1 dia atrás' : '$days dias atrás';
-    }
+    return 'Hoje';
   }
 
   void _navigateTo(BuildContext context, Map<String, dynamic> item) {

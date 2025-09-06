@@ -1211,6 +1211,21 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                             ),
                           ],
                         ),
+                      if (c.createdAt != null)
+                        Row(
+                          children: [
+                            Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Criado em ${DateFormat('dd/MM/yyyy').format(c.createdAt!)}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                   trailing: Row(
@@ -2336,7 +2351,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       ),
     );
   }
-
 }
 
 class _StatusSelector extends StatefulWidget {

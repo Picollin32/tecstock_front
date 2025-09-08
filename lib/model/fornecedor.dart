@@ -9,6 +9,7 @@ class Fornecedor {
   double? margemLucro;
   List<FornecedorPeca>? pecasComDesconto;
   DateTime? createdAt;
+  DateTime? updatedAt;
 
   Fornecedor({
     this.id,
@@ -19,6 +20,7 @@ class Fornecedor {
     this.margemLucro,
     this.pecasComDesconto,
     this.createdAt,
+    this.updatedAt,
   });
 
   factory Fornecedor.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class Fornecedor {
       email: json['email'],
       margemLucro: (json['margemLucro'] as num?)?.toDouble(),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -42,6 +45,7 @@ class Fornecedor {
       'email': email,
       'margemLucro': margemLucro,
       'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

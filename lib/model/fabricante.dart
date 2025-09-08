@@ -2,14 +2,16 @@ class Fabricante {
   int? id;
   String nome;
   DateTime? createdAt;
+  DateTime? updatedAt;
 
-  Fabricante({this.id, required this.nome, this.createdAt});
+  Fabricante({this.id, required this.nome, this.createdAt, this.updatedAt});
 
   factory Fabricante.fromJson(Map<String, dynamic> json) {
     return Fabricante(
       id: json['id'],
       nome: json['nome'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -18,6 +20,7 @@ class Fabricante {
       'id': id,
       'nome': nome,
       'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

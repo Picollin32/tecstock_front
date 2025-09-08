@@ -47,6 +47,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   bool _isLoadingStats = true;
   List<Map<String, dynamic>> _recentActivities = [];
+  int _currentPage = 0;
+  int _itemsPerPage = 10;
 
   static final List<Map<String, dynamic>> _quickActions = [
     {
@@ -180,12 +182,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final funcionarios = await Funcionarioservice.listarFuncionarios();
       final pecas = await PecaService.listarPecas();
 
-      final today = DateTime.now();
       int agendamentosHoje = 0;
 
       for (final agendamento in agendamentos) {
-        final agendamentoDate = agendamento.data;
-        if (agendamentoDate.year == today.year && agendamentoDate.month == today.month && agendamentoDate.day == today.day) {
+        if (_isToday(agendamento.data)) {
           agendamentosHoje++;
         }
       }
@@ -199,134 +199,142 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         };
         _recentActivities = [];
 
+        // Adicionar atividades de checklists
         if (checklists.isNotEmpty) {
-          final sortedChecklists = List.from(checklists)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          for (int i = 0; i < sortedChecklists.length && i < 1; i++) {
-            final checklist = sortedChecklists[i];
+          final todayChecklists = checklists.where((checklist) => _isToday(checklist.createdAt)).toList();
+          final sortedChecklists = List.from(todayChecklists)
+            ..sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+
+          for (final checklist in sortedChecklists) {
             _recentActivities.add({
               'title': 'Checklist realizado',
               'subtitle': 'Veículo: ${checklist.veiculoNome ?? 'N/A'} - Placa: ${checklist.veiculoPlaca ?? 'N/A'}',
               'icon': Icons.checklist,
               'color': const Color(0xFF2196F3),
-              'time': _getRelativeTime(checklist.id ?? 0),
+              'dateTime': checklist.createdAt ?? DateTime.now(),
+              'type': 'checklist',
+              'isEdit': false,
             });
           }
         }
 
+        // Adicionar atividades de agendamentos
         if (agendamentos.isNotEmpty) {
-          final sortedAgendamentos = List.from(agendamentos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          for (int i = 0; i < sortedAgendamentos.length && i < 1; i++) {
-            final agendamento = sortedAgendamentos[i];
+          final todayAgendamentos = agendamentos.where((agendamento) => _isToday(agendamento.createdAt)).toList();
+          final sortedAgendamentos = List.from(todayAgendamentos)
+            ..sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+
+          for (final agendamento in sortedAgendamentos) {
             _recentActivities.add({
               'title': 'Agendamento criado',
               'subtitle': 'Mecânico: ${agendamento.nomeMecanico} - Veículo: ${agendamento.placaVeiculo}',
               'icon': Icons.event_note,
               'color': const Color(0xFF4CAF50),
-              'time': _getRelativeTime(agendamento.id ?? 0),
+              'dateTime': agendamento.createdAt ?? DateTime.now(),
+              'type': 'agendamento',
+              'isEdit': false,
             });
           }
         }
 
-        if (clientes.isNotEmpty) {
-          final sortedClientes = List.from(clientes)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final cliente = sortedClientes.first;
-          _recentActivities.add({
-            'title': 'Cliente cadastrado',
-            'subtitle': '${cliente.nome} - CPF: ${cliente.cpf}',
-            'icon': Icons.person_add,
-            'color': const Color(0xFFFF9800),
-            'time': _getRelativeTime(cliente.id ?? 0),
-          });
-        }
+        // Adicionar atividades usando método genérico
+        _addActivityFromEntity<dynamic>(
+          entities: clientes,
+          getName: (cliente) => cliente.nome,
+          getSubtitle: (cliente) => '${cliente.nome} - CPF: ${cliente.cpf}',
+          getCreatedAt: (cliente) => cliente.createdAt,
+          getUpdatedAt: (cliente) => cliente.updatedAt,
+          entityType: 'cliente',
+          createIcon: Icons.person_add,
+          createColor: const Color(0xFFFF9800),
+        );
 
-        if (veiculos.isNotEmpty) {
-          final sortedVeiculos = List.from(veiculos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final veiculo = sortedVeiculos.first;
-          _recentActivities.add({
-            'title': 'Veículo cadastrado',
-            'subtitle': '${veiculo.modelo} - Placa: ${veiculo.placa}',
-            'icon': Icons.directions_car,
-            'color': const Color(0xFF9C27B0),
-            'time': _getRelativeTime(veiculo.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: veiculos,
+          getName: (veiculo) => veiculo.modelo,
+          getSubtitle: (veiculo) => '${veiculo.modelo} - Placa: ${veiculo.placa}',
+          getCreatedAt: (veiculo) => veiculo.createdAt,
+          getUpdatedAt: (veiculo) => veiculo.updatedAt,
+          entityType: 'veículo',
+          createIcon: Icons.directions_car,
+          createColor: const Color(0xFF9C27B0),
+        );
 
-        if (marcas.isNotEmpty) {
-          final sortedMarcas = List.from(marcas)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final marca = sortedMarcas.first;
-          _recentActivities.add({
-            'title': 'Marca cadastrada',
-            'subtitle': marca.marca,
-            'icon': Icons.branding_watermark,
-            'color': const Color(0xFFDC2626),
-            'time': _getRelativeTime(marca.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: marcas,
+          getName: (marca) => marca.marca,
+          getSubtitle: (marca) => marca.marca,
+          getCreatedAt: (marca) => marca.createdAt,
+          getUpdatedAt: (marca) => marca.updatedAt,
+          entityType: 'marca',
+          createIcon: Icons.branding_watermark,
+          createColor: const Color(0xFFDC2626),
+        );
 
-        if (fabricantes.isNotEmpty) {
-          final sortedFabricantes = List.from(fabricantes)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final fabricante = sortedFabricantes.first;
-          _recentActivities.add({
-            'title': 'Fabricante cadastrado',
-            'subtitle': fabricante.nome,
-            'icon': Icons.precision_manufacturing,
-            'color': const Color(0xFF7C3AED),
-            'time': _getRelativeTime(fabricante.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: fabricantes,
+          getName: (fabricante) => fabricante.nome,
+          getSubtitle: (fabricante) => fabricante.nome,
+          getCreatedAt: (fabricante) => fabricante.createdAt,
+          getUpdatedAt: (fabricante) => fabricante.updatedAt,
+          entityType: 'fabricante',
+          createIcon: Icons.precision_manufacturing,
+          createColor: const Color(0xFF7C3AED),
+        );
 
-        if (servicos.isNotEmpty) {
-          final sortedServicos = List.from(servicos)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final servico = sortedServicos.first;
-          _recentActivities.add({
-            'title': 'Serviço cadastrado',
-            'subtitle': servico.nome,
-            'icon': Icons.build,
-            'color': const Color(0xFF8B5CF6),
-            'time': _getRelativeTime(servico.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: servicos,
+          getName: (servico) => servico.nome,
+          getSubtitle: (servico) => servico.nome,
+          getCreatedAt: (servico) => servico.createdAt,
+          getUpdatedAt: (servico) => servico.updatedAt,
+          entityType: 'serviço',
+          createIcon: Icons.build,
+          createColor: const Color(0xFF8B5CF6),
+        );
 
-        if (fornecedores.isNotEmpty) {
-          final sortedFornecedores = List.from(fornecedores)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final fornecedor = sortedFornecedores.first;
-          _recentActivities.add({
-            'title': 'Fornecedor cadastrado',
-            'subtitle': fornecedor.nome,
-            'icon': Icons.local_shipping,
-            'color': const Color(0xFF059669),
-            'time': _getRelativeTime(fornecedor.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: fornecedores,
+          getName: (fornecedor) => fornecedor.nome,
+          getSubtitle: (fornecedor) => '${fornecedor.nome} - CNPJ: ${fornecedor.cnpj ?? 'N/A'}',
+          getCreatedAt: (fornecedor) => fornecedor.createdAt,
+          getUpdatedAt: (fornecedor) => fornecedor.updatedAt,
+          entityType: 'fornecedor',
+          createIcon: Icons.local_shipping,
+          createColor: const Color(0xFF059669),
+        );
 
-        if (funcionarios.isNotEmpty) {
-          final sortedFuncionarios = List.from(funcionarios)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final funcionario = sortedFuncionarios.first;
-          _recentActivities.add({
-            'title': 'Funcionário cadastrado',
-            'subtitle': funcionario.nome,
-            'icon': Icons.emoji_people,
-            'color': const Color(0xFF0EA5E9),
-            'time': _getRelativeTime(funcionario.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: funcionarios,
+          getName: (funcionario) => funcionario.nome,
+          getSubtitle: (funcionario) => '${funcionario.nome} - CPF: ${funcionario.cpf ?? 'N/A'}',
+          getCreatedAt: (funcionario) => funcionario.createdAt,
+          getUpdatedAt: (funcionario) => funcionario.updatedAt,
+          entityType: 'funcionário',
+          createIcon: Icons.emoji_people,
+          createColor: const Color(0xFF0EA5E9),
+        );
 
-        if (pecas.isNotEmpty) {
-          final sortedPecas = List.from(pecas)..sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-          final peca = sortedPecas.first;
-          _recentActivities.add({
-            'title': 'Peça cadastrada',
-            'subtitle': peca.nome,
-            'icon': Icons.settings,
-            'color': const Color(0xFFEF4444),
-            'time': _getRelativeTime(peca.id ?? 0),
-          });
-        }
+        _addActivityFromEntity<dynamic>(
+          entities: pecas,
+          getName: (peca) => peca.nome,
+          getSubtitle: (peca) => '${peca.nome} - Código: ${peca.codigo ?? 'N/A'}',
+          getCreatedAt: (peca) => peca.createdAt,
+          getUpdatedAt: (peca) => peca.updatedAt,
+          entityType: 'peça',
+          createIcon: Icons.settings,
+          createColor: const Color(0xFFEF4444),
+        );
 
-        if (_recentActivities.length > 100) {
-          _recentActivities = _recentActivities.take(100).toList();
-        }
+        // Ordenar todas as atividades por tempo mais recente primeiro
+        _recentActivities.sort((a, b) {
+          final dateTimeA = a['dateTime'] as DateTime;
+          final dateTimeB = b['dateTime'] as DateTime;
+          return dateTimeB.compareTo(dateTimeA); // Mais recente primeiro
+        });
 
+        // Resetar página ao recarregar dados
+        _currentPage = 0;
         _isLoadingStats = false;
       });
     } catch (e) {
@@ -373,6 +381,56 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
+  }
+
+  bool _isToday(DateTime? date) {
+    if (date == null) return false;
+    final today = DateTime.now();
+    return date.year == today.year && date.month == today.month && date.day == today.day;
+  }
+
+  void _addActivityFromEntity<T>({
+    required List<T> entities,
+    required String Function(T) getName,
+    required String Function(T) getSubtitle,
+    required DateTime? Function(T) getCreatedAt,
+    required DateTime? Function(T) getUpdatedAt,
+    required String entityType,
+    required IconData createIcon,
+    required Color createColor,
+  }) {
+    // Processar criações do dia
+    final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
+    for (final entity in todayCreated) {
+      _recentActivities.add({
+        'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} cadastrado',
+        'subtitle': getSubtitle(entity),
+        'icon': createIcon,
+        'color': createColor,
+        'dateTime': getCreatedAt(entity) ?? DateTime.now(),
+        'type': entityType,
+        'isEdit': false,
+      });
+    }
+
+    // Processar edições do dia (updatedAt hoje, mas createdAt anterior)
+    final todayEdited = entities.where((entity) {
+      final updated = getUpdatedAt(entity);
+      final created = getCreatedAt(entity);
+      return _isToday(updated) && created != null && !_isToday(created);
+    }).toList();
+
+    for (final entity in todayEdited) {
+      _recentActivities.add({
+        'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} atualizado',
+        'subtitle': getSubtitle(entity),
+        'icon': Icons.edit,
+        'color': Colors.orange,
+        'dateTime': getUpdatedAt(entity) ?? DateTime.now(),
+        'type': entityType,
+        'isEdit': true,
+      });
+    }
   }
 
   Widget _buildDashboard() {
@@ -755,16 +813,46 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildRecentActivity() {
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = startIndex + _itemsPerPage;
+    final currentPageActivities = _recentActivities.length > startIndex
+        ? _recentActivities.sublist(startIndex, endIndex > _recentActivities.length ? _recentActivities.length : endIndex)
+        : <Map<String, dynamic>>[];
+
+    final totalPages = (_recentActivities.length / _itemsPerPage).ceil();
+    final hasData = _recentActivities.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Atividade Recente',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2E3440),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Atividades de Hoje',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2E3440),
+              ),
+            ),
+            if (hasData && !_isLoadingStats)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_recentActivities.length} atividade${_recentActivities.length != 1 ? 's' : ''}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1565C0),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         Container(
@@ -788,30 +876,124 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     child: CircularProgressIndicator(),
                   ),
                 )
-              : _recentActivities.isEmpty
-                  ? const Center(
+              : !hasData
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text(
-                          'Nenhuma atividade recente encontrada',
-                          style: TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontSize: 14,
-                          ),
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.inbox_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Nenhuma atividade hoje',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'As atividades realizadas hoje aparecerão aqui',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       ),
                     )
                   : Column(
                       children: [
-                        for (int i = 0; i < _recentActivities.length; i++) ...[
+                        // Lista de atividades da página atual
+                        for (int i = 0; i < currentPageActivities.length; i++) ...[
                           _buildActivityItem(
-                            _recentActivities[i]['title'],
-                            _recentActivities[i]['subtitle'],
-                            _recentActivities[i]['icon'],
-                            _recentActivities[i]['color'],
-                            _recentActivities[i]['time'],
+                            currentPageActivities[i]['title'],
+                            currentPageActivities[i]['subtitle'],
+                            currentPageActivities[i]['icon'],
+                            currentPageActivities[i]['color'],
+                            _getFormattedTime(currentPageActivities[i]['dateTime']),
+                            currentPageActivities[i]['isEdit'] ?? false,
                           ),
-                          if (i < _recentActivities.length - 1) const Divider(height: 24),
+                          if (i < currentPageActivities.length - 1) const Divider(height: 24),
+                        ],
+
+                        // Controles de paginação
+                        if (totalPages > 1) ...[
+                          const SizedBox(height: 20),
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Botão Anterior
+                              ElevatedButton.icon(
+                                onPressed: _currentPage > 0
+                                    ? () {
+                                        setState(() {
+                                          _currentPage--;
+                                        });
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.chevron_left, size: 18),
+                                label: const Text('Anterior'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _currentPage > 0 ? const Color(0xFF1565C0) : Colors.grey[300],
+                                  foregroundColor: _currentPage > 0 ? Colors.white : Colors.grey[500],
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+
+                              // Indicador de página
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Página ${_currentPage + 1} de $totalPages',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1565C0),
+                                  ),
+                                ),
+                              ),
+
+                              // Botão Próximo
+                              ElevatedButton.icon(
+                                onPressed: _currentPage < totalPages - 1
+                                    ? () {
+                                        setState(() {
+                                          _currentPage++;
+                                        });
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.chevron_right, size: 18),
+                                label: const Text('Próximo'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _currentPage < totalPages - 1 ? const Color(0xFF1565C0) : Colors.grey[300],
+                                  foregroundColor: _currentPage < totalPages - 1 ? Colors.white : Colors.grey[500],
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ],
                     ),
@@ -820,7 +1002,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildActivityItem(String title, String subtitle, IconData icon, Color color, String time) {
+  Widget _buildActivityItem(String title, String subtitle, IconData icon, Color color, String time, [bool isEdit = false]) {
     return Row(
       children: [
         Container(
@@ -836,13 +1018,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2E3440),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E3440),
+                      ),
+                    ),
+                  ),
+                  if (isEdit) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'EDITADO',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Text(
                 subtitle,
@@ -898,8 +1104,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
 
-  String _getRelativeTime(int id) {
-    return 'Hoje';
+  // Método para gerar horário realista de atividade do dia
+
+  String _getFormattedTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Agora mesmo';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}min atrás';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h atrás';
+    } else {
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
   }
 
   void _navigateTo(BuildContext context, Map<String, dynamic> item) {

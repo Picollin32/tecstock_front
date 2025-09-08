@@ -11,6 +11,7 @@ class Veiculo {
   String cor;
   double quilometragem;
   DateTime? createdAt;
+  DateTime? updatedAt;
 
   Veiculo({
     this.id,
@@ -23,6 +24,7 @@ class Veiculo {
     required this.cor,
     required this.quilometragem,
     this.createdAt,
+    this.updatedAt,
   });
 
   factory Veiculo.fromJson(Map<String, dynamic> json) {
@@ -37,6 +39,7 @@ class Veiculo {
       cor: json['cor'],
       quilometragem: json['quilometragem'] as double,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -55,6 +58,7 @@ class Veiculo {
       'cor': cor,
       'quilometragem': quilometragem,
       'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

@@ -587,19 +587,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                       ],
                     ),
                   ),
-                Row(
-                  children: [
-                    Icon(Icons.work, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'ID: ${funcionario.id}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

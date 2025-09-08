@@ -7,6 +7,7 @@ class Funcionario {
   DateTime dataNascimento;
   int nivelAcesso;
   DateTime? createdAt;
+  DateTime? updatedAt;
 
   Funcionario(
       {this.id,
@@ -16,7 +17,8 @@ class Funcionario {
       required this.cpf,
       required this.dataNascimento,
       required this.nivelAcesso,
-      this.createdAt});
+      this.createdAt,
+      this.updatedAt});
 
   factory Funcionario.fromJson(Map<String, dynamic> json) {
     return Funcionario(
@@ -28,6 +30,7 @@ class Funcionario {
       dataNascimento: DateTime.parse(json['dataNascimento']),
       nivelAcesso: json['nivelAcesso'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -41,6 +44,7 @@ class Funcionario {
       'dataNascimento': dataNascimento.toIso8601String(),
       'nivelAcesso': nivelAcesso,
       'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

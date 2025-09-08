@@ -9,6 +9,8 @@ class Peca {
   int quantidadeEstoque;
   Fabricante fabricante;
   Fornecedor? fornecedor;
+  DateTime? createdAt;
+  DateTime? updatedAt;
 
   Peca({
     this.id,
@@ -18,6 +20,8 @@ class Peca {
     required this.quantidadeEstoque,
     required this.fabricante,
     this.fornecedor,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory Peca.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,8 @@ class Peca {
       quantidadeEstoque: json['quantidadeEstoque'],
       fabricante: Fabricante.fromJson(json['fabricante']),
       fornecedor: json['fornecedor'] != null ? Fornecedor.fromJson(json['fornecedor']) : null,
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -41,6 +47,8 @@ class Peca {
       'quantidadeEstoque': quantidadeEstoque,
       'fabricante': fabricante.toJson(),
       'fornecedor': fornecedor?.toJson(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

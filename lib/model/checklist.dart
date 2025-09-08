@@ -57,6 +57,7 @@ class Checklist {
   String? triangulo;
   String? tapetes;
   DateTime? createdAt;
+  DateTime? updatedAt;
 
   Checklist({
     this.id,
@@ -116,6 +117,7 @@ class Checklist {
     this.triangulo,
     this.tapetes,
     this.createdAt,
+    this.updatedAt,
   });
 
   factory Checklist.fromJson(Map<String, dynamic> json) {
@@ -178,6 +180,7 @@ class Checklist {
       triangulo: json['triangulo'],
       tapetes: json['tapetes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
   }
 
@@ -243,6 +246,7 @@ class Checklist {
     if (triangulo != null) map['triangulo'] = triangulo;
     if (tapetes != null) map['tapetes'] = tapetes;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();
+    if (updatedAt != null) map['updatedAt'] = updatedAt!.toIso8601String();
 
     return map;
   }

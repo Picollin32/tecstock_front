@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../model/agendamento.dart';
 import '../model/veiculo.dart';
@@ -30,6 +29,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
 
   List<Veiculo> _veiculos = [];
   List<Funcionario> _funcionarios = [];
+  List<Funcionario> _mecanicos = [];
+  List<Funcionario> _consultores = [];
   final _maskPlaca = MaskTextInputFormatter(
       mask: 'AAA-#X##',
       filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
@@ -43,7 +44,27 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   bool _mecanicoExiste(String nome) {
-    return _funcionarios.any((funcionario) => funcionario.nome == nome);
+    return _mecanicos.any((funcionario) => funcionario.nome == nome);
+  }
+
+  bool _consultorExiste(String nome) {
+    return _consultores.any((funcionario) => funcionario.nome == nome);
+  }
+
+  String _getVeiculoCategoria(String placa) {
+    final veiculo = _veiculos.firstWhere(
+      (v) => v.placa == placa,
+      orElse: () => Veiculo(
+        nome: '',
+        placa: placa,
+        ano: 0,
+        modelo: '',
+        categoria: 'N/A',
+        cor: '',
+        quilometragem: 0.0,
+      ),
+    );
+    return veiculo.categoria;
   }
 
   late AnimationController _fadeController;
@@ -105,11 +126,16 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       final lista = await Funcionarioservice.listarFuncionarios();
       setState(() {
         _funcionarios = lista.reversed.toList();
+        // Separar por nível de acesso: 1 = consultor, 2 = mecânico
+        _consultores = _funcionarios.where((f) => f.nivelAcesso == 1).toList();
+        _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 2).toList();
       });
     } catch (e) {
       print('Erro ao carregar funcionários: $e');
       setState(() {
         _funcionarios = [];
+        _consultores = [];
+        _mecanicos = [];
       });
     }
   }
@@ -980,30 +1006,38 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             const SizedBox(width: 12),
                             Expanded(
                               child: _buildDetailItem(
+                                Icons.category,
+                                'Categoria',
+                                _getVeiculoCategoria(agendamento.placaVeiculo),
+                                Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDetailItem(
                                 Icons.person,
                                 'Mecânico',
                                 agendamento.nomeMecanico,
                                 Colors.orange,
                               ),
                             ),
-                          ],
-                        ),
-                        if (agendamento.createdAt != null) ...[
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Cadastrado em ${DateFormat('dd/MM/yyyy').format(agendamento.createdAt!)}',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
+                            if (agendamento.nomeConsultor != null) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildDetailItem(
+                                  Icons.support_agent,
+                                  'Consultor',
+                                  agendamento.nomeConsultor!,
+                                  Colors.purple,
                                 ),
                               ),
                             ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -1409,7 +1443,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
 
   void _showAgendamentoDialog(String horario, Agendamento? agendamentoExistente) {
     final placaController = TextEditingController(text: agendamentoExistente?.placaVeiculo);
-    final mecanicoController = TextEditingController(text: agendamentoExistente?.nomeMecanico);
+    String? selectedMecanico = agendamentoExistente?.nomeMecanico;
+    String? selectedConsultor = agendamentoExistente?.nomeConsultor;
     String? selectedService = agendamentoExistente?.cor;
 
     String? inicioPref = agendamentoExistente?.horaInicio;
@@ -1519,68 +1554,46 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         },
                       ),
                       const SizedBox(height: 16),
-                      Autocomplete<String>(
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                          final query = textEditingValue.text.toLowerCase();
-                          if (query.isEmpty) return const Iterable<String>.empty();
-                          return _funcionarios.map((funcionario) => funcionario.nome).where((nome) {
-                            return nome.toLowerCase().contains(query);
-                          });
-                        },
-                        displayStringForOption: (option) => option,
-                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                          if (textEditingController.text.isEmpty && mecanicoController.text.isNotEmpty) {
-                            textEditingController.text = mecanicoController.text;
-                            textEditingController.selection = mecanicoController.selection;
-                          }
-                          textEditingController.addListener(() {
-                            if (mecanicoController.text != textEditingController.text) {
-                              mecanicoController.text = textEditingController.text;
-                              mecanicoController.selection = textEditingController.selection;
-                            }
-                          });
-
-                          return TextField(
-                            controller: textEditingController,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              labelText: 'Mecânico',
-                              prefixIcon: Icon(Icons.person, color: secondaryColor),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
+                      DropdownButtonFormField<String>(
+                        value: selectedMecanico,
+                        hint: const Text("Selecione o Mecânico"),
+                        onChanged: (value) => setDialogState(() => selectedMecanico = value),
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.person, color: secondaryColor),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: _mecanicos.map((mecanico) {
+                          return DropdownMenuItem(
+                            value: mecanico.nome,
+                            child: Text(mecanico.nome),
                           );
-                        },
-                        optionsViewBuilder: (context, onSelected, options) {
-                          final optList = options.toList();
-                          return Align(
-                            alignment: Alignment.topLeft,
-                            child: Material(
-                              elevation: 4,
-                              borderRadius: BorderRadius.circular(8),
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 250),
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  padding: EdgeInsets.zero,
-                                  itemCount: optList.length,
-                                  itemBuilder: (context, index) {
-                                    final option = optList[index];
-                                    return ListTile(
-                                      dense: true,
-                                      title: Text(option),
-                                      onTap: () => onSelected(option),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        onSelected: (String selection) {
-                          mecanicoController.text = selection;
-                        },
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedConsultor,
+                        hint: const Text("Selecione o Consultor (Opcional)"),
+                        onChanged: (value) => setDialogState(() => selectedConsultor = value),
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.support_agent, color: secondaryColor),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text("Nenhum"),
+                          ),
+                          ..._consultores.map((consultor) {
+                            return DropdownMenuItem(
+                              value: consultor.nome,
+                              child: Text(consultor.nome),
+                            );
+                          }).toList(),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -1659,55 +1672,81 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
-                          if (placaController.text.isNotEmpty && mecanicoController.text.isNotEmpty && selectedService != null) {
-                            if (!_placaExiste(placaController.text)) {
-                              _showErrorSnackBar('Esta placa não está cadastrada no sistema');
-                              return;
-                            }
+                          // Validação de campos obrigatórios
+                          if (placaController.text.trim().isEmpty) {
+                            _showErrorSnackBar('Por favor, informe a placa do veículo');
+                            return;
+                          }
 
-                            if (!_mecanicoExiste(mecanicoController.text)) {
-                              _showErrorSnackBar('Este mecânico não está cadastrado no sistema');
-                              return;
-                            }
+                          if (selectedMecanico == null || selectedMecanico!.trim().isEmpty) {
+                            _showErrorSnackBar('Por favor, selecione um mecânico');
+                            return;
+                          }
 
-                            String? horaInicioFormatada = _formatarHorario(inicioPref);
-                            String? horaFimFormatada = _formatarHorario(fimPref);
+                          if (selectedService == null || selectedService!.trim().isEmpty) {
+                            _showErrorSnackBar('Por favor, selecione o tipo de serviço');
+                            return;
+                          }
 
-                            horaInicioFormatada ??= "08:00";
+                          if (inicioPref == null || inicioPref!.trim().isEmpty) {
+                            _showErrorSnackBar('Por favor, informe o horário de início');
+                            return;
+                          }
 
-                            if (horaFimFormatada == null) {
-                              final inicio = _parseTime(horaInicioFormatada);
-                              if (inicio != null) {
-                                final fim = inicio.add(const Duration(hours: 1));
-                                horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
-                              } else {
-                                horaFimFormatada = "09:00";
-                              }
-                            }
+                          // Validações de existência no sistema
+                          if (!_placaExiste(placaController.text)) {
+                            _showErrorSnackBar('Esta placa não está cadastrada no sistema');
+                            return;
+                          }
 
-                            final agendamento = Agendamento(
-                              id: agendamentoExistente?.id,
-                              data: _selectedDay!,
-                              horaInicio: horaInicioFormatada,
-                              horaFim: horaFimFormatada,
-                              placaVeiculo: placaController.text,
-                              nomeMecanico: mecanicoController.text,
-                              cor: selectedService!,
-                            );
+                          if (!_mecanicoExiste(selectedMecanico!)) {
+                            _showErrorSnackBar('Este mecânico não está cadastrado no sistema');
+                            return;
+                          }
 
-                            bool sucesso;
-                            if (agendamentoExistente != null && agendamentoExistente.id != null) {
-                              sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
-                              _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
+                          if (selectedConsultor != null && !_consultorExiste(selectedConsultor!)) {
+                            _showErrorSnackBar('Este consultor não está cadastrado no sistema');
+                            return;
+                          }
+
+                          String? horaInicioFormatada = _formatarHorario(inicioPref);
+                          String? horaFimFormatada = _formatarHorario(fimPref);
+
+                          horaInicioFormatada ??= "08:00";
+
+                          if (horaFimFormatada == null) {
+                            final inicio = _parseTime(horaInicioFormatada);
+                            if (inicio != null) {
+                              final fim = inicio.add(const Duration(hours: 1));
+                              horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
                             } else {
-                              sucesso = await AgendamentoService.salvarAgendamento(agendamento);
-                              _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
+                              horaFimFormatada = "09:00";
                             }
+                          }
 
-                            if (sucesso) {
-                              Navigator.pop(context);
-                              _loadEvents();
-                            }
+                          final agendamento = Agendamento(
+                            id: agendamentoExistente?.id,
+                            data: _selectedDay!,
+                            horaInicio: horaInicioFormatada,
+                            horaFim: horaFimFormatada,
+                            placaVeiculo: placaController.text,
+                            nomeMecanico: selectedMecanico!,
+                            nomeConsultor: selectedConsultor,
+                            cor: selectedService!,
+                          );
+
+                          bool sucesso;
+                          if (agendamentoExistente != null && agendamentoExistente.id != null) {
+                            sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
+                            _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
+                          } else {
+                            sucesso = await AgendamentoService.salvarAgendamento(agendamento);
+                            _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
+                          }
+
+                          if (sucesso) {
+                            Navigator.pop(context);
+                            _loadEvents();
                           }
                         },
                         style: ElevatedButton.styleFrom(

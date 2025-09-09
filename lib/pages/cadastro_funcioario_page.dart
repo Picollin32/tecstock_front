@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/funcionario_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroFuncionarioPage extends StatefulWidget {
   const CadastroFuncionarioPage({super.key});
@@ -103,7 +104,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         _filtrarFuncionarios();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar funcionários');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar funcionários');
     } finally {
       setState(() => _isLoadingFuncionarios = false);
     }
@@ -153,20 +154,26 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         nivelAcesso: _nivelAcessoSelecionado ?? 0,
       );
 
-      final sucesso = _funcionarioEmEdicao != null
+      final resultado = _funcionarioEmEdicao != null
           ? await Funcionarioservice.atualizarFuncionario(_funcionarioEmEdicao!.id!, funcionario)
           : await Funcionarioservice.salvarFuncionario(funcionario);
 
-      if (sucesso) {
-        _showSuccessSnackBar(_funcionarioEmEdicao != null ? "Funcionário atualizado com sucesso" : "Funcionário cadastrado com sucesso");
+      if (resultado['success']) {
+        _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarFuncionarios();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar funcionário");
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar funcionário");
+      String errorMessage = "Erro inesperado ao salvar funcionário";
+      if (e.toString().contains('CPF já cadastrado')) {
+        errorMessage = "CPF já cadastrado";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Funcionário já cadastrado";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -234,10 +241,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         await _carregarFuncionarios();
         _showSuccessSnackBar('Funcionário excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir funcionário');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir funcionário');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir funcionário');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir funcionário');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -266,24 +273,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

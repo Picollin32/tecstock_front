@@ -84,7 +84,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _carregarFornecedoresEFabricantes(),
       ]);
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar dados');
+      _showError('Erro ao carregar dados');
     } finally {
       setState(() => _isLoadingPecas = false);
     }
@@ -98,7 +98,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _filtrarPecas();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar peças');
+      _showError('Erro ao carregar peças');
     }
   }
 
@@ -113,7 +113,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _fabricantes = listaFabricantes;
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar fornecedores e fabricantes');
+      _showError('Erro ao carregar fornecedores e fabricantes');
     }
   }
 
@@ -167,23 +167,23 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         quantidadeEstoque: int.parse(_quantidadeEstoqueController.text),
       );
 
-      bool sucesso;
+      Map<String, dynamic> resultado;
       if (_pecaEmEdicao != null) {
-        sucesso = await PecaService.atualizarPeca(_pecaEmEdicao!.id!, peca);
+        resultado = await PecaService.atualizarPeca(_pecaEmEdicao!.id!, peca);
       } else {
-        sucesso = await PecaService.salvarPeca(peca);
+        resultado = await PecaService.salvarPeca(peca);
       }
 
-      if (sucesso) {
-        _showSuccessSnackBar(_pecaEmEdicao != null ? "Peça atualizada com sucesso" : "Peça cadastrada com sucesso");
+      if (resultado['sucesso']) {
+        Navigator.of(context).pop();
+        _showSuccessSnackBar(resultado['mensagem']);
         _limparFormulario();
         await _carregarPecas();
-        Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar peça");
+        _showVisibleError(resultado['mensagem']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar peça");
+      _showVisibleError("Erro inesperado ao salvar peça: $e");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -252,10 +252,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         await _carregarPecas();
         _showSuccessSnackBar('Peça excluída com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir peça');
+        _showError('Erro ao excluir peça');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir peça');
+      _showError('Erro inesperado ao excluir peça');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -291,22 +291,43 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
+  void _showVisibleError(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: errorColor, size: 24),
+              const SizedBox(width: 8),
+              const Text('Erro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
           ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+        );
+      },
     );
+  }
+
+  void _showError(String message) {
+    _showVisibleError(message);
   }
 
   void _showFormModal() {

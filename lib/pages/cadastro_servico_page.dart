@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/servico.dart';
 import '../services/servico_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroServicoPage extends StatefulWidget {
   const CadastroServicoPage({super.key});
@@ -83,7 +84,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         _filtrarServicos();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar serviços');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar serviços');
     } finally {
       setState(() => _isLoadingServicos = false);
     }
@@ -105,20 +106,30 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         precoCaminhonete: precoCaminhonete,
       );
 
-      final sucesso = _servicoEmEdicao != null
+      final resultado = _servicoEmEdicao != null
           ? await ServicoService.atualizarServico(_servicoEmEdicao!.id!, servico)
           : await ServicoService.salvarServico(servico);
 
-      if (sucesso) {
+      if (resultado['success']) {
         _showSuccessSnackBar(_servicoEmEdicao != null ? "Serviço atualizado com sucesso" : "Serviço cadastrado com sucesso");
         _limparFormulario();
         await _carregarServicos();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar serviço");
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar serviço");
+      String errorMessage = "Erro inesperado ao salvar serviço";
+      if (e.toString().contains('Nome do serviço já está cadastrado')) {
+        errorMessage = "Serviço já cadastrado";
+      } else if (e.toString().contains('Nome Duplicado')) {
+        errorMessage = "Serviço já cadastrado";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Serviço já cadastrado";
+      } else if (e.toString().contains('Duplicate entry')) {
+        errorMessage = "Serviço já cadastrado";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -183,10 +194,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         await _carregarServicos();
         _showSuccessSnackBar('Serviço excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir serviço');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir serviço');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir serviço');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir serviço');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -212,24 +223,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

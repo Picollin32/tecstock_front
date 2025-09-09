@@ -3,15 +3,33 @@ import 'package:TecStock/model/marca.dart';
 import 'package:http/http.dart' as http;
 
 class MarcaService {
-  static Future<bool> salvarMarca(Marca marca) async {
+  static Future<Map<String, dynamic>> salvarMarca(Marca marca) async {
     String baseUrl = 'http://localhost:8081/api/marcas/salvar';
 
     try {
       final response = await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(marca.toJson()));
-      return response.statusCode == 201 || response.statusCode == 200;
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'success': true, 'message': 'Marca salva com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao salvar marca';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao salvar marca: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 
@@ -42,7 +60,7 @@ class MarcaService {
     }
   }
 
-  static Future<bool> atualizarMarca(int id, Marca marca) async {
+  static Future<Map<String, dynamic>> atualizarMarca(int id, Marca marca) async {
     String baseUrl = 'http://localhost:8081/api/marcas/atualizar/$id';
 
     try {
@@ -51,10 +69,28 @@ class MarcaService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(marca.toJson()),
       );
-      return response.statusCode == 200;
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Marca atualizada com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao atualizar marca';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao atualizar marca: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 }

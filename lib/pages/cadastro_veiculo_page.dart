@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/veiculo_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroVeiculoPage extends StatefulWidget {
   const CadastroVeiculoPage({super.key});
@@ -113,7 +114,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         _filtrarVeiculos();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar veículos');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar veículos');
     } finally {
       setState(() => _isLoadingVeiculos = false);
     }
@@ -126,7 +127,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         _marcas = lista;
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar marcas');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
     }
   }
 
@@ -167,16 +168,16 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         await _carregarVeiculos();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar(resultado['message']);
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
       String errorMessage = "Erro inesperado ao salvar veículo";
       if (e.toString().contains('Placa já cadastrada')) {
-        errorMessage = "Esta placa já está cadastrada no sistema";
+        errorMessage = "Placa já cadastrada";
       } else if (e.toString().contains('já cadastrada')) {
-        errorMessage = "Dados já cadastrados no sistema";
+        errorMessage = "Veículo já cadastrado";
       }
-      _showErrorSnackBar(errorMessage);
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -246,10 +247,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         await _carregarVeiculos();
         _showSuccessSnackBar('Veículo excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir veículo');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir veículo');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir veículo');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir veículo');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -280,24 +281,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

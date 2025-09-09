@@ -8,6 +8,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/agendamento_service.dart';
 import '../services/veiculo_service.dart';
 import '../services/funcionario_service.dart';
+import '../utils/error_utils.dart';
 
 enum AgendamentoStep { calendario, horarios }
 
@@ -126,7 +127,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       final lista = await Funcionarioservice.listarFuncionarios();
       setState(() {
         _funcionarios = lista.reversed.toList();
-        // Separar por nível de acesso: 1 = consultor, 2 = mecânico
         _consultores = _funcionarios.where((f) => f.nivelAcesso == 1).toList();
         _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 2).toList();
       });
@@ -159,7 +159,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         _selectedEvents.value = _getEventsForDay(_selectedDay!);
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar agendamentos');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar agendamentos');
     }
   }
 
@@ -335,24 +335,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -1592,7 +1574,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                               value: consultor.nome,
                               child: Text(consultor.nome),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -1672,40 +1654,38 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () async {
-                          // Validação de campos obrigatórios
                           if (placaController.text.trim().isEmpty) {
-                            _showErrorSnackBar('Por favor, informe a placa do veículo');
+                            ErrorUtils.showVisibleError(context, 'Por favor, informe a placa do veículo');
                             return;
                           }
 
                           if (selectedMecanico == null || selectedMecanico!.trim().isEmpty) {
-                            _showErrorSnackBar('Por favor, selecione um mecânico');
+                            ErrorUtils.showVisibleError(context, 'Por favor, selecione um mecânico');
                             return;
                           }
 
                           if (selectedService == null || selectedService!.trim().isEmpty) {
-                            _showErrorSnackBar('Por favor, selecione o tipo de serviço');
+                            ErrorUtils.showVisibleError(context, 'Por favor, selecione o tipo de serviço');
                             return;
                           }
 
                           if (inicioPref == null || inicioPref!.trim().isEmpty) {
-                            _showErrorSnackBar('Por favor, informe o horário de início');
+                            ErrorUtils.showVisibleError(context, 'Por favor, informe o horário de início');
                             return;
                           }
 
-                          // Validações de existência no sistema
                           if (!_placaExiste(placaController.text)) {
-                            _showErrorSnackBar('Esta placa não está cadastrada no sistema');
+                            ErrorUtils.showVisibleError(context, 'Esta placa não está cadastrada no sistema');
                             return;
                           }
 
                           if (!_mecanicoExiste(selectedMecanico!)) {
-                            _showErrorSnackBar('Este mecânico não está cadastrado no sistema');
+                            ErrorUtils.showVisibleError(context, 'Este mecânico não está cadastrado no sistema');
                             return;
                           }
 
                           if (selectedConsultor != null && !_consultorExiste(selectedConsultor!)) {
-                            _showErrorSnackBar('Este consultor não está cadastrado no sistema');
+                            ErrorUtils.showVisibleError(context, 'Este consultor não está cadastrado no sistema');
                             return;
                           }
 
@@ -1802,7 +1782,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   _loadEvents();
                   _showSuccessSnackBar("Agendamento excluído com sucesso!");
                 }).catchError((e) {
-                  _showErrorSnackBar("Erro ao excluir: $e");
+                  ErrorUtils.showVisibleError(context, "Erro ao excluir: $e");
                 });
               },
               child: const Text("Excluir"),

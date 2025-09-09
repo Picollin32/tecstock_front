@@ -3,16 +3,34 @@ import 'package:TecStock/model/fabricante.dart';
 import 'package:http/http.dart' as http;
 
 class FabricanteService {
-  static Future<bool> salvarFabricante(Fabricante fabricante) async {
+  static Future<Map<String, dynamic>> salvarFabricante(Fabricante fabricante) async {
     String baseUrl = 'http://localhost:8081/api/fabricantes/salvar';
 
     try {
       final response =
           await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(fabricante.toJson()));
-      return response.statusCode == 201 || response.statusCode == 200;
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'success': true, 'message': 'Fabricante salvo com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao salvar fabricante';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao salvar fabricante: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 
@@ -43,7 +61,7 @@ class FabricanteService {
     }
   }
 
-  static Future<bool> atualizarFabricante(int id, Fabricante fabricante) async {
+  static Future<Map<String, dynamic>> atualizarFabricante(int id, Fabricante fabricante) async {
     String baseUrl = 'http://localhost:8081/api/fabricantes/atualizar/$id';
 
     try {
@@ -52,10 +70,28 @@ class FabricanteService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(fabricante.toJson()),
       );
-      return response.statusCode == 200;
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Fabricante atualizado com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao atualizar fabricante';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao atualizar fabricante: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 }

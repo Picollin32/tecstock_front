@@ -48,7 +48,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool _isLoadingStats = true;
   List<Map<String, dynamic>> _recentActivities = [];
   int _currentPage = 0;
-  int _itemsPerPage = 10;
+  final int _itemsPerPage = 10;
 
   static final List<Map<String, dynamic>> _quickActions = [
     {
@@ -199,7 +199,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         };
         _recentActivities = [];
 
-        // Adicionar atividades de checklists
         if (checklists.isNotEmpty) {
           final todayChecklists = checklists.where((checklist) => _isToday(checklist.createdAt)).toList();
           final sortedChecklists = List.from(todayChecklists)
@@ -218,7 +217,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
-        // Adicionar atividades de agendamentos
         if (agendamentos.isNotEmpty) {
           final todayAgendamentos = agendamentos.where((agendamento) => _isToday(agendamento.createdAt)).toList();
           final sortedAgendamentos = List.from(todayAgendamentos)
@@ -237,7 +235,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
-        // Adicionar atividades usando método genérico
         _addActivityFromEntity<dynamic>(
           entities: clientes,
           getName: (cliente) => cliente.nome,
@@ -318,7 +315,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _addActivityFromEntity<dynamic>(
           entities: pecas,
           getName: (peca) => peca.nome,
-          getSubtitle: (peca) => '${peca.nome} - Código: ${peca.codigo ?? 'N/A'}',
+          getSubtitle: (peca) => '${peca.nome} - Código: ${peca.codigoFabricante ?? 'N/A'}',
           getCreatedAt: (peca) => peca.createdAt,
           getUpdatedAt: (peca) => peca.updatedAt,
           entityType: 'peça',
@@ -326,14 +323,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFFEF4444),
         );
 
-        // Ordenar todas as atividades por tempo mais recente primeiro
         _recentActivities.sort((a, b) {
           final dateTimeA = a['dateTime'] as DateTime;
           final dateTimeB = b['dateTime'] as DateTime;
-          return dateTimeB.compareTo(dateTimeA); // Mais recente primeiro
+          return dateTimeB.compareTo(dateTimeA);
         });
 
-        // Resetar página ao recarregar dados
         _currentPage = 0;
         _isLoadingStats = false;
       });
@@ -399,7 +394,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required IconData createIcon,
     required Color createColor,
   }) {
-    // Processar criações do dia
     final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
     for (final entity in todayCreated) {
       _recentActivities.add({
@@ -413,7 +407,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
     }
 
-    // Processar edições do dia (updatedAt hoje, mas createdAt anterior)
     final todayEdited = entities.where((entity) {
       final updated = getUpdatedAt(entity);
       final created = getCreatedAt(entity);
@@ -911,7 +904,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     )
                   : Column(
                       children: [
-                        // Lista de atividades da página atual
                         for (int i = 0; i < currentPageActivities.length; i++) ...[
                           _buildActivityItem(
                             currentPageActivities[i]['title'],
@@ -924,7 +916,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           if (i < currentPageActivities.length - 1) const Divider(height: 24),
                         ],
 
-                        // Controles de paginação
                         if (totalPages > 1) ...[
                           const SizedBox(height: 20),
                           const Divider(),
@@ -932,7 +923,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Botão Anterior
                               ElevatedButton.icon(
                                 onPressed: _currentPage > 0
                                     ? () {
@@ -953,8 +943,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-
-                              // Indicador de página
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
@@ -971,7 +959,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 ),
                               ),
 
-                              // Botão Próximo
                               ElevatedButton.icon(
                                 onPressed: _currentPage < totalPages - 1
                                     ? () {
@@ -1104,7 +1091,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
 
-  // Método para gerar horário realista de atividade do dia
 
   String _getFormattedTime(DateTime dateTime) {
     final now = DateTime.now();

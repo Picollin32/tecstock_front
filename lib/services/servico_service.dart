@@ -3,16 +3,34 @@ import 'package:TecStock/model/servico.dart';
 import 'package:http/http.dart' as http;
 
 class ServicoService {
-  static Future<bool> salvarServico(Servico servico) async {
+  static Future<Map<String, dynamic>> salvarServico(Servico servico) async {
     String baseUrl = 'http://localhost:8081/api/servicos/salvar';
 
     try {
       final response =
           await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(servico.toJson()));
-      return response.statusCode == 201 || response.statusCode == 200;
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'success': true, 'message': 'Serviço salvo com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao salvar serviço';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao salvar servico: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 
@@ -43,7 +61,7 @@ class ServicoService {
     }
   }
 
-  static Future<bool> atualizarServico(int id, Servico servico) async {
+  static Future<Map<String, dynamic>> atualizarServico(int id, Servico servico) async {
     String baseUrl = 'http://localhost:8081/api/servicos/atualizar/$id';
 
     try {
@@ -52,10 +70,28 @@ class ServicoService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(servico.toJson()),
       );
-      return response.statusCode == 200;
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Serviço atualizado com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao atualizar serviço';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao atualizar servico: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 }

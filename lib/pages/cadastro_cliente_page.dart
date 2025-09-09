@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/cliente_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroClientePage extends StatefulWidget {
   const CadastroClientePage({super.key});
@@ -97,7 +98,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         _filtrarClientes();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar clientes');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar clientes');
     } finally {
       setState(() => _isLoadingClientes = false);
     }
@@ -156,16 +157,16 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         await _carregarClientes();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar(resultado['message']);
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
       String errorMessage = "Erro inesperado ao salvar cliente";
       if (e.toString().contains('CPF já cadastrado')) {
-        errorMessage = "Este CPF já está cadastrado no sistema";
+        errorMessage = "CPF já cadastrado";
       } else if (e.toString().contains('já cadastrado')) {
-        errorMessage = "Dados já cadastrados no sistema";
+        errorMessage = "Cliente já cadastrado";
       }
-      _showErrorSnackBar(errorMessage);
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -232,10 +233,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         await _carregarClientes();
         _showSuccessSnackBar('Cliente excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir cliente');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir cliente');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir cliente');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir cliente');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -263,24 +264,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

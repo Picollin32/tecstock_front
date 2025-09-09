@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:TecStock/model/marca.dart';
 import 'package:intl/intl.dart';
 import '../services/marca_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroMarcaPage extends StatefulWidget {
   const CadastroMarcaPage({super.key});
@@ -79,7 +80,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         _filtrarMarcas();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar marcas');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
     } finally {
       setState(() => _isLoadingMarcas = false);
     }
@@ -95,19 +96,29 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         marca: _marcaController.text,
       );
 
-      final sucesso =
+      final resultado =
           _marcaEmEdicao != null ? await MarcaService.atualizarMarca(_marcaEmEdicao!.id!, marca) : await MarcaService.salvarMarca(marca);
 
-      if (sucesso) {
+      if (resultado['success']) {
         _showSuccessSnackBar(_marcaEmEdicao != null ? "Marca atualizada com sucesso" : "Marca cadastrada com sucesso");
         _limparFormulario();
         await _carregarMarcas();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar marca");
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar marca");
+      String errorMessage = "Erro inesperado ao salvar marca";
+      if (e.toString().contains('Nome da marca já está cadastrado')) {
+        errorMessage = "Marca já cadastrada";
+      } else if (e.toString().contains('Nome Duplicado')) {
+        errorMessage = "Marca já cadastrada";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Marca já cadastrada";
+      } else if (e.toString().contains('Duplicate entry')) {
+        errorMessage = "Marca já cadastrada";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -170,10 +181,10 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         await _carregarMarcas();
         _showSuccessSnackBar('Marca excluída com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir marca');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir marca');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir marca');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir marca');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -197,24 +208,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

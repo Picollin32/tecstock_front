@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../services/fabricante_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroFabricantePage extends StatefulWidget {
   const CadastroFabricantePage({super.key});
@@ -77,7 +78,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         _filtrarFabricantes();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar fabricantes');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar fabricantes');
     } finally {
       setState(() => _isLoadingFabricantes = false);
     }
@@ -91,20 +92,30 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     try {
       final fabricante = Fabricante(nome: _nomeController.text);
 
-      final sucesso = _fabricanteEmEdicao != null
+      final resultado = _fabricanteEmEdicao != null
           ? await FabricanteService.atualizarFabricante(_fabricanteEmEdicao!.id!, fabricante)
           : await FabricanteService.salvarFabricante(fabricante);
 
-      if (sucesso) {
+      if (resultado['success']) {
         _showSuccessSnackBar(_fabricanteEmEdicao != null ? "Fabricante atualizado com sucesso" : "Fabricante cadastrado com sucesso");
         _limparFormulario();
         await _carregarFabricantes();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar("Erro ao salvar fabricante");
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      _showErrorSnackBar("Erro inesperado ao salvar fabricante");
+      String errorMessage = "Erro inesperado ao salvar fabricante";
+      if (e.toString().contains('Nome do fabricante já está cadastrado')) {
+        errorMessage = "Fabricante já cadastrado";
+      } else if (e.toString().contains('Nome Duplicado')) {
+        errorMessage = "Fabricante já cadastrado";
+      } else if (e.toString().contains('já cadastrado')) {
+        errorMessage = "Fabricante já cadastrado";
+      } else if (e.toString().contains('Duplicate entry')) {
+        errorMessage = "Fabricante já cadastrado";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -167,10 +178,10 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         await _carregarFabricantes();
         _showSuccessSnackBar('Fabricante excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir fabricante');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir fabricante');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir fabricante');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir fabricante');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -194,24 +205,6 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

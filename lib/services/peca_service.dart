@@ -20,15 +20,28 @@ class PecaService {
     }
   }
 
-  static Future<bool> salvarPeca(Peca peca) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/salvar'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(peca.toJson()),
-    );
-    return response.statusCode == 200 || response.statusCode == 201;
+  static Future<Map<String, dynamic>> salvarPeca(Peca peca) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/salvar'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(peca.toJson()),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
+      } else if (response.statusCode == 409) {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Código de peça duplicado para o mesmo fornecedor'};
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao salvar peça'};
+      }
+    } catch (e) {
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
   }
 
   static Future<bool> salvarPecaComDesconto({
@@ -51,13 +64,26 @@ class PecaService {
     return response.statusCode == 200;
   }
 
-  static Future<bool> atualizarPeca(int id, Peca peca) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/atualizar/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(peca.toJson()),
-    );
-    return response.statusCode == 200;
+  static Future<Map<String, dynamic>> atualizarPeca(int id, Peca peca) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/atualizar/$id'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(peca.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        return {'sucesso': true, 'mensagem': 'Peça atualizada com sucesso'};
+      } else if (response.statusCode == 409) {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Código de peça duplicado para o mesmo fornecedor'};
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao atualizar peça'};
+      }
+    } catch (e) {
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
   }
 
   static Future<bool> excluirPeca(int id) async {

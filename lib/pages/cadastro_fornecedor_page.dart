@@ -5,6 +5,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../model/fornecedor.dart';
 import '../services/fornecedor_service.dart';
+import '../utils/error_utils.dart';
 
 class CadastroFornecedorPage extends StatefulWidget {
   const CadastroFornecedorPage({super.key});
@@ -99,7 +100,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         _filtrarFornecedores();
       });
     } catch (e) {
-      _showErrorSnackBar('Erro ao carregar fornecedores');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar fornecedores');
     } finally {
       setState(() => _isLoadingFornecedores = false);
     }
@@ -130,16 +131,20 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         await _carregarFornecedores();
         Navigator.of(context).pop();
       } else {
-        _showErrorSnackBar(resultado['message']);
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
       String errorMessage = "Erro inesperado ao salvar fornecedor";
       if (e.toString().contains('CNPJ já cadastrado')) {
-        errorMessage = "Este CNPJ já está cadastrado no sistema";
+        errorMessage = "Este CNPJ já está cadastrado para outro fornecedor";
+      } else if (e.toString().contains('Duplicated entry') && e.toString().contains('cnpj')) {
+        errorMessage = "Este CNPJ já está cadastrado para outro fornecedor";
       } else if (e.toString().contains('já cadastrado')) {
-        errorMessage = "Dados já cadastrados no sistema";
+        errorMessage = "Fornecedor com esses dados já existe no sistema";
+      } else if (e.toString().contains('Duplicate entry')) {
+        errorMessage = "Fornecedor com esses dados já existe no sistema";
       }
-      _showErrorSnackBar(errorMessage);
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -212,10 +217,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         await _carregarFornecedores();
         _showSuccessSnackBar('Fornecedor excluído com sucesso');
       } else {
-        _showErrorSnackBar('Erro ao excluir fornecedor');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir fornecedor');
       }
     } catch (e) {
-      _showErrorSnackBar('Erro inesperado ao excluir fornecedor');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir fornecedor');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -243,24 +248,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         ),
         backgroundColor: successColor,
         duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: errorColor,
-        duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

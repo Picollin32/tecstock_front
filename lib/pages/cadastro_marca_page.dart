@@ -176,15 +176,21 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
   Future<void> _excluirMarca(Marca marca) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await MarcaService.excluirMarca(marca.id!);
-      if (sucesso) {
+      final resultado = await MarcaService.excluirMarca(marca.id!);
+      if (resultado['success']) {
         await _carregarMarcas();
         _showSuccessSnackBar('Marca excluída com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir marca');
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir marca');
+      String errorMessage = "Erro inesperado ao excluir marca";
+      if (e.toString().contains('Marca não pode ser excluída')) {
+        errorMessage = "Marca em uso";
+      } else if (e.toString().contains('vinculada')) {
+        errorMessage = "Marca em uso";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }

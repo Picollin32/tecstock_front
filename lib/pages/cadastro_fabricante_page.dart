@@ -173,15 +173,21 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
   Future<void> _excluirFabricante(Fabricante fabricante) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await FabricanteService.excluirFabricante(fabricante.id!);
-      if (sucesso) {
+      final resultado = await FabricanteService.excluirFabricante(fabricante.id!);
+      if (resultado['success']) {
         await _carregarFabricantes();
         _showSuccessSnackBar('Fabricante excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir fabricante');
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir fabricante');
+      String errorMessage = "Erro inesperado ao excluir fabricante";
+      if (e.toString().contains('Fabricante não pode ser excluído')) {
+        errorMessage = "Fabricante em uso";
+      } else if (e.toString().contains('vinculado')) {
+        errorMessage = "Fabricante em uso";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }

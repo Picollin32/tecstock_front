@@ -48,15 +48,33 @@ class MarcaService {
     }
   }
 
-  static Future<bool> excluirMarca(int id) async {
+  static Future<Map<String, dynamic>> excluirMarca(int id) async {
     String baseUrl = 'http://localhost:8081/api/marcas/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl));
-      return response.statusCode == 200 || response.statusCode == 204;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'success': true, 'message': 'Marca excluída com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao excluir marca';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao excluir marca: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 

@@ -86,8 +86,21 @@ class PecaService {
     }
   }
 
-  static Future<bool> excluirPeca(int id) async {
-    final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'));
-    return response.statusCode == 200;
+  static Future<Map<String, dynamic>> excluirPeca(int id) async {
+    try {
+      final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'));
+
+      if (response.statusCode == 200) {
+        return {'sucesso': true, 'mensagem': 'Peça excluída com sucesso'};
+      } else if (response.statusCode == 409) {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Não é possível excluir a peça'};
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao excluir peça'};
+      }
+    } catch (e) {
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
   }
 }

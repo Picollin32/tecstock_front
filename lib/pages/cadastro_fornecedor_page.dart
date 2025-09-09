@@ -212,15 +212,21 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   Future<void> _excluirFornecedor(Fornecedor fornecedor) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await FornecedorService.excluirFornecedor(fornecedor.id!);
-      if (sucesso) {
+      final resultado = await FornecedorService.excluirFornecedor(fornecedor.id!);
+      if (resultado['success']) {
         await _carregarFornecedores();
         _showSuccessSnackBar('Fornecedor excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir fornecedor');
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir fornecedor');
+      String errorMessage = "Erro inesperado ao excluir fornecedor";
+      if (e.toString().contains('Fornecedor não pode ser excluído')) {
+        errorMessage = "Fornecedor em uso";
+      } else if (e.toString().contains('vinculado')) {
+        errorMessage = "Fornecedor em uso";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }

@@ -5,6 +5,7 @@ import '../model/peca.dart';
 import '../services/fabricante_service.dart';
 import '../services/fornecedor_service.dart';
 import '../services/peca_service.dart';
+import 'entrada_estoque_page.dart';
 
 class CadastroPecaPage extends StatefulWidget {
   const CadastroPecaPage({super.key});
@@ -164,7 +165,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         fornecedor: _fornecedorSelecionado,
         codigoFabricante: _codigoFabricanteController.text,
         precoUnitario: preco,
-        quantidadeEstoque: int.parse(_quantidadeEstoqueController.text),
+        quantidadeEstoque: _pecaEmEdicao?.quantidadeEstoque ?? 0, // Mantém quantidade existente ou 0 para nova peça
       );
 
       Map<String, dynamic> resultado;
@@ -247,15 +248,15 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Future<void> _excluirPeca(Peca peca) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await PecaService.excluirPeca(peca.id!);
-      if (sucesso) {
+      final resultado = await PecaService.excluirPeca(peca.id!);
+      if (resultado['sucesso']) {
         await _carregarPecas();
-        _showSuccessSnackBar('Peça excluída com sucesso');
+        _showSuccessSnackBar(resultado['mensagem']);
       } else {
-        _showError('Erro ao excluir peça');
+        _showVisibleError(resultado['mensagem']);
       }
     } catch (e) {
-      _showError('Erro inesperado ao excluir peça');
+      _showVisibleError('Erro inesperado ao excluir peça: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -266,7 +267,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _nomeController.clear();
     _codigoFabricanteController.clear();
     _precoUnitarioController.clear();
-    _quantidadeEstoqueController.clear();
+    _quantidadeEstoqueController.text = '0'; // Sempre mostrar 0 para novas peças
     _precoFinalController.clear();
     _fornecedorSelecionado = null;
     _fabricanteSelecionado = null;
@@ -536,7 +537,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _editarPeca(peca),
+          onTap: () {
+            // Função de editar temporariamente desabilitada
+            // _editarPeca(peca);
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -577,16 +581,17 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                         }
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 18),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
-                          ),
-                        ),
+                        // Botão de edição temporariamente oculto conforme solicitado
+                        // const PopupMenuItem(
+                        //   value: 'edit',
+                        //   child: Row(
+                        //     children: [
+                        //       Icon(Icons.edit, size: 18),
+                        //       SizedBox(width: 8),
+                        //       Text('Editar'),
+                        //     ],
+                        //   ),
+                        // ),
                         const PopupMenuItem(
                           value: 'delete',
                           child: Row(
@@ -748,10 +753,13 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               Expanded(
                 child: _buildTextField(
                   controller: _quantidadeEstoqueController,
-                  label: 'Estoque',
+                  label: 'Estoque Atual',
                   icon: Icons.inventory,
-                  keyboardType: TextInputType.number,
-                  validator: (v) => v!.isEmpty ? 'Informe o estoque' : null,
+                  enabled: false,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
                 ),
               ),
             ],
@@ -1020,6 +1028,32 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   const SizedBox(width: 12),
                   Container(
                     decoration: BoxDecoration(
+                      color: successColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: successColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        EntradaEstoquePage.showModal(context).then((_) {
+                          // Recarregar peças após voltar da página de entrada
+                          _carregarPecas();
+                        });
+                      },
+                      icon: const Icon(Icons.add_box, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                      tooltip: 'Entrada de Estoque',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
                       color: primaryColor,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
@@ -1038,6 +1072,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       icon: const Icon(Icons.add, color: Colors.white),
                       iconSize: 28,
                       padding: const EdgeInsets.all(12),
+                      tooltip: 'Nova Peça',
                     ),
                   ),
                 ],

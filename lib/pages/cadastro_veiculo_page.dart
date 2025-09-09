@@ -242,15 +242,21 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   Future<void> _excluirVeiculo(Veiculo veiculo) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await VeiculoService.excluirVeiculo(veiculo.id!);
-      if (sucesso) {
+      final resultado = await VeiculoService.excluirVeiculo(veiculo.id!);
+      if (resultado['success']) {
         await _carregarVeiculos();
         _showSuccessSnackBar('Veículo excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir veículo');
+        ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir veículo');
+      String errorMessage = "Erro inesperado ao excluir veículo";
+      if (e.toString().contains('Veículo não pode ser excluído')) {
+        errorMessage = "Veículo em uso";
+      } else if (e.toString().contains('vinculado')) {
+        errorMessage = "Veículo em uso";
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }

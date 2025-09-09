@@ -39,7 +39,6 @@ class ErrorUtils {
     );
   }
 
-  /// Alias para compatibilidade
   static void showError(BuildContext context, String message) {
     showVisibleError(context, message);
   }

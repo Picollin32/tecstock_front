@@ -915,7 +915,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                           if (i < currentPageActivities.length - 1) const Divider(height: 24),
                         ],
-
                         if (totalPages > 1) ...[
                           const SizedBox(height: 20),
                           const Divider(),
@@ -958,7 +957,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ),
-
                               ElevatedButton.icon(
                                 onPressed: _currentPage < totalPages - 1
                                     ? () {
@@ -1090,7 +1088,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ];
     return '${date.day} de ${months[date.month - 1]} de ${date.year}';
   }
-
 
   String _getFormattedTime(DateTime dateTime) {
     final now = DateTime.now();

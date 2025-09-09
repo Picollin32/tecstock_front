@@ -432,7 +432,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
     if (margem < 10) {
       margemColor = errorColor;
-    } else if (margem < 20) {
+    } else if (margem < 15) {
       margemColor = warningColor;
     }
 
@@ -494,7 +494,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              '+${margem.toStringAsFixed(0)}%',
+                              'Margem: ${margem.toStringAsFixed(0)}%',
                               style: TextStyle(
                                 color: margemColor,
                                 fontSize: 12,
@@ -561,20 +561,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                       ],
                     ),
                   ),
-                Row(
-                  children: [
-                    Icon(Icons.trending_up, size: 16, color: margemColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Margem: ${margem.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        color: margemColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+                Row(),
               ],
             ),
           ),

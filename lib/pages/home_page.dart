@@ -5,6 +5,7 @@ import 'package:TecStock/pages/cadastro_funcioario_page.dart';
 import 'package:TecStock/pages/cadastro_marca_page.dart';
 import 'package:TecStock/pages/cadastro_peca_page.dart';
 import 'package:TecStock/pages/cadastro_servico_page.dart';
+import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
 import 'package:TecStock/services/agendamento_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
@@ -16,6 +17,7 @@ import 'package:TecStock/services/servico_service.dart';
 import 'package:TecStock/services/fornecedor_service.dart';
 import 'package:TecStock/services/funcionario_service.dart';
 import 'package:TecStock/services/peca_service.dart';
+import 'package:TecStock/services/tipo_pagamento_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -42,7 +44,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     'Agendamentos Hoje': 0,
     'Clientes Ativos': 0,
     'Veículos Cadastrados': 0,
-    'Checklists Realizados': 0,
+    'Serviços Cadastrados': 0,
   };
 
   bool _isLoadingStats = true;
@@ -75,7 +77,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     {
       'title': 'Cadastrar Veículo',
       'subtitle': 'Novo veículo',
-      'icon': Icons.add_road,
+      'icon': Icons.airport_shuttle_rounded,
       'color': Colors.purple,
       'page': const CadastroVeiculoPage(),
     },
@@ -103,6 +105,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         {'title': 'Fabricantes', 'icon': Icons.factory, 'page': const CadastroFabricantePage()},
         {'title': 'Peças', 'icon': Icons.settings, 'page': const CadastroPecaPage()},
         {'title': 'Serviços', 'icon': Icons.home_repair_service, 'page': const CadastroServicoPage()},
+        {'title': 'Tipos de Pagamento', 'icon': Icons.payment, 'page': const CadastroTipoPagamentoPage()},
       ],
     },
     {
@@ -181,6 +184,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final fornecedores = await FornecedorService.listarFornecedores();
       final funcionarios = await Funcionarioservice.listarFuncionarios();
       final pecas = await PecaService.listarPecas();
+      final tiposPagamento = await TipoPagamentoService.listarTiposPagamento();
 
       int agendamentosHoje = 0;
 
@@ -195,7 +199,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           'Agendamentos Hoje': agendamentosHoje,
           'Clientes Ativos': clientes.length,
           'Veículos Cadastrados': veiculos.length,
-          'Checklists Realizados': checklists.length,
+          'Serviços Cadastrados': servicos.length,
         };
         _recentActivities = [];
 
@@ -323,6 +327,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFFEF4444),
         );
 
+        _addActivityFromEntity<dynamic>(
+          entities: tiposPagamento,
+          getName: (tipo) => tipo.nome,
+          getSubtitle: (tipo) => '${tipo.nome} - Código: ${tipo.codigo?.toString().padLeft(2, '0') ?? 'N/A'}',
+          getCreatedAt: (tipo) => tipo.createdAt,
+          getUpdatedAt: (tipo) => tipo.updatedAt,
+          entityType: 'tipo de pagamento',
+          createIcon: Icons.payment,
+          createColor: const Color(0xFF059669),
+        );
+
         _recentActivities.sort((a, b) {
           final dateTimeA = a['dateTime'] as DateTime;
           final dateTimeB = b['dateTime'] as DateTime;
@@ -339,7 +354,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           'Agendamentos Hoje': 0,
           'Clientes Ativos': 0,
           'Veículos Cadastrados': 0,
-          'Checklists Realizados': 0,
+          'Serviços Cadastrados': 0,
         };
         _recentActivities = [];
         _isLoadingStats = false;
@@ -1064,8 +1079,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return Icons.people;
       case 'Veículos Cadastrados':
         return Icons.directions_car;
-      case 'Checklists Realizados':
-        return Icons.checklist;
+      case 'Serviços Cadastrados':
+        return Icons.home_repair_service;
       default:
         return Icons.analytics;
     }

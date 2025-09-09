@@ -562,14 +562,35 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        peca.nome,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            peca.nome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'R\$ ${precoFinal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: successColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     PopupMenuButton<String>(
@@ -611,7 +632,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 _buildInfoRow(Icons.business, peca.fabricante.nome),
                 _buildInfoRow(Icons.store, peca.fornecedor?.nome ?? "Não informado"),
                 _buildInfoRow(Icons.attach_money, 'R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
-                _buildInfoRow(Icons.sell, 'R\$ ${precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
                 const Spacer(),
                 Row(
                   children: [

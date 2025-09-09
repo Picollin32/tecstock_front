@@ -52,7 +52,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   late Animation<double> _fadeAnimation;
 
   static const Color primaryColor = Color(0xFF2196F3);
-  static const Color secondaryColor = Color(0xFF03DAC6);
   static const Color errorColor = Color(0xFFE53E3E);
   static const Color successColor = Color(0xFF38A169);
   static const Color shadowColor = Color(0x1A000000);
@@ -501,14 +500,35 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        veiculo.nome,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            veiculo.nome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              veiculo.categoria,
+                              style: TextStyle(
+                                color: primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     PopupMenuButton<String>(
@@ -569,21 +589,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                       ],
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: secondaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    veiculo.categoria,
-                    style: TextStyle(
-                      color: secondaryColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

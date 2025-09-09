@@ -440,14 +440,47 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        servico.nome,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            servico.nome,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: diferencaPreco > 0
+                                  ? Colors.green.withOpacity(0.1)
+                                  : diferencaPreco < 0
+                                      ? Colors.red.withOpacity(0.1)
+                                      : primaryColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              diferencaPreco > 0
+                                  ? '+R\$ ${diferencaPreco.toStringAsFixed(2)}'
+                                  : diferencaPreco < 0
+                                      ? 'R\$ ${diferencaPreco.toStringAsFixed(2)}'
+                                      : 'Mesmo preço',
+                              style: TextStyle(
+                                color: diferencaPreco > 0
+                                    ? Colors.green[700]
+                                    : diferencaPreco < 0
+                                        ? Colors.red[700]
+                                        : primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     PopupMenuButton<String>(
@@ -566,31 +599,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                   ],
                 ),
                 const Spacer(),
-                if (diferencaPreco > 0) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.trending_up, size: 14, color: Colors.green[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '+R\$ ${diferencaPreco.toStringAsFixed(2).replaceAll('.', ',')}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 8),
                 if (servico.createdAt != null)
                   Row(

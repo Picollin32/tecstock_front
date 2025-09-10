@@ -20,6 +20,20 @@ class PecaService {
     }
   }
 
+  static Future<Peca?> buscarPecaPorCodigo(String codigo) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/buscarPorCodigo/$codigo'));
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return Peca.fromJson(jsonData);
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao buscar peça por código: $e');
+      return null;
+    }
+  }
+
   static Future<Map<String, dynamic>> salvarPeca(Peca peca) async {
     try {
       final response = await http.post(

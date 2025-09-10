@@ -7,6 +7,7 @@ import 'package:TecStock/pages/cadastro_peca_page.dart';
 import 'package:TecStock/pages/cadastro_servico_page.dart';
 import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
+import 'package:TecStock/pages/ordem_servico_page.dart';
 import 'package:TecStock/services/agendamento_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
 import 'package:TecStock/services/veiculo_service.dart';
@@ -61,6 +62,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'page': const AgendamentoPage(),
     },
     {
+      'title': 'Ordem de Serviço',
+      'subtitle': 'Nova OS',
+      'icon': Icons.description,
+      'color': Colors.teal,
+      'page': const OrdemServicoPage(),
+    },
+    {
       'title': 'Checklist Veículo',
       'subtitle': 'Inspeção rápida',
       'icon': Icons.checklist_rtl,
@@ -73,13 +81,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'icon': Icons.person_add,
       'color': Colors.orange,
       'page': const CadastroClientePage(),
-    },
-    {
-      'title': 'Cadastrar Veículo',
-      'subtitle': 'Novo veículo',
-      'icon': Icons.airport_shuttle_rounded,
-      'color': Colors.purple,
-      'page': const CadastroVeiculoPage(),
     },
   ];
 
@@ -111,7 +112,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     {
       'group': 'Operações',
       'items': [
-        {'title': 'Ordem de Serviço', 'icon': Icons.description},
+        {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
         {'title': 'Agendamento', 'icon': Icons.support_agent, 'page': const AgendamentoPage()},
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
       ],

@@ -119,6 +119,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
   bool _isLoading = false;
   bool _isLoadingPeca = false;
+  bool _canSubmit = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -133,6 +134,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _initializeAnimations();
     _carregarFornecedores();
     _codigoPecaController.addListener(_buscarPecaPorCodigo);
+    _numeroNotaFiscalController.addListener(_updateSubmitState);
+    _quantidadeController.addListener(_updateSubmitState);
   }
 
   void _initializeAnimations() {
@@ -148,6 +151,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   void dispose() {
     _fadeController.dispose();
     _codigoPecaController.removeListener(_buscarPecaPorCodigo);
+    _numeroNotaFiscalController.removeListener(_updateSubmitState);
+    _quantidadeController.removeListener(_updateSubmitState);
     _codigoPecaController.dispose();
     _quantidadeController.dispose();
     _numeroNotaFiscalController.dispose();
@@ -173,10 +178,12 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       setState(() {
         _pecaEncontrada = null;
       });
+      _updateSubmitState();
       return;
     }
 
     if (_fornecedorSelecionado == null) {
+      _updateSubmitState();
       return;
     }
 
@@ -195,6 +202,21 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       print('Erro ao buscar peça: $e');
     } finally {
       setState(() => _isLoadingPeca = false);
+      _updateSubmitState();
+    }
+  }
+
+  void _updateSubmitState() {
+    final canSubmit = _pecaEncontrada != null &&
+        _numeroNotaFiscalController.text.trim().isNotEmpty &&
+        _quantidadeController.text.trim().isNotEmpty &&
+        (int.tryParse(_quantidadeController.text) ?? 0) > 0 &&
+        !_isLoading;
+
+    if (_canSubmit != canSubmit) {
+      setState(() {
+        _canSubmit = canSubmit;
+      });
     }
   }
 
@@ -205,7 +227,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _canSubmit = false;
+    });
 
     try {
       final resultado = await MovimentacaoEstoqueService.registrarEntrada(
@@ -241,6 +266,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       _showVisibleError("Erro inesperado ao registrar entrada: $e");
     } finally {
       setState(() => _isLoading = false);
+      _updateSubmitState();
     }
   }
 
@@ -250,8 +276,11 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _quantidadeController.clear();
     _numeroNotaFiscalController.clear();
     _observacoesController.clear();
-    _fornecedorSelecionado = null;
-    _pecaEncontrada = null;
+    setState(() {
+      _fornecedorSelecionado = null;
+      _pecaEncontrada = null;
+      _canSubmit = false;
+    });
   }
 
   void _showVisibleError(String message) {
@@ -502,6 +531,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                   _pecaEncontrada = null;
                 });
                 _buscarPecaPorCodigo();
+                _updateSubmitState();
               },
               validator: (value) => value == null ? 'Selecione um fornecedor' : null,
             ),
@@ -550,8 +580,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed:
-                    _isLoading || _pecaEncontrada == null || _numeroNotaFiscalController.text.trim().isEmpty ? null : _registrarEntrada,
+                onPressed: _canSubmit ? _registrarEntrada : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: successColor,
                   foregroundColor: Colors.white,

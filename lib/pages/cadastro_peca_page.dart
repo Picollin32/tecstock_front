@@ -146,7 +146,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   void _calcularPrecoFinal() {
     final precoUnitario = double.tryParse(_precoUnitarioController.text.replaceAll(',', '.')) ?? 0.0;
     final margemLucro = _fornecedorSelecionado?.margemLucro ?? 0.0;
-    final precoFinal = double.parse((precoUnitario * (1 + margemLucro)).toStringAsFixed(2));
+    
+    // Se a margem de lucro for maior que 1, assumir que está em percentual (ex: 20 para 20%)
+    // Se for menor ou igual a 1, assumir que está em decimal (ex: 0.20 para 20%)
+    final margemDecimal = margemLucro > 1 ? margemLucro / 100 : margemLucro;
+    
+    final precoFinal = precoUnitario * (1 + margemDecimal);
     _precoFinalController.text = "R\$ ${precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
   }
 
@@ -157,6 +162,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
     try {
       double preco = double.parse(_precoUnitarioController.text.replaceAll(',', '.'));
+      double precoFinal = double.parse(_precoFinalController.text.replaceAll('R\$ ', '').replaceAll(',', '.'));
 
       final peca = Peca(
         id: _pecaEmEdicao?.id,
@@ -165,6 +171,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         fornecedor: _fornecedorSelecionado,
         codigoFabricante: _codigoFabricanteController.text,
         precoUnitario: preco,
+        precoFinal: precoFinal,
         quantidadeEstoque: _pecaEmEdicao?.quantidadeEstoque ?? 0, // Mantém quantidade existente ou 0 para nova peça
       );
 
@@ -195,11 +202,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       _nomeController.text = peca.nome;
       _codigoFabricanteController.text = peca.codigoFabricante;
       _precoUnitarioController.text = peca.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
+      _precoFinalController.text = "R\$ ${peca.precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
       _quantidadeEstoqueController.text = peca.quantidadeEstoque.toString();
       _fabricanteSelecionado = _fabricantes.firstWhere((f) => f.id == peca.fabricante.id, orElse: () => _fabricantes.first);
       _fornecedorSelecionado = peca.fornecedor != null ? _fornecedores.firstWhere((fo) => fo.id == peca.fornecedor!.id) : null;
       _pecaEmEdicao = peca;
-      _calcularPrecoFinal();
     });
     _showFormModal();
   }
@@ -518,7 +525,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   Widget _buildPartCard(Peca peca) {
-    final precoFinal = peca.precoUnitario * (1 + (peca.fornecedor?.margemLucro ?? 0.0));
     final stockStatus = _getStockStatus(peca.quantidadeEstoque);
 
     return Container(
@@ -578,11 +584,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
+                              color: successColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'R\$ ${precoFinal.toStringAsFixed(2)}',
+                              'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: successColor,
                                 fontSize: 12,
@@ -631,7 +637,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 _buildInfoRow(Icons.qr_code, peca.codigoFabricante),
                 _buildInfoRow(Icons.business, peca.fabricante.nome),
                 _buildInfoRow(Icons.store, peca.fornecedor?.nome ?? "Não informado"),
-                _buildInfoRow(Icons.attach_money, 'R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
+                _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
+                _buildInfoRow(Icons.sell, 'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
                 const Spacer(),
                 Row(
                   children: [
@@ -816,7 +823,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   items: _fornecedores
                       .map((fornecedor) => DropdownMenuItem<Fornecedor>(
                             value: fornecedor,
-                            child: Text("${fornecedor.nome} (+${(fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"),
+                            child: Text("${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"),
                           ))
                       .toList(),
                   onChanged: (value) {

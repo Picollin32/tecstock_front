@@ -6,6 +6,7 @@ class Peca {
   String nome;
   String codigoFabricante;
   double precoUnitario;
+  double precoFinal;
   int quantidadeEstoque;
   Fabricante fabricante;
   Fornecedor? fornecedor;
@@ -17,6 +18,7 @@ class Peca {
     required this.nome,
     required this.codigoFabricante,
     required this.precoUnitario,
+    required this.precoFinal,
     required this.quantidadeEstoque,
     required this.fabricante,
     this.fornecedor,
@@ -30,6 +32,7 @@ class Peca {
       nome: json['nome'],
       codigoFabricante: json['codigoFabricante'],
       precoUnitario: (json['precoUnitario'] as num).toDouble(),
+      precoFinal: (json['precoFinal'] as num).toDouble(),
       quantidadeEstoque: json['quantidadeEstoque'],
       fabricante: Fabricante.fromJson(json['fabricante']),
       fornecedor: json['fornecedor'] != null ? Fornecedor.fromJson(json['fornecedor']) : null,
@@ -44,6 +47,7 @@ class Peca {
       'nome': nome,
       'codigoFabricante': codigoFabricante,
       'precoUnitario': precoUnitario,
+      'precoFinal': precoFinal,
       'quantidadeEstoque': quantidadeEstoque,
       'fabricante': fabricante.toJson(),
       'fornecedor': fornecedor?.toJson(),

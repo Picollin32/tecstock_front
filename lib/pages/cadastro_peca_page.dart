@@ -146,11 +146,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   void _calcularPrecoFinal() {
     final precoUnitario = double.tryParse(_precoUnitarioController.text.replaceAll(',', '.')) ?? 0.0;
     final margemLucro = _fornecedorSelecionado?.margemLucro ?? 0.0;
-    
-    // Se a margem de lucro for maior que 1, assumir que está em percentual (ex: 20 para 20%)
-    // Se for menor ou igual a 1, assumir que está em decimal (ex: 0.20 para 20%)
+
     final margemDecimal = margemLucro > 1 ? margemLucro / 100 : margemLucro;
-    
+
     final precoFinal = precoUnitario * (1 + margemDecimal);
     _precoFinalController.text = "R\$ ${precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
   }
@@ -543,10 +541,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // Função de editar temporariamente desabilitada
-            // _editarPeca(peca);
-          },
+          onTap: () {},
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -823,7 +818,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   items: _fornecedores
                       .map((fornecedor) => DropdownMenuItem<Fornecedor>(
                             value: fornecedor,
-                            child: Text("${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"),
+                            child: Text(
+                                "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"),
                           ))
                       .toList(),
                   onChanged: (value) {

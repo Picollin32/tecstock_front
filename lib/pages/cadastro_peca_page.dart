@@ -146,7 +146,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   void _calcularPrecoFinal() {
     final precoUnitario = double.tryParse(_precoUnitarioController.text.replaceAll(',', '.')) ?? 0.0;
     final margemLucro = _fornecedorSelecionado?.margemLucro ?? 0.0;
-
     final margemDecimal = margemLucro > 1 ? margemLucro / 100 : margemLucro;
 
     final precoFinal = precoUnitario * (1 + margemDecimal);
@@ -170,7 +169,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         codigoFabricante: _codigoFabricanteController.text,
         precoUnitario: preco,
         precoFinal: precoFinal,
-        quantidadeEstoque: _pecaEmEdicao?.quantidadeEstoque ?? 0, // Mantém quantidade existente ou 0 para nova peça
+        quantidadeEstoque: _pecaEmEdicao?.quantidadeEstoque ?? 0,
       );
 
       Map<String, dynamic> resultado;
@@ -272,7 +271,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _nomeController.clear();
     _codigoFabricanteController.clear();
     _precoUnitarioController.clear();
-    _quantidadeEstoqueController.text = '0'; // Sempre mostrar 0 para novas peças
+    _quantidadeEstoqueController.text = '0';
     _precoFinalController.clear();
     _fornecedorSelecionado = null;
     _fabricanteSelecionado = null;
@@ -541,7 +540,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {},
+          onTap: () {
+            // Função de editar temporariamente desabilitada
+            // _editarPeca(peca);
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1064,7 +1066,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     child: IconButton(
                       onPressed: () {
                         EntradaEstoquePage.showModal(context).then((_) {
-                          // Recarregar peças após voltar da página de entrada
                           _carregarPecas();
                         });
                       },

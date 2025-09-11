@@ -16,6 +16,8 @@ class Checklist {
   String? veiculoQuilometragem;
   String? queixaPrincipal;
   int? nivelCombustivel;
+  int? consultorId;
+  String? consultorNome;
   String? parachoquesDianteiro;
   String? parachoquesTraseiro;
   String? capo;
@@ -76,6 +78,8 @@ class Checklist {
     this.veiculoQuilometragem,
     this.queixaPrincipal,
     this.nivelCombustivel,
+    this.consultorId,
+    this.consultorNome,
     this.parachoquesDianteiro,
     this.parachoquesTraseiro,
     this.capo,
@@ -139,6 +143,8 @@ class Checklist {
       veiculoQuilometragem: json['veiculoQuilometragem'],
       queixaPrincipal: json['queixaPrincipal'],
       nivelCombustivel: json['nivelCombustivel'],
+      consultorId: json['consultor'] != null ? json['consultor']['id'] : null,
+      consultorNome: json['consultor'] != null ? json['consultor']['nome'] : null,
       parachoquesDianteiro: json['parachoquesDianteiro'],
       parachoquesTraseiro: json['parachoquesTraseiro'],
       capo: json['capo'],
@@ -205,6 +211,7 @@ class Checklist {
     if (veiculoQuilometragem != null) map['veiculoQuilometragem'] = veiculoQuilometragem;
     if (queixaPrincipal != null) map['queixaPrincipal'] = queixaPrincipal;
     if (nivelCombustivel != null) map['nivelCombustivel'] = nivelCombustivel;
+    if (consultorId != null) map['consultor'] = {'id': consultorId};
     if (parachoquesDianteiro != null) map['parachoquesDianteiro'] = parachoquesDianteiro;
     if (parachoquesTraseiro != null) map['parachoquesTraseiro'] = parachoquesTraseiro;
     if (capo != null) map['capo'] = capo;

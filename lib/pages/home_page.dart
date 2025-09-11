@@ -19,6 +19,7 @@ import 'package:TecStock/services/fornecedor_service.dart';
 import 'package:TecStock/services/funcionario_service.dart';
 import 'package:TecStock/services/peca_service.dart';
 import 'package:TecStock/services/tipo_pagamento_service.dart';
+import 'package:TecStock/services/ordem_servico_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -112,9 +113,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     {
       'group': 'Operações',
       'items': [
-        {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
         {'title': 'Agendamento', 'icon': Icons.support_agent, 'page': const AgendamentoPage()},
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
+        {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
       ],
     },
     {
@@ -186,6 +187,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final funcionarios = await Funcionarioservice.listarFuncionarios();
       final pecas = await PecaService.listarPecas();
       final tiposPagamento = await TipoPagamentoService.listarTiposPagamento();
+      final ordens = await OrdemServicoService.listarOrdensServico();
 
       int agendamentosHoje = 0;
 
@@ -337,6 +339,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           entityType: 'tipo de pagamento',
           createIcon: Icons.payment,
           createColor: const Color(0xFF059669),
+        );
+
+        _addActivityFromEntity<dynamic>(
+          entities: ordens,
+          getName: (os) => os.numeroOS ?? 'OS',
+          getSubtitle: (os) => 'OS: ${os.numeroOS} - Cliente: ${os.clienteNome ?? 'N/A'}',
+          getCreatedAt: (os) => os.createdAt,
+          getUpdatedAt: (os) => os.updatedAt,
+          entityType: 'ordem de serviço',
+          createIcon: Icons.description,
+          createColor: const Color(0xFF009688),
         );
 
         _recentActivities.sort((a, b) {

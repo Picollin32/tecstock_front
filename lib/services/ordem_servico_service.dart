@@ -74,9 +74,8 @@ class OrdemServicoService {
   static Future<bool> atualizarStatus(int id, String novoStatus) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/atualizar-status/$id'),
+        Uri.parse('$baseUrl/$id/status?status=$novoStatus'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'status': novoStatus}),
       );
       return response.statusCode == 200;
     } catch (e) {

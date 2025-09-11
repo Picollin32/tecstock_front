@@ -6,16 +6,12 @@ class OrdemServico {
   int? id;
   String numeroOS;
 
-  // Data e hora
   DateTime dataHora;
 
-  // Dados do cliente (mecânicos e consultores também podem ser clientes)
   String clienteNome;
   String clienteCpf;
   String? clienteTelefone;
   String? clienteEmail;
-
-  // Dados do veículo
   String veiculoNome;
   String veiculoMarca;
   String veiculoAno;
@@ -23,34 +19,18 @@ class OrdemServico {
   String veiculoPlaca;
   String veiculoQuilometragem;
   String? veiculoCategoria;
-
-  // Referência ao checklist
   int? checklistId;
-
-  // Queixa automática do checklist
   String queixaPrincipal;
-
-  // Serviços selecionados (objetos Servico completos)
   List<Servico> servicosRealizados;
-
-  // Peças utilizadas (objetos PecaOrdemServico com quantidade)
   List<PecaOrdemServico> pecasUtilizadas;
-
-  // Preço total calculado (serviços + peças)
   double precoTotal;
-
-  // Garantia (em meses, padrão 3)
   int garantiaMeses;
-
-  // Tipo de pagamento
   TipoPagamento? tipoPagamento;
-
-  // Status da OS
-  String status; // Pendente, Em Andamento, Concluída, Cancelada
-
-  // Observações gerais
+  int? numeroParcelas;
+  String? nomeMecanico;
+  String? nomeConsultor;
+  String status;
   String? observacoes;
-
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -74,9 +54,12 @@ class OrdemServico {
     required this.servicosRealizados,
     this.pecasUtilizadas = const [],
     required this.precoTotal,
-    this.garantiaMeses = 3, // Padrão de 3 meses por lei
+    this.garantiaMeses = 3,
     this.tipoPagamento,
-    this.status = 'Pendente',
+    this.numeroParcelas,
+    this.nomeMecanico,
+    this.nomeConsultor,
+    this.status = 'ABERTA',
     this.observacoes,
     this.createdAt,
     this.updatedAt,
@@ -107,7 +90,10 @@ class OrdemServico {
       precoTotal: json['precoTotal']?.toDouble() ?? 0.0,
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
-      status: json['status'] ?? 'Pendente',
+      numeroParcelas: json['numeroParcelas'],
+      nomeMecanico: json['nomeMecanico'],
+      nomeConsultor: json['nomeConsultor'],
+      status: json['status'] ?? 'ABERTA',
       observacoes: json['observacoes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
@@ -138,6 +124,9 @@ class OrdemServico {
     map['precoTotal'] = precoTotal;
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
+    if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
+    if (nomeMecanico != null) map['nomeMecanico'] = nomeMecanico;
+    if (nomeConsultor != null) map['nomeConsultor'] = nomeConsultor;
     map['status'] = status;
     if (observacoes != null) map['observacoes'] = observacoes;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();

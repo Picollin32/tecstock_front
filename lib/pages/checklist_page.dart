@@ -5,8 +5,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../services/cliente_service.dart';
 import '../services/veiculo_service.dart';
+import '../services/funcionario_service.dart';
 import '../model/cliente.dart';
 import '../model/veiculo.dart';
+import '../model/funcionario.dart';
 import '../services/checklist_service.dart';
 import '../model/checklist.dart';
 
@@ -47,6 +49,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   final _queixaPrincipalController = TextEditingController();
 
   double _fuelLevel = 2.0;
+  List<Funcionario> _funcionarios = [];
+  Funcionario? _consultorSelecionado;
 
   final Map<String, String> _inspecaoVisualStatus = {
     'Para-choque Dianteiro': '',
@@ -127,6 +131,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _queixaPrincipalController.clear();
     _fuelLevel = 2.0;
     _checklistNumberController.clear();
+    _consultorSelecionado = null;
 
     _inspecaoVisualStatus.updateAll((key, value) => '');
 
@@ -147,6 +152,18 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       });
     } catch (e) {
       print('Erro ao carregar checklists: $e');
+    }
+  }
+
+  Future<void> _loadFuncionarios() async {
+    try {
+      final todosFuncionarios = await Funcionarioservice.listarFuncionarios();
+      final consultores = todosFuncionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+      setState(() {
+        _funcionarios = consultores;
+      });
+    } catch (e) {
+      print('Erro ao carregar funcionários: $e');
     }
   }
 
@@ -183,6 +200,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
     _loadClientesVeiculos();
     _loadRecentChecklists();
+    _loadFuncionarios();
     _searchController.addListener(_filtrarRecentes);
 
     _fadeController.forward();
@@ -602,6 +620,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ['Cor:', _veiculoCorController.text],
               ['Placa:', _veiculoPlacaController.text],
               ['Quilometragem:', _veiculoQuilometragemController.text],
+              ['Consultor:', _consultorSelecionado?.nome ?? ''],
             ],
             compact: true,
           ),
@@ -655,6 +674,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         _buildResumoItem('Marca:', _veiculoMarcaController.text),
                         _buildResumoItem('Placa:', _veiculoPlacaController.text),
                         _buildResumoItem('Quilometragem:', _veiculoQuilometragemController.text),
+                        _buildResumoItem('Consultor:', _consultorSelecionado?.nome ?? ''),
                       ],
                     ),
                   ),
@@ -806,6 +826,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.grey[50],
       body: Container(
         decoration: BoxDecoration(
@@ -1619,6 +1640,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           _veiculoQuilometragemController.text = checklist.veiculoQuilometragem ?? '';
           _queixaPrincipalController.text = checklist.queixaPrincipal ?? '';
           _fuelLevel = (checklist.nivelCombustivel ?? 0) / 25.0;
+
+          if (checklist.consultorId != null) {
+            try {
+              _consultorSelecionado = _funcionarios.firstWhere(
+                (funcionario) => funcionario.id == checklist.consultorId,
+              );
+            } catch (e) {
+              _consultorSelecionado = null;
+            }
+          }
           _inspecaoVisualStatus['Para-choque Dianteiro'] = checklist.parachoquesDianteiro ?? '';
           _inspecaoVisualStatus['Para-choque Traseiro'] = checklist.parachoquesTraseiro ?? '';
           _inspecaoVisualStatus['Capô'] = checklist.capo ?? '';
@@ -1669,7 +1700,67 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     }
   }
 
+  bool _validarCamposObrigatorios() {
+    List<String> camposVazios = [];
+
+    if (_dateController.text.trim().isEmpty) camposVazios.add('Data');
+    if (_timeController.text.trim().isEmpty) camposVazios.add('Hora');
+    if (_clienteNomeController.text.trim().isEmpty) camposVazios.add('Nome do Cliente');
+    if (_clienteCpfController.text.trim().isEmpty) camposVazios.add('CPF');
+    if (_clienteTelefoneController.text.trim().isEmpty) camposVazios.add('Telefone');
+    if (_clienteEmailController.text.trim().isEmpty) camposVazios.add('E-mail');
+    if (_veiculoNomeController.text.trim().isEmpty) camposVazios.add('Veículo');
+    if (_veiculoMarcaController.text.trim().isEmpty) camposVazios.add('Marca');
+    if (_veiculoAnoController.text.trim().isEmpty) camposVazios.add('Ano/Modelo');
+    if (_veiculoCorController.text.trim().isEmpty) camposVazios.add('Cor');
+    if (_veiculoPlacaController.text.trim().isEmpty) camposVazios.add('Placa');
+    if (_veiculoQuilometragemController.text.trim().isEmpty) camposVazios.add('Quilometragem');
+    if (_queixaPrincipalController.text.trim().isEmpty) camposVazios.add('Queixa Principal');
+    if (_consultorSelecionado == null) camposVazios.add('Consultor');
+
+    _inspecaoVisualStatus.forEach((item, status) {
+      if (status.isEmpty) {
+        camposVazios.add('Inspeção Visual - $item');
+      }
+    });
+
+    _testesFuncionamento.forEach((item, status) {
+      if (status.isEmpty) {
+        camposVazios.add('Teste de Funcionamento - $item');
+      }
+    });
+
+    _itensVeiculo.forEach((item, status) {
+      if (status.isEmpty) {
+        camposVazios.add('Item do Veículo - $item');
+      }
+    });
+
+    if (camposVazios.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Campos Obrigatórios'),
+          content: const Text('Por favor, preencha todos os dados necessários antes de salvar o checklist.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   Future<void> _salvarChecklist() async {
+    if (!_validarCamposObrigatorios()) {
+      return;
+    }
+
     final numeroParaUsar = _editingChecklistId != null ? _checklistNumberController.text : '';
     String getStatusForBackend(String key, Map<String, String> source) {
       return source[key] ?? '';
@@ -1692,6 +1783,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       veiculoQuilometragem: _veiculoQuilometragemController.text,
       queixaPrincipal: _queixaPrincipalController.text,
       nivelCombustivel: (_fuelLevel * 25).toInt(),
+      consultorId: _consultorSelecionado?.id,
+      consultorNome: _consultorSelecionado?.nome,
       parachoquesDianteiro: getStatusForBackend('Para-choque Dianteiro', _inspecaoVisualStatus),
       parachoquesTraseiro: getStatusForBackend('Para-choque Traseiro', _inspecaoVisualStatus),
       capo: getStatusForBackend('Capô', _inspecaoVisualStatus),
@@ -1806,6 +1899,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             SizedBox(width: itemWidth, child: _buildLabeledController('Ano/Modelo', _veiculoAnoController)),
             SizedBox(width: itemWidth, child: _buildLabeledController('Cor', _veiculoCorController)),
             SizedBox(width: itemWidth, child: _buildLabeledController('Quilometragem', _veiculoQuilometragemController)),
+            SizedBox(width: itemWidth, child: _buildConsultorDropdown()),
           ],
         );
       }),
@@ -1844,6 +1938,55 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsultorDropdown() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Consultor',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Funcionario>(
+          value: _consultorSelecionado,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Selecione um consultor'),
+          items: _funcionarios.map((funcionario) {
+            return DropdownMenuItem<Funcionario>(
+              value: funcionario,
+              child: Text(funcionario.nome),
+            );
+          }).toList(),
+          onChanged: (Funcionario? funcionario) {
+            setState(() {
+              _consultorSelecionado = funcionario;
+            });
+          },
         ),
       ],
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:TecStock/model/tipo_pagamento.dart';
 import 'package:intl/intl.dart';
 import '../services/tipo_pagamento_service.dart';
-import '../utils/error_utils.dart';
 
 class CadastroTipoPagamentoPage extends StatefulWidget {
   const CadastroTipoPagamentoPage({super.key});
@@ -82,7 +81,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
         _filtrarTiposPagamento();
       });
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro ao carregar tipos de pagamento');
+      _showVisibleError('Erro ao carregar tipos de pagamento');
     } finally {
       setState(() => _isLoadingTipos = false);
     }
@@ -111,10 +110,10 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
       } else {
-        ErrorUtils.showVisibleError(context, resultado['message']);
+        _showVisibleError(resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao salvar tipo de pagamento');
+      _showVisibleError('Erro inesperado ao salvar tipo de pagamento');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -166,15 +165,15 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   Future<void> _excluirTipoPagamento(TipoPagamento tipoPagamento) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await TipoPagamentoService.excluirTipoPagamento(tipoPagamento.id!);
-      if (sucesso) {
+      final resultado = await TipoPagamentoService.excluirTipoPagamento(tipoPagamento.id!);
+      if (resultado['success']) {
         await _carregarTiposPagamento();
-        _showSuccessSnackBar('Tipo de pagamento excluído com sucesso');
+        _showSuccessSnackBar(resultado['message']);
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir tipo de pagamento');
+        _showVisibleError(resultado['message']);
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir tipo de pagamento');
+      _showVisibleError('Erro inesperado ao excluir tipo de pagamento: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -201,6 +200,41 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
+    );
+  }
+
+  void _showVisibleError(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: errorColor, size: 24),
+              const SizedBox(width: 8),
+              const Text('Erro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      },
     );
   }
 

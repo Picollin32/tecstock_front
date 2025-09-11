@@ -400,7 +400,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   Widget _buildServiceCard(Servico servico) {
     final precoPasseio = servico.precoPasseio ?? 0.0;
     final precoCaminhonete = servico.precoCaminhonete ?? 0.0;
-    final diferencaPreco = precoCaminhonete - precoPasseio;
 
     return Container(
       decoration: BoxDecoration(
@@ -451,34 +450,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: diferencaPreco > 0
-                                  ? Colors.green.withOpacity(0.1)
-                                  : diferencaPreco < 0
-                                      ? Colors.red.withOpacity(0.1)
-                                      : primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              diferencaPreco > 0
-                                  ? '+R\$ ${diferencaPreco.toStringAsFixed(2)}'
-                                  : diferencaPreco < 0
-                                      ? 'R\$ ${diferencaPreco.toStringAsFixed(2)}'
-                                      : 'Mesmo preço',
-                              style: TextStyle(
-                                color: diferencaPreco > 0
-                                    ? Colors.green[700]
-                                    : diferencaPreco < 0
-                                        ? Colors.red[700]
-                                        : primaryColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                           ),
                         ],
                       ),

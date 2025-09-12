@@ -1209,7 +1209,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         Icon(Icons.info_outline, color: Colors.blue.shade600),
                         const SizedBox(width: 12),
                         Text(
-                          'Editando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}',
+                          _isViewMode
+                              ? 'Visualizando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}'
+                              : 'Editando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}',
                           style: TextStyle(
                             color: Colors.blue.shade700,
                             fontWeight: FontWeight.w500,
@@ -2456,7 +2458,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                           padding: EdgeInsets.zero,
                         ),
-                        Container(
+                        SizedBox(
                           width: 60,
                           height: 32,
                           child: TextFormField(
@@ -3970,9 +3972,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             for (var servicoOS in osCompleta.servicosRealizados) {
               var servicoEncontrado = _servicosDisponiveis.where((s) => s.id == servicoOS.id).firstOrNull;
 
-              if (servicoEncontrado == null) {
-                servicoEncontrado = _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
-              }
+              servicoEncontrado ??= _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
 
               if (servicoEncontrado != null) {
                 _servicosSelecionados.add(servicoEncontrado);
@@ -4116,9 +4116,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             for (var servicoOS in osCompleta.servicosRealizados) {
               var servicoEncontrado = _servicosDisponiveis.where((s) => s.id == servicoOS.id).firstOrNull;
 
-              if (servicoEncontrado == null) {
-                servicoEncontrado = _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
-              }
+              servicoEncontrado ??= _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
 
               if (servicoEncontrado != null) {
                 _servicosSelecionados.add(servicoEncontrado);

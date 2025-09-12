@@ -1029,6 +1029,55 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 children: [
                   Expanded(child: _buildSearchBar()),
                   const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        _showFormModal();
+                      },
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                      tooltip: 'Nova Peça',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: successColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: successColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        EntradaEstoquePage.showModal(context).then((_) {
+                          _carregarPecas();
+                        });
+                      },
+                      icon: const Icon(Icons.add_box, color: Colors.white),
+                      iconSize: 28,
+                      padding: const EdgeInsets.all(12),
+                      tooltip: 'Entrada de Estoque',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Stack(
                     children: [
                       Container(
@@ -1145,55 +1194,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           ),
                         ),
                     ],
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: successColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: successColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        EntradaEstoquePage.showModal(context).then((_) {
-                          _carregarPecas();
-                        });
-                      },
-                      icon: const Icon(Icons.add_box, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                      tooltip: 'Entrada de Estoque',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        _showFormModal();
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                      tooltip: 'Nova Peça',
-                    ),
                   ),
                 ],
               ),

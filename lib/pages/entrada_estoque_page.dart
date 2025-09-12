@@ -604,7 +604,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                   newValue = newValue.replaceFirst(RegExp(',.*'), ',');
                 }
                 if (newValue.indexOf('.') != newValue.lastIndexOf('.')) {
-                  newValue = newValue.replaceFirst(RegExp('\..*'), '.');
+                  newValue = newValue.replaceFirst(RegExp('..*'), '.');
                 }
                 if (newValue != value) {
                   _precoUnitarioController.value = TextEditingValue(

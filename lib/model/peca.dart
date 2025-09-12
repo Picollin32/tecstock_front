@@ -8,6 +8,7 @@ class Peca {
   double precoUnitario;
   double precoFinal;
   int quantidadeEstoque;
+  int estoqueSeguranca;
   Fabricante fabricante;
   Fornecedor? fornecedor;
   DateTime? createdAt;
@@ -20,6 +21,7 @@ class Peca {
     required this.precoUnitario,
     required this.precoFinal,
     required this.quantidadeEstoque,
+    required this.estoqueSeguranca,
     required this.fabricante,
     this.fornecedor,
     this.createdAt,
@@ -34,6 +36,7 @@ class Peca {
       precoUnitario: (json['precoUnitario'] as num).toDouble(),
       precoFinal: (json['precoFinal'] as num).toDouble(),
       quantidadeEstoque: json['quantidadeEstoque'],
+      estoqueSeguranca: json['estoqueSeguranca'],
       fabricante: Fabricante.fromJson(json['fabricante']),
       fornecedor: json['fornecedor'] != null ? Fornecedor.fromJson(json['fornecedor']) : null,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
@@ -49,6 +52,7 @@ class Peca {
       'precoUnitario': precoUnitario,
       'precoFinal': precoFinal,
       'quantidadeEstoque': quantidadeEstoque,
+      'estoqueSeguranca': estoqueSeguranca,
       'fabricante': fabricante.toJson(),
       'fornecedor': fornecedor?.toJson(),
       'createdAt': createdAt?.toIso8601String(),

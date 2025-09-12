@@ -9,6 +9,7 @@ class MovimentacaoEstoqueService {
     required String codigoPeca,
     required int fornecedorId,
     required int quantidade,
+    required double precoUnitario,
     required String numeroNotaFiscal,
     String? observacoes,
   }) async {
@@ -17,6 +18,7 @@ class MovimentacaoEstoqueService {
         'codigoPeca': codigoPeca,
         'fornecedorId': fornecedorId.toString(),
         'quantidade': quantidade.toString(),
+        'precoUnitario': precoUnitario.toString(),
         'numeroNotaFiscal': numeroNotaFiscal,
         if (observacoes != null && observacoes.isNotEmpty) 'observacoes': observacoes,
       });

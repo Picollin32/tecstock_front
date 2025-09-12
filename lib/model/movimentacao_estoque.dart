@@ -5,6 +5,7 @@ class MovimentacaoEstoque {
   String codigoPeca;
   Fornecedor fornecedor;
   int quantidade;
+  double? precoUnitario;
   String numeroNotaFiscal;
   TipoMovimentacao tipoMovimentacao;
   DateTime dataMovimentacao;
@@ -15,6 +16,7 @@ class MovimentacaoEstoque {
     required this.codigoPeca,
     required this.fornecedor,
     required this.quantidade,
+    this.precoUnitario,
     required this.numeroNotaFiscal,
     required this.tipoMovimentacao,
     required this.dataMovimentacao,
@@ -27,6 +29,7 @@ class MovimentacaoEstoque {
       codigoPeca: json['codigoPeca'],
       fornecedor: Fornecedor.fromJson(json['fornecedor']),
       quantidade: json['quantidade'],
+      precoUnitario: json['precoUnitario'] != null ? (json['precoUnitario'] as num).toDouble() : null,
       numeroNotaFiscal: json['numeroNotaFiscal'],
       tipoMovimentacao: TipoMovimentacao.values.firstWhere(
         (e) => e.toString().split('.').last == json['tipoMovimentacao'],
@@ -42,6 +45,7 @@ class MovimentacaoEstoque {
       'codigoPeca': codigoPeca,
       'fornecedor': fornecedor.toJson(),
       'quantidade': quantidade,
+      'precoUnitario': precoUnitario,
       'numeroNotaFiscal': numeroNotaFiscal,
       'tipoMovimentacao': tipoMovimentacao.toString().split('.').last,
       'dataMovimentacao': dataMovimentacao.toIso8601String(),

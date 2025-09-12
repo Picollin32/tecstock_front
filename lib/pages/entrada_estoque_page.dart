@@ -110,6 +110,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   final _formKey = GlobalKey<FormState>();
   final _codigoPecaController = TextEditingController();
   final _quantidadeController = TextEditingController();
+  final _precoUnitarioController = TextEditingController();
   final _numeroNotaFiscalController = TextEditingController();
   final _observacoesController = TextEditingController();
 
@@ -136,6 +137,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _codigoPecaController.addListener(_buscarPecaPorCodigo);
     _numeroNotaFiscalController.addListener(_updateSubmitState);
     _quantidadeController.addListener(_updateSubmitState);
+    _precoUnitarioController.addListener(_updateSubmitState);
   }
 
   void _initializeAnimations() {
@@ -153,8 +155,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _codigoPecaController.removeListener(_buscarPecaPorCodigo);
     _numeroNotaFiscalController.removeListener(_updateSubmitState);
     _quantidadeController.removeListener(_updateSubmitState);
+    _precoUnitarioController.removeListener(_updateSubmitState);
     _codigoPecaController.dispose();
     _quantidadeController.dispose();
+    _precoUnitarioController.dispose();
     _numeroNotaFiscalController.dispose();
     _observacoesController.dispose();
     super.dispose();
@@ -197,6 +201,11 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
       setState(() {
         _pecaEncontrada = peca;
+        if (peca != null) {
+          _precoUnitarioController.text = peca.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
+        } else {
+          _precoUnitarioController.clear();
+        }
       });
     } catch (e) {
       print('Erro ao buscar peça: $e');
@@ -210,7 +219,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     final canSubmit = _pecaEncontrada != null &&
         _numeroNotaFiscalController.text.trim().isNotEmpty &&
         _quantidadeController.text.trim().isNotEmpty &&
+        _precoUnitarioController.text.trim().isNotEmpty &&
         (int.tryParse(_quantidadeController.text) ?? 0) > 0 &&
+        (double.tryParse(_precoUnitarioController.text.replaceAll(',', '.')) ?? 0) > 0 &&
         !_isLoading;
 
     if (_canSubmit != canSubmit) {
@@ -237,6 +248,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
         codigoPeca: _codigoPecaController.text.trim(),
         fornecedorId: _fornecedorSelecionado!.id!,
         quantidade: int.parse(_quantidadeController.text),
+        precoUnitario: double.parse(_precoUnitarioController.text.replaceAll(',', '.')),
         numeroNotaFiscal: _numeroNotaFiscalController.text.trim(),
         observacoes: _observacoesController.text.trim().isEmpty ? null : _observacoesController.text.trim(),
       );
@@ -274,6 +286,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _formKey.currentState?.reset();
     _codigoPecaController.clear();
     _quantidadeController.clear();
+    _precoUnitarioController.clear();
     _numeroNotaFiscalController.clear();
     _observacoesController.clear();
     setState(() {
@@ -453,7 +466,29 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             Text('Nome: ${_pecaEncontrada!.nome}'),
             Text('Fabricante: ${_pecaEncontrada!.fabricante.nome}'),
             Text('Estoque Atual: ${_pecaEncontrada!.quantidadeEstoque} unidades'),
-            Text('Preço: R\$ ${_pecaEncontrada!.precoUnitario.toStringAsFixed(2)}'),
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Preço Atual: R\$ ${_pecaEncontrada!.precoUnitario.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Informe o novo preço abaixo. Se for diferente do atual, será atualizado automaticamente.',
+                    style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
@@ -544,6 +579,41 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             ),
             const SizedBox(height: 16),
             _buildPecaInfo(),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _precoUnitarioController,
+              label: 'Preço Unitário (Custo)',
+              icon: Icons.attach_money,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Informe o preço unitário';
+                }
+                if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
+                  return 'Digite apenas números e vírgula/ponto';
+                }
+                final preco = double.tryParse(value.replaceAll(',', '.'));
+                if (preco == null || preco <= 0) {
+                  return 'Preço deve ser maior que zero';
+                }
+                return null;
+              },
+              onChanged: (value) {
+                String newValue = value.replaceAll(RegExp(r'[^\d,.]'), '');
+                if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
+                  newValue = newValue.replaceFirst(RegExp(',.*'), ',');
+                }
+                if (newValue.indexOf('.') != newValue.lastIndexOf('.')) {
+                  newValue = newValue.replaceFirst(RegExp('\..*'), '.');
+                }
+                if (newValue != value) {
+                  _precoUnitarioController.value = TextEditingValue(
+                    text: newValue,
+                    selection: TextSelection.collapsed(offset: newValue.length),
+                  );
+                }
+              },
+            ),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _numeroNotaFiscalController,

@@ -59,11 +59,20 @@ class OrdemServicoService {
 
   static Future<bool> atualizarOrdemServico(int id, OrdemServico ordemServico) async {
     try {
+      print('Tentando atualizar OS $id...');
+      print('JSON enviado: ${jsonEncode(ordemServico.toJson())}');
+
       final response = await http.put(
         Uri.parse('$baseUrl/atualizar/$id'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(ordemServico.toJson()),
       );
+
+      print('Resposta do servidor: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print('Corpo da resposta de erro: ${response.body}');
+      }
+
       return response.statusCode == 200;
     } catch (e) {
       print('Erro ao atualizar ordem de serviço: $e');

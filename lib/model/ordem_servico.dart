@@ -24,6 +24,8 @@ class OrdemServico {
   List<Servico> servicosRealizados;
   List<PecaOrdemServico> pecasUtilizadas;
   double precoTotal;
+  double? precoTotalServicos;
+  double? precoTotalPecas;
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
@@ -54,6 +56,8 @@ class OrdemServico {
     required this.servicosRealizados,
     this.pecasUtilizadas = const [],
     required this.precoTotal,
+    this.precoTotalServicos,
+    this.precoTotalPecas,
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
@@ -88,6 +92,8 @@ class OrdemServico {
       pecasUtilizadas:
           json['pecasUtilizadas'] != null ? (json['pecasUtilizadas'] as List).map((p) => PecaOrdemServico.fromJson(p)).toList() : [],
       precoTotal: json['precoTotal']?.toDouble() ?? 0.0,
+      precoTotalServicos: json['precoTotalServicos']?.toDouble(),
+      precoTotalPecas: json['precoTotalPecas']?.toDouble(),
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
@@ -122,6 +128,8 @@ class OrdemServico {
     map['servicosRealizados'] = servicosRealizados.map((s) => s.toJson()).toList();
     map['pecasUtilizadas'] = pecasUtilizadas.map((p) => p.toJson()).toList();
     map['precoTotal'] = precoTotal;
+    if (precoTotalServicos != null) map['precoTotalServicos'] = precoTotalServicos;
+    if (precoTotalPecas != null) map['precoTotalPecas'] = precoTotalPecas;
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;

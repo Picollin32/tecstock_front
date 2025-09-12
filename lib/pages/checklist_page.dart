@@ -104,7 +104,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     'Tapetes': '',
   };
 
-  List<dynamic> _clientes = [];
   List<dynamic> _veiculos = [];
   final TextEditingController _searchController = TextEditingController();
   List<Checklist> _recentFiltrados = [];
@@ -113,6 +112,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   final Map<String, dynamic> _veiculoByPlaca = {};
 
   bool _showForm = false;
+  bool _isViewMode = false;
   List<Checklist> _recent = [];
   final _checklistNumberController = TextEditingController();
   int? _editingChecklistId;
@@ -132,6 +132,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _fuelLevel = 2.0;
     _checklistNumberController.clear();
     _consultorSelecionado = null;
+    _isViewMode = false;
 
     _inspecaoVisualStatus.updateAll((key, value) => '');
 
@@ -161,6 +162,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       final consultores = todosFuncionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
       setState(() {
         _funcionarios = consultores;
+        for (var f in todosFuncionarios) {
+          _clienteByCpf[f.cpf] = f;
+        }
       });
     } catch (e) {
       print('Erro ao carregar funcionários: $e');
@@ -252,7 +256,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       final clientes = await ClienteService.listarClientes();
       final veiculos = await VeiculoService.listarVeiculos();
       setState(() {
-        _clientes = clientes;
         _veiculos = veiculos;
         for (var c in clientes) {
           _clienteByCpf[c.cpf] = c;
@@ -1232,26 +1235,28 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                             ),
                           ],
                         ),
-                      if (c.createdAt != null)
-                        Row(
-                          children: [
-                            Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Criado em ${DateFormat('dd/MM/yyyy').format(c.createdAt!)}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
+                      if (c.createdAt != null) Row(),
                     ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.visibility_outlined,
+                            color: Colors.green.shade600,
+                            size: 20,
+                          ),
+                          onPressed: () => _visualizarChecklist(c),
+                          tooltip: 'Visualizar Checklist',
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
@@ -1447,6 +1452,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     onPressed: () {
                       setState(() {
                         _showForm = false;
+                        _isViewMode = false;
                         _editingChecklistId = null;
                         _checklistNumberController.clear();
                         _clearFormFields();
@@ -1460,7 +1466,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _editingChecklistId != null ? 'Editar Checklist' : 'Novo Checklist',
+                        _isViewMode ? 'Visualizar Checklist' : (_editingChecklistId != null ? 'Editar Checklist' : 'Novo Checklist'),
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -1509,85 +1515,100 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_editingChecklistId != null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade600),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Editando checklist: ${_checklistNumberController.text.isNotEmpty ? _checklistNumberController.text : _editingChecklistId}',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_editingChecklistId != null) const SizedBox(height: 24),
-                _buildFormSection('1. Dados do Cliente e Veículo', Icons.person_outline),
-                const SizedBox(height: 16),
-                _buildClientVehicleInfo(),
-                const SizedBox(height: 32),
-                _buildFormSection('2. Queixa Principal / Serviço Solicitado', Icons.report_problem_outlined),
-                const SizedBox(height: 16),
-                _buildComplaintSection(),
-                const SizedBox(height: 32),
-                _buildFormSection('3. Inspeção Visual (Avarias)', Icons.visibility_outlined),
-                const SizedBox(height: 16),
-                _buildVisualInspection(),
-                const SizedBox(height: 32),
-                _buildTestsAndItems(),
-                const SizedBox(height: 32),
-                _buildFormSection('6. Nível de Combustível', Icons.local_gas_station_outlined),
-                const SizedBox(height: 16),
-                _buildFuelLevel(),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
+          AbsorbPointer(
+            absorbing: _isViewMode,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_editingChecklistId != null)
                     Container(
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.teal.shade600, Colors.cyan.shade600],
-                        ),
+                        color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.teal.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade600),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${_isViewMode ? "Visualizando" : "Editando"} checklist: ${_checklistNumberController.text.isNotEmpty ? _checklistNumberController.text : _editingChecklistId}',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
-                      child: ElevatedButton.icon(
-                        onPressed: _salvarChecklist,
-                        icon: const Icon(Icons.save, color: Colors.white),
-                        label: Text(
-                          _editingChecklistId != null ? 'Atualizar Checklist' : 'Salvar Checklist',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
                     ),
-                  ],
+                  if (_editingChecklistId != null) const SizedBox(height: 24),
+                  _buildFormSection('1. Dados do Cliente e Veículo', Icons.person_outline),
+                  const SizedBox(height: 16),
+                  _buildClientVehicleInfo(),
+                  const SizedBox(height: 32),
+                  _buildFormSection('2. Queixa Principal / Serviço Solicitado', Icons.report_problem_outlined),
+                  const SizedBox(height: 16),
+                  _buildComplaintSection(),
+                  const SizedBox(height: 32),
+                  _buildFormSection('3. Inspeção Visual (Avarias)', Icons.visibility_outlined),
+                  const SizedBox(height: 16),
+                  _buildVisualInspection(),
+                  const SizedBox(height: 32),
+                  _buildTestsAndItems(),
+                  const SizedBox(height: 32),
+                  _buildFormSection('6. Nível de Combustível', Icons.local_gas_station_outlined),
+                  const SizedBox(height: 16),
+                  _buildFuelLevel(),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.teal.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: _isViewMode
+                        ? () {
+                            setState(() {
+                              _showForm = false;
+                              _editingChecklistId = null;
+                              _isViewMode = false;
+                              _clearFormFields();
+                            });
+                          }
+                        : _salvarChecklist,
+                    icon: Icon(_isViewMode ? Icons.arrow_back : Icons.save, color: Colors.white),
+                    label: Text(
+                      _isViewMode ? 'Voltar' : (_editingChecklistId != null ? 'Atualizar Checklist' : 'Salvar Checklist'),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1694,6 +1715,28 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       }
     } catch (e) {
       print('Erro ao carregar dados do checklist: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao carregar dados do checklist')),
+      );
+    }
+  }
+
+  Future<void> _visualizarChecklist(Checklist c) async {
+    try {
+      final data = await ChecklistService.buscarChecklistPorId(c.id!);
+      if (data != null) {
+        setState(() {
+          _isViewMode = true;
+          _editingChecklistId = data.id;
+        });
+        await _carregarDadosChecklistParaEdicao(data.id!);
+        setState(() {
+          _showForm = true;
+        });
+        _slideController.forward();
+      }
+    } catch (e) {
+      print('Erro ao carregar checklist para visualização: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao carregar dados do checklist')),
       );
@@ -1993,7 +2036,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
-    final options = _clientes.map((c) => (c as Cliente).cpf).whereType<String>().toList();
+    final options = _clienteByCpf.keys.toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2012,13 +2055,20 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             return options.where((cpf) => cpf.toLowerCase().contains(textEditingValue.text.toLowerCase()));
           },
           onSelected: (String selection) {
-            final c = _clienteByCpf[selection] as Cliente?;
-            if (c != null) {
+            final pessoa = _clienteByCpf[selection];
+            if (pessoa is Cliente) {
               setState(() {
-                _clienteNomeController.text = c.nome;
-                _clienteCpfController.text = c.cpf;
-                _clienteTelefoneController.text = c.telefone;
-                _clienteEmailController.text = c.email;
+                _clienteNomeController.text = pessoa.nome;
+                _clienteCpfController.text = pessoa.cpf;
+                _clienteTelefoneController.text = pessoa.telefone;
+                _clienteEmailController.text = pessoa.email;
+              });
+            } else if (pessoa is Funcionario) {
+              setState(() {
+                _clienteNomeController.text = pessoa.nome;
+                _clienteCpfController.text = pessoa.cpf;
+                _clienteTelefoneController.text = pessoa.telefone;
+                _clienteEmailController.text = pessoa.email;
               });
             }
           },

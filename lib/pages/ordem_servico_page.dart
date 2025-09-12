@@ -65,6 +65,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   List<Checklist> _checklistsFiltrados = [];
   List<Servico> _servicosDisponiveis = [];
   List<TipoPagamento> _tiposPagamento = [];
+  List<Peca> _pecasDisponiveis = [];
   Checklist? _checklistSelecionado;
   final List<Servico> _servicosSelecionados = [];
   final List<PecaOrdemServico> _pecasSelecionadas = [];
@@ -84,6 +85,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final TextEditingController _searchController = TextEditingController();
   int? _editingOSId;
   double _precoTotal = 0.0;
+  double _precoTotalServicos = 0.0;
   String? _categoriaSelecionada;
   bool _isViewMode = false;
 
@@ -160,9 +162,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       final servicosFuture = ServicoService.listarServicos();
       final tiposPagamentoFuture = TipoPagamentoService.listarTiposPagamento();
       final ordensFuture = OrdemServicoService.listarOrdensServico();
+      final pecasFuture = PecaService.listarPecas();
 
-      final results = await Future.wait(
-          [clientesFuture, funcionariosFuture, veiculosFuture, checklistsFuture, servicosFuture, tiposPagamentoFuture, ordensFuture]);
+      final results = await Future.wait([
+        clientesFuture,
+        funcionariosFuture,
+        veiculosFuture,
+        checklistsFuture,
+        servicosFuture,
+        tiposPagamentoFuture,
+        ordensFuture,
+        pecasFuture
+      ]);
 
       setState(() {
         _clientes = results[0];
@@ -173,6 +184,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         _checklistsFiltrados = _checklists;
         _servicosDisponiveis = results[4] as List<Servico>;
         _tiposPagamento = results[5] as List<TipoPagamento>;
+        _pecasDisponiveis = results[7] as List<Peca>;
 
         final ordensServico = results[6] as List<OrdemServico>;
         ordensServico.sort((a, b) {
@@ -249,6 +261,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   void _calcularPrecoTotal() {
     double totalServicos = 0.0;
+
     for (var servico in _servicosSelecionados) {
       if (_categoriaSelecionada == 'Caminhonete') {
         totalServicos += servico.precoCaminhonete ?? 0.0;
@@ -260,17 +273,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     double totalPecas = _calcularTotalPecas();
 
     setState(() {
+      _precoTotalServicos = totalServicos;
       _precoTotal = totalServicos + totalPecas;
     });
   }
 
   double _calcularTotalPecas() {
-    return _pecasSelecionadas.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotal);
+    return _pecasSelecionadas.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
   }
 
   double _calcularTotalPecasOS(OrdemServico? os) {
     if (os != null) {
-      return os.pecasUtilizadas.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotal);
+      return os.pecasUtilizadas.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
     } else {
       return _calcularTotalPecas();
     }
@@ -281,6 +295,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       final servicosParaPDF = os.servicosRealizados;
       final categoriaVeiculo = os.veiculoCategoria;
       double totalServicos = 0.0;
+
       for (var servico in servicosParaPDF) {
         if (categoriaVeiculo == 'Caminhonete') {
           totalServicos += servico.precoCaminhonete ?? 0.0;
@@ -330,26 +345,51 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         final pecaJaAdicionada = _pecasSelecionadas.where((p) => p.peca.id == peca.id).firstOrNull;
         if (pecaJaAdicionada != null) {
           final quantidadeTotal = pecaJaAdicionada.quantidade + quantidade;
-          if (quantidadeTotal > peca.quantidadeEstoque) {
+          if (quantidadeTotal > (peca.quantidadeEstoque + pecaJaAdicionada.quantidade)) {
             _showErrorSnackBar(
-                'Quantidade total ($quantidadeTotal) seria maior que o estoque disponível (${peca.quantidadeEstoque} unidades)');
+                'Quantidade total ($quantidadeTotal) seria maior que o estoque disponível (${peca.quantidadeEstoque + pecaJaAdicionada.quantidade} unidades)');
             return;
           }
 
-          setState(() {
-            pecaJaAdicionada.quantidade = quantidadeTotal;
-            _codigoPecaController.clear();
-          });
-          _calcularPrecoTotal();
-          _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
+          try {
+            peca.quantidadeEstoque -= quantidade;
+            await PecaService.atualizarPeca(peca.id!, peca);
+
+            setState(() {
+              pecaJaAdicionada.quantidade = quantidadeTotal;
+              pecaJaAdicionada.valorUnitario = peca.precoFinal;
+              pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
+              _codigoPecaController.clear();
+            });
+            _calcularPrecoTotal();
+            _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
+          } catch (e) {
+            print('Erro ao atualizar estoque: $e');
+            peca.quantidadeEstoque += quantidade;
+            _showErrorSnackBar('Erro ao atualizar estoque da peça');
+          }
         } else {
-          final pecaOS = PecaOrdemServico(peca: peca, quantidade: quantidade);
-          setState(() {
-            _pecasSelecionadas.add(pecaOS);
-            _codigoPecaController.clear();
-          });
-          _calcularPrecoTotal();
-          _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
+          try {
+            peca.quantidadeEstoque -= quantidade;
+            await PecaService.atualizarPeca(peca.id!, peca);
+
+            final pecaOS = PecaOrdemServico(
+              peca: peca,
+              quantidade: quantidade,
+              valorUnitario: peca.precoFinal,
+              valorTotal: peca.precoFinal * quantidade,
+            );
+            setState(() {
+              _pecasSelecionadas.add(pecaOS);
+              _codigoPecaController.clear();
+            });
+            _calcularPrecoTotal();
+            _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
+          } catch (e) {
+            print('Erro ao atualizar estoque: $e');
+            peca.quantidadeEstoque += quantidade;
+            _showErrorSnackBar('Erro ao atualizar estoque da peça');
+          }
         }
       } else {
         _showErrorSnackBar('Peça não encontrada com o código: $codigo');
@@ -359,15 +399,35 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
   }
 
-  void _removerPeca(PecaOrdemServico pecaOS) {
-    setState(() {
-      _pecasSelecionadas.remove(pecaOS);
-    });
-    _calcularPrecoTotal();
-    _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
+  Future<void> _removerPeca(PecaOrdemServico pecaOS) async {
+    try {
+      setState(() {
+        _pecasSelecionadas.remove(pecaOS);
+      });
+      final peca = pecaOS.peca;
+      peca.quantidadeEstoque += pecaOS.quantidade;
+
+      await PecaService.atualizarPeca(peca.id!, peca);
+
+      _calcularPrecoTotal();
+      _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome} (${pecaOS.quantidade} unid. retornadas ao estoque)');
+    } catch (e) {
+      print('Erro ao retornar peça ao estoque: $e');
+      _calcularPrecoTotal();
+      _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
+    }
   }
 
-  void _clearFormFields() {
+  Future<void> _clearFormFields() async {
+    for (var pecaOS in _pecasSelecionadas) {
+      try {
+        pecaOS.peca.quantidadeEstoque += pecaOS.quantidade;
+        await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
+      } catch (e) {
+        print('Erro ao retornar peça ${pecaOS.peca.nome} ao estoque: $e');
+      }
+    }
+
     _clienteNomeController.clear();
     _clienteCpfController.clear();
     _clienteTelefoneController.clear();
@@ -394,6 +454,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _mecanicoSelecionado = null;
       _consultorSelecionado = null;
       _precoTotal = 0.0;
+      _precoTotalServicos = 0.0;
       _categoriaSelecionada = null;
       _pecaEncontrada = null;
       _checklistsFiltrados = _checklists;
@@ -516,18 +577,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  setState(() {
-                    if (_showForm) {
-                      _clearFormFields();
+                onTap: () async {
+                  if (_showForm) {
+                    await _clearFormFields();
+                    setState(() {
                       _editingOSId = null;
                       _showForm = false;
-                    } else {
-                      _clearFormFields();
-                      _editingOSId = null;
+                    });
+                  } else {
+                    await _clearFormFields();
+                    setState(() {
                       _showForm = true;
-                    }
-                  });
+                    });
+                  }
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -876,9 +938,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ],
                 ),
+              if (os.servicosRealizados.isNotEmpty)
                 Row(
                   children: [
-                    Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                    Icon(Icons.handyman, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 6),
                     Text(
                       'Serviços: R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}',
@@ -889,6 +952,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ],
                 ),
+              Row(
+                children: [
+                  Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Total: R\$ ${os.precoTotal.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: Colors.purple[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ],
             Row(
               children: [
@@ -1047,11 +1123,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () {
+                    onPressed: () async {
+                      await _clearFormFields();
                       setState(() {
                         _showForm = false;
                         _editingOSId = null;
-                        _clearFormFields();
                       });
                     },
                   ),
@@ -1175,6 +1251,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 const SizedBox(height: 16),
                 _buildObservationsSection(),
                 const SizedBox(height: 32),
+                _buildFormSection('9. Resumo de Valores', Icons.receipt_long_outlined),
+                const SizedBox(height: 16),
+                _buildPriceSummarySection(),
+                const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -1194,8 +1274,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            _clearFormFields();
+                          onPressed: () async {
+                            await _clearFormFields();
                             setState(() {
                               _showForm = false;
                             });
@@ -1702,6 +1782,173 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
+  Widget _buildPecaAutocomplete() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Buscar Peça',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Autocomplete<Peca>(
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty) return const Iterable<Peca>.empty();
+            return _pecasDisponiveis.where((peca) {
+              final searchText = textEditingValue.text.toLowerCase();
+              return peca.codigoFabricante.toLowerCase().contains(searchText) ||
+                  peca.nome.toLowerCase().contains(searchText) ||
+                  peca.fabricante.nome.toLowerCase().contains(searchText);
+            });
+          },
+          displayStringForOption: (Peca peca) => '${peca.codigoFabricante} - ${peca.nome} (${peca.fabricante.nome})',
+          onSelected: (Peca selection) {
+            setState(() {
+              _pecaEncontrada = selection;
+              _codigoPecaController.text = selection.codigoFabricante;
+            });
+          },
+          fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              readOnly: _isViewMode,
+              onChanged: _isViewMode
+                  ? null
+                  : (value) {
+                      if (_pecaEncontrada != null) {
+                        setState(() {
+                          _pecaEncontrada = null;
+                        });
+                      }
+                    },
+              decoration: InputDecoration(
+                labelText: 'Código da Peça',
+                hintText: 'Digite o código, nome ou fabricante...',
+                prefixIcon: Icon(Icons.qr_code, color: Colors.grey[600]),
+                suffixIcon: _pecaEncontrada != null
+                    ? Container(
+                        margin: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _pecaEncontrada!.quantidadeEstoque <= 5
+                              ? Colors.red[50]
+                              : _pecaEncontrada!.quantidadeEstoque <= 10
+                                  ? Colors.orange[50]
+                                  : Colors.green[50],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Estoque: ${_pecaEncontrada!.quantidadeEstoque}',
+                          style: TextStyle(
+                            color: _pecaEncontrada!.quantidadeEstoque <= 5
+                                ? Colors.red[700]
+                                : _pecaEncontrada!.quantidadeEstoque <= 10
+                                    ? Colors.orange[700]
+                                    : Colors.green[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              ),
+              onSubmitted: _isViewMode
+                  ? null
+                  : (value) {
+                      if (_pecaEncontrada != null) {
+                        _buscarPecaPorCodigo(_pecaEncontrada!.codigoFabricante);
+                      } else {
+                        _buscarPecaPorCodigo(value);
+                      }
+                    },
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            final optList = options.toList();
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: optList.length,
+                    itemBuilder: (context, index) {
+                      final peca = optList[index];
+                      return ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: peca.quantidadeEstoque <= 5
+                                ? Colors.red[100]
+                                : peca.quantidadeEstoque <= 10
+                                    ? Colors.orange[100]
+                                    : Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${peca.quantidadeEstoque}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: peca.quantidadeEstoque <= 5
+                                    ? Colors.red[700]
+                                    : peca.quantidadeEstoque <= 10
+                                        ? Colors.orange[700]
+                                        : Colors.green[700],
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          '${peca.codigoFabricante} - ${peca.nome}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fabricante: ${peca.fabricante.nome}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              'Preço: R\$ ${peca.precoFinal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        onTap: () => onSelected(peca),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildCategoriaDropdown() {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1851,7 +2098,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       color: Colors.grey[700],
                     ),
               ),
-              if (_precoTotal > 0)
+              if (_precoTotalServicos > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -1860,7 +2107,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     border: Border.all(color: Colors.green.shade200),
                   ),
                   child: Text(
-                    'Total: R\$ ${_precoTotal.toStringAsFixed(2)}',
+                    'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: Colors.green.shade700,
                       fontWeight: FontWeight.w600,
@@ -1969,67 +2216,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Adicionar Peça',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _codigoPecaController,
-                        decoration: InputDecoration(
-                          labelText: 'Código da Peça',
-                          hintText: 'Digite o código...',
-                          prefixIcon: Icon(Icons.qr_code, color: Colors.grey[600]),
-                          suffixIcon: _pecaEncontrada != null
-                              ? Container(
-                                  margin: const EdgeInsets.all(4),
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _pecaEncontrada!.quantidadeEstoque <= 5
-                                        ? Colors.red[50]
-                                        : _pecaEncontrada!.quantidadeEstoque <= 10
-                                            ? Colors.orange[50]
-                                            : Colors.green[50],
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'Estoque: ${_pecaEncontrada!.quantidadeEstoque}',
-                                    style: TextStyle(
-                                      color: _pecaEncontrada!.quantidadeEstoque <= 5
-                                          ? Colors.red[700]
-                                          : _pecaEncontrada!.quantidadeEstoque <= 10
-                                              ? Colors.orange[700]
-                                              : Colors.green[700],
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                        ),
-                        readOnly: _isViewMode,
-                        onChanged: _isViewMode
-                            ? null
-                            : (value) {
-                                if (_pecaEncontrada != null) {
-                                  setState(() {
-                                    _pecaEncontrada = null;
-                                  });
-                                }
-                              },
-                        onSubmitted: _isViewMode ? null : _buscarPecaPorCodigo,
-                      ),
+                      child: _buildPecaAutocomplete(),
                     ),
                     if (!_isViewMode) ...[
                       const SizedBox(width: 12),
@@ -2197,15 +2387,41 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             ),
                           ),
                           Text(
-                            'Estoque: ${pecaOS.peca.quantidadeEstoque} unid.',
+                            'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. (Usando: ${pecaOS.quantidade})',
                             style: TextStyle(
-                              color: pecaOS.peca.quantidadeEstoque <= 5
+                              color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
                                   ? Colors.red[600]
-                                  : pecaOS.peca.quantidadeEstoque <= 10
-                                      ? Colors.orange[600]
-                                      : Colors.green[600],
+                                  : pecaOS.peca.quantidadeEstoque <= 5
+                                      ? Colors.red[600]
+                                      : pecaOS.peca.quantidadeEstoque <= 10
+                                          ? Colors.orange[600]
+                                          : Colors.green[600],
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color: Colors.grey[300],
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: pecaOS.peca.quantidadeEstoque > 0
+                                  ? (pecaOS.quantidade / pecaOS.peca.quantidadeEstoque).clamp(0.0, 1.0)
+                                  : 0.0,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(2),
+                                  color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
+                                      ? Colors.red[400]
+                                      : pecaOS.quantidade / pecaOS.peca.quantidadeEstoque > 0.8
+                                          ? Colors.orange[400]
+                                          : Colors.green[400],
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -2218,12 +2434,22 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         IconButton(
                           onPressed: _isViewMode
                               ? null
-                              : () {
+                              : () async {
                                   if (pecaOS.quantidade > 1) {
-                                    setState(() {
-                                      pecaOS.quantidade--;
-                                    });
-                                    _calcularPrecoTotal();
+                                    try {
+                                      pecaOS.peca.quantidadeEstoque++;
+                                      await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
+
+                                      setState(() {
+                                        pecaOS.quantidade--;
+                                        pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                        pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                      });
+                                      _calcularPrecoTotal();
+                                    } catch (e) {
+                                      print('Erro ao atualizar estoque: $e');
+                                      pecaOS.peca.quantidadeEstoque--;
+                                    }
                                   }
                                 },
                           icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
@@ -2231,31 +2457,92 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           padding: EdgeInsets.zero,
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${pecaOS.quantidade}',
+                          width: 60,
+                          height: 32,
+                          child: TextFormField(
+                            key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
+                            initialValue: '${pecaOS.quantidade}',
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            enabled: !_isViewMode,
                             style: TextStyle(
                               color: Colors.blue.shade700,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(4),
+                                borderSide: BorderSide(color: Colors.blue.shade200),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(4),
+                                borderSide: BorderSide(color: Colors.blue.shade200),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(4),
+                                borderSide: BorderSide(color: Colors.blue.shade400),
+                              ),
+                              filled: true,
+                              fillColor: Colors.blue.shade50,
+                            ),
+                            onChanged: (value) async {
+                              if (value.isNotEmpty) {
+                                int novaQuantidade = int.tryParse(value) ?? 1;
+                                int quantidadeAnterior = pecaOS.quantidade;
+
+                                if (novaQuantidade <= 0) {
+                                  novaQuantidade = 1;
+                                }
+
+                                int diferenca = novaQuantidade - quantidadeAnterior;
+
+                                if (diferenca > 0 && diferenca > pecaOS.peca.quantidadeEstoque) {
+                                  novaQuantidade = quantidadeAnterior + pecaOS.peca.quantidadeEstoque;
+                                  diferenca = novaQuantidade - quantidadeAnterior;
+                                  _showErrorSnackBar('Estoque insuficiente. Quantidade máxima possível: $novaQuantidade');
+                                }
+
+                                try {
+                                  pecaOS.peca.quantidadeEstoque -= diferenca;
+                                  await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
+
+                                  setState(() {
+                                    pecaOS.quantidade = novaQuantidade;
+                                    pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                    pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                  });
+                                  _calcularPrecoTotal();
+                                } catch (e) {
+                                  print('Erro ao atualizar estoque: $e');
+                                  pecaOS.peca.quantidadeEstoque += diferenca;
+                                }
+                              }
+                            },
                           ),
                         ),
                         IconButton(
                           onPressed: _isViewMode
                               ? null
-                              : () {
-                                  if (pecaOS.quantidade < pecaOS.peca.quantidadeEstoque) {
-                                    setState(() {
-                                      pecaOS.quantidade++;
-                                    });
-                                    _calcularPrecoTotal();
+                              : () async {
+                                  if (pecaOS.peca.quantidadeEstoque > 0) {
+                                    try {
+                                      pecaOS.peca.quantidadeEstoque--;
+                                      await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
+
+                                      setState(() {
+                                        pecaOS.quantidade++;
+                                        pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                        pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                      });
+                                      _calcularPrecoTotal();
+                                    } catch (e) {
+                                      print('Erro ao atualizar estoque: $e');
+                                      pecaOS.peca.quantidadeEstoque++;
+                                    }
                                   } else {
-                                    _showErrorSnackBar('Quantidade máxima disponível: ${pecaOS.peca.quantidadeEstoque}');
+                                    _showErrorSnackBar('Estoque esgotado para esta peça');
                                   }
                                 },
                           icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
@@ -2266,7 +2553,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'R\$ ${pecaOS.valorTotal.toStringAsFixed(2)}',
+                      'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.green.shade700,
@@ -2276,7 +2563,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     const SizedBox(width: 12),
                     if (!_isViewMode)
                       IconButton(
-                        onPressed: () => _removerPeca(pecaOS),
+                        onPressed: () async => await _removerPeca(pecaOS),
                         icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
                         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         padding: EdgeInsets.zero,
@@ -2386,9 +2673,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um mecânico'),
-                  items: _funcionarios
-                      .where((funcionario) => funcionario.nivelAcesso == 2)
-                      .map((funcionario) {
+                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).map((funcionario) {
                     return DropdownMenuItem<String>(
                       value: funcionario.nome,
                       child: Text(funcionario.nome),
@@ -2438,9 +2723,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um consultor'),
-                  items: _funcionarios
-                      .where((funcionario) => funcionario.nivelAcesso == 1)
-                      .map((funcionario) {
+                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).map((funcionario) {
                     return DropdownMenuItem<String>(
                       value: funcionario.nome,
                       child: Text(funcionario.nome),
@@ -2564,7 +2847,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       : (value) {
                           setState(() {
                             _tipoPagamentoSelecionado = value;
-                            if (value?.codigo != 3) {
+                            if (value?.codigo != 3 && value?.codigo != 4) {
                               _numeroParcelas = null;
                             }
                           });
@@ -2599,11 +2882,54 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       fillColor: Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
-                    hint: const Text('Selecione'),
-                    items: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map((parcelas) {
+                    items: List.generate(12, (i) => i + 1).map((parcelas) {
                       return DropdownMenuItem<int>(
                         value: parcelas,
-                        child: Text('$parcelas parcelas'),
+                        child: Text('${parcelas}x'),
+                      );
+                    }).toList(),
+                    onChanged: _isViewMode
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _numeroParcelas = value;
+                            });
+                          },
+                  ),
+                ],
+                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Prazo (meses)',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    value: _numeroParcelas,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    items: List.generate(12, (i) => i + 1).map((mes) {
+                      return DropdownMenuItem<int>(
+                        value: mes,
+                        child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
                       );
                     }).toList(),
                     onChanged: _isViewMode
@@ -2658,6 +2984,148 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
+  Widget _buildPriceSummarySection() {
+    double totalPecas = _calcularTotalPecas();
+    double totalServicos = _precoTotalServicos;
+    double totalGeral = totalServicos + totalPecas;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Total de Serviços:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'R\$ ${totalServicos.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Total de Peças:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'R\$ ${totalPecas.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade800,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 1,
+            color: Colors.grey[300],
+            margin: const EdgeInsets.symmetric(vertical: 8),
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.purple.shade400, Colors.purple.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.receipt_long, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'VALOR TOTAL GERAL:',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  'R\$ ${totalGeral.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _salvarOS() async {
     if (_clienteNomeController.text.isEmpty || _clienteCpfController.text.isEmpty) {
       _showErrorSnackBar('Por favor, preencha os dados do cliente');
@@ -2666,6 +3134,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     if (_veiculoPlacaController.text.isEmpty) {
       _showErrorSnackBar('Por favor, preencha os dados do veículo');
+      return;
+    }
+
+    if (_categoriaSelecionada == null) {
+      _showErrorSnackBar('Por favor, selecione um veículo para definir a categoria');
       return;
     }
 
@@ -2703,28 +3176,36 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
       );
 
+      print('Tentando ${_editingOSId != null ? "atualizar" : "salvar"} OS...');
+      print('Serviços selecionados: ${_servicosSelecionados.length}');
+      print('Peças selecionadas: ${_pecasSelecionadas.length}');
+
       bool sucesso;
       if (_editingOSId != null) {
+        print('Atualizando OS ID: $_editingOSId');
         sucesso = await OrdemServicoService.atualizarOrdemServico(_editingOSId!, ordemServico);
       } else {
+        print('Salvando nova OS');
         sucesso = await OrdemServicoService.salvarOrdemServico(ordemServico);
       }
 
       if (sucesso) {
-        for (var pecaOS in _pecasSelecionadas) {
-          try {
-            final peca = pecaOS.peca;
-            var novaQuant = peca.quantidadeEstoque - pecaOS.quantidade;
-            if (novaQuant < 0) novaQuant = 0;
-            peca.quantidadeEstoque = novaQuant;
-            await PecaService.atualizarPeca(peca.id!, peca);
-          } catch (e) {
-            print('Erro ao atualizar estoque da peça: $e');
+        if (_editingOSId == null) {
+          for (var pecaOS in _pecasSelecionadas) {
+            try {
+              final peca = pecaOS.peca;
+              var novaQuant = peca.quantidadeEstoque - pecaOS.quantidade;
+              if (novaQuant < 0) novaQuant = 0;
+              peca.quantidadeEstoque = novaQuant;
+              await PecaService.atualizarPeca(peca.id!, peca);
+            } catch (e) {
+              print('Erro ao atualizar estoque da peça: $e');
+            }
           }
         }
 
         _showSuccessSnackBar(_editingOSId != null ? 'OS atualizada com sucesso' : 'OS criada com sucesso');
-        _clearFormFields();
+        await _clearFormFields();
         await _loadData();
         setState(() {
           _showForm = false;
@@ -3121,7 +3602,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(5),
-                      child: pw.Text('R\$ ${pecaOS.valorTotal.toStringAsFixed(2)}',
+                      child: pw.Text('R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
                           style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                     ),
                   ],
@@ -3140,9 +3621,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final garantiaMeses = os?.garantiaMeses ?? _garantiaMeses;
 
     final pecasParaPDF = os?.pecasUtilizadas ?? _pecasSelecionadas;
-    final totalPecas = pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotal);
-  
+    final totalPecas = pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
+
     final totalServicos = _calcularTotalServicosOS(os);
+    final totalGeral = totalServicos + totalPecas;
 
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -3157,37 +3639,39 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             'INFORMAÇÕES FINANCEIRAS',
             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 8),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Valor dos Serviços:', style: pw.TextStyle(fontSize: 9)),
-              pw.Text('R\$ ${totalServicos.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9)),
+              pw.Text('Valor dos Serviços:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalServicos.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
             ],
           ),
-          pw.SizedBox(height: 3),
+          pw.SizedBox(height: 4),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Valor das Peças:', style: pw.TextStyle(fontSize: 9)),
-              pw.Text('R\$ ${totalPecas.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9)),
+              pw.Text('Valor das Peças:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalPecas.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
             ],
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 8),
           pw.Container(
             height: 1,
-            color: PdfColors.grey300,
+            color: PdfColors.grey400,
             margin: const pw.EdgeInsets.symmetric(vertical: 4),
           ),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('VALOR TOTAL:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.Text('R\$ ${(totalServicos + totalPecas).toStringAsFixed(2)}',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+              pw.Text('VALOR TOTAL GERAL:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalGeral.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.purple700)),
             ],
           ),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 12),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
@@ -3209,7 +3693,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Valor por Parcela:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('R\$ ${((totalServicos + totalPecas) / numeroParcelas).toStringAsFixed(2)}', 
+                pw.Text('R\$ ${(totalGeral / numeroParcelas).toStringAsFixed(2)}',
                     style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
               ],
             ),
@@ -3276,15 +3760,17 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           final pecasLength = os != null ? (os.pecasUtilizadas.length) : _pecasSelecionadas.length;
                           return '$pecasLength item${pecasLength != 1 ? 's' : ''}';
                         }()),
-                        _buildResumoItem(
-                            'Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
+                        _buildResumoItem('Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
                         _buildResumoItem('Valor Peças:', 'R\$ ${_calcularTotalPecasOS(os).toStringAsFixed(2)}'),
-                        _buildResumoItem('TOTAL GERAL:', 'R\$ ${(_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)).toStringAsFixed(2)}', isTotal: true),
-
+                        _buildResumoItem(
+                            'TOTAL GERAL:', 'R\$ ${(_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)).toStringAsFixed(2)}',
+                            isTotal: true),
                         if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
                           _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
-                        if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 && (os?.numeroParcelas ?? _numeroParcelas) != null)
-                          _buildResumoItem('Parcelas:', '${(os?.numeroParcelas ?? _numeroParcelas)}x de R\$ ${((_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)) / (os?.numeroParcelas ?? _numeroParcelas)!).toStringAsFixed(2)}'),
+                        if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 &&
+                            (os?.numeroParcelas ?? _numeroParcelas) != null)
+                          _buildResumoItem('Parcelas:',
+                              '${(os?.numeroParcelas ?? _numeroParcelas)}x de R\$ ${((_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)) / (os?.numeroParcelas ?? _numeroParcelas)!).toStringAsFixed(2)}'),
                       ],
                     ),
                   ),
@@ -3454,6 +3940,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _observacoesController.text = osCompleta.observacoes ?? '';
           _garantiaMeses = osCompleta.garantiaMeses;
           _precoTotal = osCompleta.precoTotal;
+          _precoTotalServicos = osCompleta.precoTotalServicos ?? 0.0;
           _numeroParcelas = osCompleta.numeroParcelas;
           _mecanicoSelecionado = osCompleta.nomeMecanico;
           _consultorSelecionado = osCompleta.nomeConsultor;
@@ -3469,9 +3956,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             _tipoPagamentoSelecionado = _tiposPagamento.where((tp) => tp.id == osCompleta.tipoPagamento!.id).firstOrNull;
           }
 
-          final veiculo = _veiculoByPlaca[osCompleta.veiculoPlaca];
-          if (veiculo != null) {
-            _categoriaSelecionada = veiculo.categoria;
+          _categoriaSelecionada = osCompleta.veiculoCategoria;
+
+          if (_categoriaSelecionada == null || _categoriaSelecionada!.isEmpty) {
+            final veiculo = _veiculoByPlaca[osCompleta.veiculoPlaca];
+            if (veiculo != null) {
+              _categoriaSelecionada = veiculo.categoria;
+            }
           }
 
           _servicosSelecionados.clear();
@@ -3479,7 +3970,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             for (var servicoOS in osCompleta.servicosRealizados) {
               var servicoEncontrado = _servicosDisponiveis.where((s) => s.id == servicoOS.id).firstOrNull;
 
-              servicoEncontrado ??= _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
+              if (servicoEncontrado == null) {
+                servicoEncontrado = _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
+              }
 
               if (servicoEncontrado != null) {
                 _servicosSelecionados.add(servicoEncontrado);
@@ -3502,6 +3995,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _showForm = true;
         });
 
+        _calcularPrecoTotal();
         _slideController.forward();
       }
     } catch (e) {
@@ -3592,6 +4086,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _observacoesController.text = osCompleta.observacoes ?? '';
           _garantiaMeses = osCompleta.garantiaMeses;
           _precoTotal = osCompleta.precoTotal;
+          _precoTotalServicos = osCompleta.precoTotalServicos ?? 0.0;
           _numeroParcelas = osCompleta.numeroParcelas;
           _mecanicoSelecionado = osCompleta.nomeMecanico;
           _consultorSelecionado = osCompleta.nomeConsultor;
@@ -3607,16 +4102,24 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             _tipoPagamentoSelecionado = _tiposPagamento.where((tp) => tp.id == osCompleta.tipoPagamento!.id).firstOrNull;
           }
 
-          final veiculo = _veiculoByPlaca[osCompleta.veiculoPlaca];
-          if (veiculo != null) {
-            _categoriaSelecionada = veiculo.categoria;
+          _categoriaSelecionada = osCompleta.veiculoCategoria;
+
+          if (_categoriaSelecionada == null || _categoriaSelecionada!.isEmpty) {
+            final veiculo = _veiculoByPlaca[osCompleta.veiculoPlaca];
+            if (veiculo != null) {
+              _categoriaSelecionada = veiculo.categoria;
+            }
           }
 
           _servicosSelecionados.clear();
           if (osCompleta.servicosRealizados.isNotEmpty) {
             for (var servicoOS in osCompleta.servicosRealizados) {
               var servicoEncontrado = _servicosDisponiveis.where((s) => s.id == servicoOS.id).firstOrNull;
-              servicoEncontrado ??= _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
+
+              if (servicoEncontrado == null) {
+                servicoEncontrado = _servicosDisponiveis.where((s) => s.nome == servicoOS.nome).firstOrNull;
+              }
+
               if (servicoEncontrado != null) {
                 _servicosSelecionados.add(servicoEncontrado);
               } else {
@@ -3627,12 +4130,22 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
           _pecasSelecionadas.clear();
           if (osCompleta.pecasUtilizadas.isNotEmpty) {
-            _pecasSelecionadas.addAll(osCompleta.pecasUtilizadas);
+            for (var pecaOS in osCompleta.pecasUtilizadas) {
+              final pecaComValores = PecaOrdemServico(
+                id: pecaOS.id,
+                peca: pecaOS.peca,
+                quantidade: pecaOS.quantidade,
+                valorUnitario: pecaOS.valorUnitario ?? pecaOS.peca.precoFinal,
+                valorTotal: pecaOS.valorTotal ?? (pecaOS.peca.precoFinal * pecaOS.quantidade),
+              );
+              _pecasSelecionadas.add(pecaComValores);
+            }
           }
 
           _showForm = true;
         });
 
+        _calcularPrecoTotal();
         _slideController.forward();
       }
     } catch (e) {

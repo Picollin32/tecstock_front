@@ -19,7 +19,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   final _nomeController = TextEditingController();
   final _codigoFabricanteController = TextEditingController();
   final _precoUnitarioController = TextEditingController();
-  final _quantidadeEstoqueController = TextEditingController();
+  final _estoqueSegurancaController = TextEditingController();
   final _precoFinalController = TextEditingController();
   final _searchController = TextEditingController();
 
@@ -34,7 +34,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   bool _isLoading = false;
   bool _isLoadingPecas = true;
-  bool _filtrarApenasCriticas = false;
+  String _filtroEstoque = 'todos';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -71,7 +71,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _nomeController.dispose();
     _codigoFabricanteController.dispose();
     _precoUnitarioController.dispose();
-    _quantidadeEstoqueController.dispose();
+    _estoqueSegurancaController.dispose();
     _precoFinalController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -129,13 +129,14 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         }).toList();
       }
 
-      if (_filtrarApenasCriticas) {
+      if (_filtroEstoque != 'todos') {
         pecasFiltradas = pecasFiltradas.where((peca) {
-          return peca.quantidadeEstoque <= 6;
+          final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
+          return status['status'] == _filtroEstoque;
         }).toList();
       }
 
-      if (query.isEmpty && !_filtrarApenasCriticas) {
+      if (query.isEmpty && _filtroEstoque == 'todos') {
         _pecasFiltradas = pecasFiltradas.take(6).toList();
       } else {
         _pecasFiltradas = pecasFiltradas;
@@ -170,6 +171,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         precoUnitario: preco,
         precoFinal: precoFinal,
         quantidadeEstoque: _pecaEmEdicao?.quantidadeEstoque ?? 0,
+        estoqueSeguranca: int.parse(_estoqueSegurancaController.text),
       );
 
       Map<String, dynamic> resultado;
@@ -200,7 +202,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       _codigoFabricanteController.text = peca.codigoFabricante;
       _precoUnitarioController.text = peca.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
       _precoFinalController.text = "R\$ ${peca.precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
-      _quantidadeEstoqueController.text = peca.quantidadeEstoque.toString();
+      _estoqueSegurancaController.text = peca.estoqueSeguranca.toString();
       _fabricanteSelecionado = _fabricantes.firstWhere((f) => f.id == peca.fabricante.id, orElse: () => _fabricantes.first);
       _fornecedorSelecionado = peca.fornecedor != null ? _fornecedores.firstWhere((fo) => fo.id == peca.fornecedor!.id) : null;
       _pecaEmEdicao = peca;
@@ -271,7 +273,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _nomeController.clear();
     _codigoFabricanteController.clear();
     _precoUnitarioController.clear();
-    _quantidadeEstoqueController.text = '0';
+    _estoqueSegurancaController.clear();
     _precoFinalController.clear();
     _fornecedorSelecionado = null;
     _fabricanteSelecionado = null;
@@ -450,9 +452,13 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       String emptySubtitle;
       IconData emptyIcon;
 
-      if (_filtrarApenasCriticas) {
+      if (_filtroEstoque == 'critico') {
         emptyMessage = 'Nenhuma peça crítica encontrada';
         emptySubtitle = 'Todas as peças têm estoque adequado!';
+        emptyIcon = Icons.check_circle_outline;
+      } else if (_filtroEstoque == 'sem_estoque') {
+        emptyMessage = 'Nenhuma peça sem estoque encontrada';
+        emptySubtitle = 'Todas as peças têm estoque!';
         emptyIcon = Icons.check_circle_outline;
       } else if (_searchController.text.isNotEmpty) {
         emptyMessage = 'Nenhum resultado encontrado';
@@ -472,14 +478,14 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               Icon(
                 emptyIcon,
                 size: 64,
-                color: _filtrarApenasCriticas ? successColor : Colors.grey[400],
+                color: (_filtroEstoque != 'todos') ? successColor : Colors.grey[400],
               ),
               const SizedBox(height: 16),
               Text(
                 emptyMessage,
                 style: TextStyle(
                   fontSize: 16,
-                  color: _filtrarApenasCriticas ? successColor : Colors.grey[600],
+                  color: (_filtroEstoque != 'todos') ? successColor : Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -487,7 +493,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               Text(
                 emptySubtitle,
                 style: TextStyle(
-                  color: _filtrarApenasCriticas ? successColor.withOpacity(0.7) : Colors.grey[500],
+                  color: (_filtroEstoque != 'todos') ? successColor.withOpacity(0.7) : Colors.grey[500],
                 ),
               ),
             ],
@@ -522,7 +528,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   Widget _buildPartCard(Peca peca) {
-    final stockStatus = _getStockStatus(peca.quantidadeEstoque);
+    final stockStatus = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
 
     return Container(
       decoration: BoxDecoration(
@@ -646,11 +652,27 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        '${peca.quantidadeEstoque} unid.',
+                        '${peca.quantidadeEstoque} / ${peca.estoqueSeguranca}',
                         style: TextStyle(
                           color: stockStatus['color'],
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: stockStatus['color'].withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        stockStatus['label'],
+                        style: TextStyle(
+                          color: stockStatus['color'],
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -670,18 +692,28 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  Map<String, dynamic> _getStockStatus(int quantidade) {
-    if (quantidade <= 0) {
-      return {'icon': Icons.error, 'color': errorColor};
-    } else if (quantidade <= 6) {
-      return {'icon': Icons.warning, 'color': warningColor};
+  Map<String, dynamic> _getStockStatus(int quantidadeAtual, int estoqueSeguranca) {
+    if (quantidadeAtual <= 0) {
+      return {'icon': Icons.error, 'color': errorColor, 'status': 'sem_estoque', 'label': 'Sem Estoque'};
+    } else if (quantidadeAtual < (estoqueSeguranca / 2).ceil()) {
+      return {'icon': Icons.warning, 'color': warningColor, 'status': 'critico', 'label': 'Crítico'};
     } else {
-      return {'icon': Icons.check_circle, 'color': successColor};
+      return {'icon': Icons.check_circle, 'color': successColor, 'status': 'ok', 'label': 'OK'};
     }
   }
 
   int _contarPecasCriticas() {
-    return _pecas.where((peca) => peca.quantidadeEstoque <= 6).length;
+    return _pecas.where((peca) {
+      final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
+      return status['status'] == 'critico';
+    }).length;
+  }
+
+  int _contarPecasSemEstoque() {
+    return _pecas.where((peca) {
+      final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
+      return status['status'] == 'sem_estoque';
+    }).length;
   }
 
   Widget _buildInfoRow(IconData icon, String text, {bool isPrice = false, bool isFinalPrice = false}) {
@@ -776,14 +808,19 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               const SizedBox(width: 16),
               Expanded(
                 child: _buildTextField(
-                  controller: _quantidadeEstoqueController,
-                  label: 'Estoque Atual',
+                  controller: _estoqueSegurancaController,
+                  label: 'Estoque de Segurança',
                   icon: Icons.inventory,
-                  enabled: false,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Informe o estoque de segurança';
+                    }
+                    if (int.tryParse(value) == null || int.parse(value) < 0) {
+                      return 'Digite um número válido';
+                    }
+                    return null;
+                  },
                 ),
               ),
             ],
@@ -996,11 +1033,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: _filtrarApenasCriticas ? errorColor : Colors.grey[100],
+                          color: _filtroEstoque == 'critico' ? warningColor : Colors.grey[100],
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: (_filtrarApenasCriticas ? errorColor : Colors.grey).withOpacity(0.3),
+                              color: (_filtroEstoque == 'critico' ? warningColor : Colors.grey).withOpacity(0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -1009,20 +1046,79 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                         child: IconButton(
                           onPressed: () {
                             setState(() {
-                              _filtrarApenasCriticas = !_filtrarApenasCriticas;
+                              _filtroEstoque = _filtroEstoque == 'critico' ? 'todos' : 'critico';
                             });
                             _filtrarPecas();
                           },
                           icon: Icon(
                             Icons.warning_amber,
-                            color: _filtrarApenasCriticas ? Colors.white : Colors.grey[600],
+                            color: _filtroEstoque == 'critico' ? Colors.white : Colors.grey[600],
                           ),
                           iconSize: 24,
                           padding: const EdgeInsets.all(12),
-                          tooltip: _filtrarApenasCriticas ? 'Mostrar todas as peças' : 'Filtrar peças críticas (estoque baixo/zerado)',
+                          tooltip: _filtroEstoque == 'critico' ? 'Mostrar todas as peças' : 'Filtrar peças críticas',
                         ),
                       ),
-                      if (_contarPecasCriticas() > 0 && !_filtrarApenasCriticas)
+                      if (_contarPecasCriticas() > 0 && _filtroEstoque != 'critico')
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: warningColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              '${_contarPecasCriticas()}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _filtroEstoque = _filtroEstoque == 'sem_estoque' ? 'todos' : 'sem_estoque';
+                            });
+                            _filtrarPecas();
+                          },
+                          icon: Icon(
+                            Icons.error,
+                            color: _filtroEstoque == 'sem_estoque' ? Colors.white : Colors.grey[600],
+                          ),
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          tooltip: _filtroEstoque == 'sem_estoque' ? 'Mostrar todas as peças' : 'Filtrar peças sem estoque',
+                        ),
+                      ),
+                      if (_contarPecasSemEstoque() > 0 && _filtroEstoque != 'sem_estoque')
                         Positioned(
                           right: 8,
                           top: 8,
@@ -1038,7 +1134,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                               minHeight: 18,
                             ),
                             child: Text(
-                              '${_contarPecasCriticas()}',
+                              '${_contarPecasSemEstoque()}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -1102,7 +1198,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ],
               ),
               const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_filtrarApenasCriticas && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
+              if (_searchController.text.isEmpty && _filtroEstoque == 'todos' && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
                 Text(
                   'Últimas Peças Cadastradas',
                   style: TextStyle(
@@ -1111,13 +1207,28 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     color: Colors.grey[800],
                   ),
                 ),
-              if (_filtrarApenasCriticas && _searchController.text.isEmpty && !_isLoadingPecas)
+              if (_filtroEstoque == 'critico' && _searchController.text.isEmpty && !_isLoadingPecas)
                 Row(
                   children: [
-                    Icon(Icons.warning_amber, color: errorColor, size: 20),
+                    Icon(Icons.warning_amber, color: warningColor, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'Peças com Estoque Crítico (${_pecasFiltradas.length})',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: warningColor,
+                      ),
+                    ),
+                  ],
+                ),
+              if (_filtroEstoque == 'sem_estoque' && _searchController.text.isEmpty && !_isLoadingPecas)
+                Row(
+                  children: [
+                    Icon(Icons.error, color: errorColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Peças Sem Estoque (${_pecasFiltradas.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -1128,11 +1239,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingPecas)
                 Text(
-                  'Resultados da Busca${_filtrarApenasCriticas ? ' - Apenas Críticas' : ''} (${_pecasFiltradas.length})',
+                  'Resultados da Busca${_filtroEstoque != 'todos' ? ' - ${_filtroEstoque == 'critico' ? 'Apenas Críticas' : 'Sem Estoque'}' : ''} (${_pecasFiltradas.length})',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: _filtrarApenasCriticas ? errorColor : Colors.grey[800],
+                    color: _filtroEstoque != 'todos' ? (_filtroEstoque == 'critico' ? warningColor : errorColor) : Colors.grey[800],
                   ),
                 ),
               const SizedBox(height: 16),

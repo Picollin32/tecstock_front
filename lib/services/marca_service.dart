@@ -39,7 +39,10 @@ class MarcaService {
       final response = await http.get(Uri.parse(baseUrl));
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((e) => Marca.fromJson(e)).toList();
+        final listas = jsonList.map((e) => Marca.fromJson(e)).toList();
+        // Ordena alfabeticamente pelo nome da marca (case-insensitive)
+        listas.sort((a, b) => a.marca.toLowerCase().compareTo(b.marca.toLowerCase()));
+        return listas;
       }
       return [];
     } catch (e) {

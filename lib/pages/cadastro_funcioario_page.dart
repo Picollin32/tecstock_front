@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:TecStock/model/funcionario.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import '../utils/adaptive_phone_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/funcionario_service.dart';
 import '../utils/error_utils.dart';
@@ -24,7 +25,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   final TextEditingController _searchController = TextEditingController();
   int? _nivelAcessoSelecionado;
 
-  final _maskTelefone = MaskTextInputFormatter(mask: '(##) #####-####', filter: {"#": RegExp(r'[0-9]')});
+  final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
   final _maskCpf = MaskTextInputFormatter(mask: '###.###.###-##', filter: {"#": RegExp(r'[0-9]')});
 
   List<Funcionario> _funcionarios = [];

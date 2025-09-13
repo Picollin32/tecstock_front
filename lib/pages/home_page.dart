@@ -8,6 +8,7 @@ import 'package:TecStock/pages/cadastro_servico_page.dart';
 import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
 import 'package:TecStock/pages/ordem_servico_page.dart';
+import 'package:TecStock/pages/orcamento_page.dart';
 import 'package:TecStock/services/agendamento_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
 import 'package:TecStock/services/veiculo_service.dart';
@@ -63,18 +64,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'page': const AgendamentoPage(),
     },
     {
+      'title': 'Orçamento',
+      'subtitle': 'Novo orçamento',
+      'icon': Icons.receipt_long,
+      'color': Colors.purple,
+      'page': const OrcamentoPage(),
+    },
+    {
       'title': 'Ordem de Serviço',
       'subtitle': 'Nova OS',
       'icon': Icons.description,
       'color': Colors.teal,
       'page': const OrdemServicoPage(),
-    },
-    {
-      'title': 'Checklist Veículo',
-      'subtitle': 'Inspeção rápida',
-      'icon': Icons.checklist_rtl,
-      'color': Colors.green,
-      'page': const ChecklistPage(),
     },
     {
       'title': 'Cadastrar Cliente',
@@ -101,8 +102,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'items': [
         {'title': 'Funcionarios', 'icon': Icons.emoji_people, 'page': const CadastroFuncionarioPage()},
         {'title': 'Clientes', 'icon': Icons.person_search, 'page': const CadastroClientePage()},
-        {'title': 'Veículos', 'icon': Icons.directions_car, 'page': const CadastroVeiculoPage()},
         {'title': 'Marcas', 'icon': Icons.loyalty, 'page': const CadastroMarcaPage()},
+        {'title': 'Veículos', 'icon': Icons.directions_car, 'page': const CadastroVeiculoPage()},
         {'title': 'Fornecedor', 'icon': Icons.local_shipping, 'page': const CadastroFornecedorPage()},
         {'title': 'Fabricantes', 'icon': Icons.factory, 'page': const CadastroFabricantePage()},
         {'title': 'Peças', 'icon': Icons.settings, 'page': const CadastroPecaPage()},
@@ -115,6 +116,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'items': [
         {'title': 'Agendamento', 'icon': Icons.support_agent, 'page': const AgendamentoPage()},
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
+        {'title': 'Orçamento', 'icon': Icons.receipt_long, 'page': const OrcamentoPage()},
         {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
       ],
     },

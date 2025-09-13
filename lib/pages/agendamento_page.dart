@@ -1429,16 +1429,28 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     String? selectedConsultor = agendamentoExistente?.nomeConsultor;
     String? selectedService = agendamentoExistente?.cor;
 
-    String? inicioPref = agendamentoExistente?.horaInicio;
-    String? fimPref = agendamentoExistente?.horaFim;
+    // Para edição, use os horários do agendamento existente, senão use os do parâmetro horário
+    String? inicioPref;
+    String? fimPref;
 
-    if (horario.contains(' - ')) {
-      final parts = horario.split(' - ');
-      inicioPref = inicioPref ?? parts[0].trim();
-      fimPref = fimPref ?? parts[1].trim();
+    if (agendamentoExistente != null) {
+      // Se é edição, use os horários do agendamento existente
+      inicioPref = agendamentoExistente.horaInicio;
+      fimPref = agendamentoExistente.horaFim;
     } else {
-      inicioPref = inicioPref ?? horario;
+      // Se é novo agendamento, parse do parâmetro horario
+      if (horario.contains(' - ')) {
+        final parts = horario.split(' - ');
+        inicioPref = parts[0].trim();
+        fimPref = parts[1].trim();
+      } else {
+        inicioPref = horario;
+      }
     }
+
+    // Controllers para os campos de horário
+    final horaInicioController = TextEditingController(text: inicioPref);
+    final horaFimController = TextEditingController(text: fimPref);
 
     showDialog(
       context: context,
@@ -1582,7 +1594,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         children: [
                           Expanded(
                             child: TextFormField(
-                              initialValue: inicioPref,
+                              controller: horaInicioController,
                               decoration: InputDecoration(
                                 labelText: 'Início (HH:mm)',
                                 prefixIcon: Icon(Icons.play_arrow, color: successColor),
@@ -1590,13 +1602,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onChanged: (v) => inicioPref = v,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: TextFormField(
-                              initialValue: fimPref,
+                              controller: horaFimController,
                               decoration: InputDecoration(
                                 labelText: 'Fim (HH:mm)',
                                 prefixIcon: Icon(Icons.stop, color: errorColor),
@@ -1604,7 +1615,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onChanged: (v) => fimPref = v,
                             ),
                           ),
                         ],
@@ -1669,7 +1679,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             return;
                           }
 
-                          if (inicioPref == null || inicioPref!.trim().isEmpty) {
+                          if (horaInicioController.text.trim().isEmpty) {
                             ErrorUtils.showVisibleError(context, 'Por favor, informe o horário de início');
                             return;
                           }
@@ -1689,8 +1699,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             return;
                           }
 
-                          String? horaInicioFormatada = _formatarHorario(inicioPref);
-                          String? horaFimFormatada = _formatarHorario(fimPref);
+                          String? horaInicioFormatada = _formatarHorario(horaInicioController.text);
+                          String? horaFimFormatada = _formatarHorario(horaFimController.text);
 
                           horaInicioFormatada ??= "08:00";
 

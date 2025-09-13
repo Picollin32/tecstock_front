@@ -639,7 +639,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 const SizedBox(height: 12),
                 _buildInfoRow(Icons.qr_code, peca.codigoFabricante),
                 _buildInfoRow(Icons.business, peca.fabricante.nome),
-                _buildInfoRow(Icons.store, peca.fornecedor?.nome ?? "Não informado"),
+                _buildInfoRow(
+                  Icons.store,
+                  peca.fornecedor != null
+                      ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(0)}%)"
+                      : "Não informado",
+                ),
                 _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
                 _buildInfoRow(Icons.sell, 'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
                 const Spacer(),

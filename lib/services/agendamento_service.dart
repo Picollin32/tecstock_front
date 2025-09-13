@@ -25,10 +25,18 @@ class AgendamentoService {
     String baseUrl = 'http://localhost:8081/api/agendamentos/atualizar/$id';
 
     try {
+      final jsonData = agendamento.toJson();
+      print('=== DEBUG ATUALIZAR AGENDAMENTO ===');
+      print('JSON enviado: ${jsonEncode(jsonData)}');
+      print('horaInicio: ${jsonData['horaInicio']}');
+      print('horaFim: ${jsonData['horaFim']}');
+      print('hora: ${jsonData['hora']}');
+      print('================================');
+
       final response = await http.put(
         Uri.parse(baseUrl),
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode(agendamento.toJson()),
+        body: jsonEncode(jsonData),
       );
       if (response.statusCode == 200) {
         print('Agendamento atualizado com sucesso.');

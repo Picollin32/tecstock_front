@@ -2,9 +2,9 @@ import 'servico.dart';
 import 'tipo_pagamento.dart';
 import 'peca_ordem_servico.dart';
 
-class OrdemServico {
+class Orcamento {
   int? id;
-  String numeroOS;
+  String numeroOrcamento;
 
   DateTime dataHora;
 
@@ -19,10 +19,9 @@ class OrdemServico {
   String veiculoPlaca;
   String veiculoQuilometragem;
   String? veiculoCategoria;
-  int? checklistId;
   String queixaPrincipal;
-  List<Servico> servicosRealizados;
-  List<PecaOrdemServico> pecasUtilizadas;
+  List<Servico> servicosOrcados;
+  List<PecaOrdemServico> pecasOrcadas;
   double precoTotal;
   double? precoTotalServicos;
   double? precoTotalPecas;
@@ -38,9 +37,9 @@ class OrdemServico {
   DateTime? createdAt;
   DateTime? updatedAt;
 
-  OrdemServico({
+  Orcamento({
     this.id,
-    required this.numeroOS,
+    required this.numeroOrcamento,
     required this.dataHora,
     required this.clienteNome,
     required this.clienteCpf,
@@ -53,10 +52,9 @@ class OrdemServico {
     required this.veiculoPlaca,
     required this.veiculoQuilometragem,
     this.veiculoCategoria,
-    this.checklistId,
     required this.queixaPrincipal,
-    required this.servicosRealizados,
-    this.pecasUtilizadas = const [],
+    required this.servicosOrcados,
+    this.pecasOrcadas = const [],
     required this.precoTotal,
     this.precoTotalServicos,
     this.precoTotalPecas,
@@ -67,16 +65,16 @@ class OrdemServico {
     this.numeroParcelas,
     this.nomeMecanico,
     this.nomeConsultor,
-    this.status = 'ABERTA',
+    this.status = 'ABERTO',
     this.observacoes,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory OrdemServico.fromJson(Map<String, dynamic> json) {
-    return OrdemServico(
+  factory Orcamento.fromJson(Map<String, dynamic> json) {
+    return Orcamento(
       id: json['id'],
-      numeroOS: json['numeroOS']?.toString() ?? '',
+      numeroOrcamento: json['numeroOrcamento']?.toString() ?? '',
       dataHora: json['dataHora'] != null ? DateTime.parse(json['dataHora']) : DateTime.now(),
       clienteNome: json['clienteNome'] ?? '',
       clienteCpf: json['clienteCpf'] ?? '',
@@ -89,12 +87,9 @@ class OrdemServico {
       veiculoPlaca: json['veiculoPlaca'] ?? '',
       veiculoQuilometragem: json['veiculoQuilometragem'] ?? '',
       veiculoCategoria: json['veiculoCategoria'],
-      checklistId: json['checklistId'],
       queixaPrincipal: json['queixaPrincipal'] ?? '',
-      servicosRealizados:
-          json['servicosRealizados'] != null ? (json['servicosRealizados'] as List).map((s) => Servico.fromJson(s)).toList() : [],
-      pecasUtilizadas:
-          json['pecasUtilizadas'] != null ? (json['pecasUtilizadas'] as List).map((p) => PecaOrdemServico.fromJson(p)).toList() : [],
+      servicosOrcados: json['servicosOrcados'] != null ? (json['servicosOrcados'] as List).map((s) => Servico.fromJson(s)).toList() : [],
+      pecasOrcadas: json['pecasOrcadas'] != null ? (json['pecasOrcadas'] as List).map((p) => PecaOrdemServico.fromJson(p)).toList() : [],
       precoTotal: json['precoTotal']?.toDouble() ?? 0.0,
       precoTotalServicos: json['precoTotalServicos']?.toDouble(),
       precoTotalPecas: json['precoTotalPecas']?.toDouble(),
@@ -105,7 +100,7 @@ class OrdemServico {
       numeroParcelas: json['numeroParcelas'],
       nomeMecanico: json['nomeMecanico'],
       nomeConsultor: json['nomeConsultor'],
-      status: json['status'] ?? 'ABERTA',
+      status: json['status'] ?? 'ABERTO',
       observacoes: json['observacoes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
@@ -116,7 +111,7 @@ class OrdemServico {
     final map = <String, dynamic>{};
 
     if (id != null) map['id'] = id;
-    map['numeroOS'] = numeroOS;
+    map['numeroOrcamento'] = numeroOrcamento;
     map['dataHora'] = dataHora.toIso8601String();
     map['clienteNome'] = clienteNome;
     map['clienteCpf'] = clienteCpf;
@@ -129,10 +124,9 @@ class OrdemServico {
     map['veiculoPlaca'] = veiculoPlaca;
     map['veiculoQuilometragem'] = veiculoQuilometragem;
     if (veiculoCategoria != null) map['veiculoCategoria'] = veiculoCategoria;
-    if (checklistId != null) map['checklistId'] = checklistId;
     map['queixaPrincipal'] = queixaPrincipal;
-    map['servicosRealizados'] = servicosRealizados.map((s) => s.toJson()).toList();
-    map['pecasUtilizadas'] = pecasUtilizadas.map((p) => p.toJson()).toList();
+    map['servicosOrcados'] = servicosOrcados.map((s) => s.toJson()).toList();
+    map['pecasOrcadas'] = pecasOrcadas.map((p) => p.toJson()).toList();
     map['precoTotal'] = precoTotal;
     if (precoTotalServicos != null) map['precoTotalServicos'] = precoTotalServicos;
     if (precoTotalPecas != null) map['precoTotalPecas'] = precoTotalPecas;
@@ -153,6 +147,6 @@ class OrdemServico {
 
   @override
   String toString() {
-    return 'OS $numeroOS';
+    return 'Orçamento $numeroOrcamento';
   }
 }

@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../services/cliente_service.dart';
+import '../utils/adaptive_phone_formatter.dart';
 import '../services/veiculo_service.dart';
 import '../services/checklist_service.dart';
 import '../services/servico_service.dart';
@@ -45,6 +46,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final _clienteNomeController = TextEditingController();
   final _clienteCpfController = TextEditingController();
   final _clienteTelefoneController = TextEditingController();
+  final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
   final _clienteEmailController = TextEditingController();
 
   final _veiculoNomeController = TextEditingController();
@@ -88,6 +90,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   double _precoTotalServicos = 0.0;
   String? _categoriaSelecionada;
   bool _isViewMode = false;
+  double _descontoServicos = 0.0;
+  double _descontoPecas = 0.0;
+  final TextEditingController _descontoServicosController = TextEditingController();
+  final TextEditingController _descontoPecasController = TextEditingController();
 
   @override
   void initState() {
@@ -150,6 +156,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _checklistController.dispose();
     _searchController.removeListener(_filtrarRecentes);
     _searchController.dispose();
+    _descontoServicosController.dispose();
+    _descontoPecasController.dispose();
     super.dispose();
   }
 
@@ -272,14 +280,61 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     double totalPecas = _calcularTotalPecas();
 
+    // Aplicar descontos
+    double totalServicosComDesconto = totalServicos - _descontoServicos;
+    double totalPecasComDesconto = totalPecas - _descontoPecas;
+
     setState(() {
       _precoTotalServicos = totalServicos;
-      _precoTotal = totalServicos + totalPecas;
+      _precoTotal = totalServicosComDesconto + totalPecasComDesconto;
     });
   }
 
   double _calcularTotalPecas() {
     return _pecasSelecionadas.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
+  }
+
+  double _calcularMaxDescontoServicos() {
+    return _precoTotalServicos * 0.10; // Máximo 10% para serviços
+  }
+
+  double _calcularMaxDescontoPecas() {
+    double maxDesconto = 0.0;
+    for (var pecaOS in _pecasSelecionadas) {
+      // Margem de lucro = precoFinal - precoUnitario
+      double margemPorUnidade = pecaOS.peca.precoFinal - pecaOS.peca.precoUnitario;
+      double margemTotal = margemPorUnidade * pecaOS.quantidade;
+      maxDesconto += margemTotal;
+    }
+    return maxDesconto;
+  }
+
+  void _onDescontoServicosChanged(String value) {
+    final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+    final maxDesconto = _calcularMaxDescontoServicos();
+
+    if (desconto > maxDesconto) {
+      _descontoServicosController.text = maxDesconto.toStringAsFixed(2);
+      _descontoServicos = maxDesconto;
+      _showErrorSnackBar('Desconto máximo para serviços é de 10% (R\$ ${maxDesconto.toStringAsFixed(2)})');
+    } else {
+      _descontoServicos = desconto;
+    }
+    _calcularPrecoTotal();
+  }
+
+  void _onDescontoPecasChanged(String value) {
+    final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+    final maxDesconto = _calcularMaxDescontoPecas();
+
+    if (desconto > maxDesconto) {
+      _descontoPecasController.text = maxDesconto.toStringAsFixed(2);
+      _descontoPecas = maxDesconto;
+      _showErrorSnackBar('Desconto máximo para peças é limitado pela margem de lucro (R\$ ${maxDesconto.toStringAsFixed(2)})');
+    } else {
+      _descontoPecas = desconto;
+    }
+    _calcularPrecoTotal();
   }
 
   double _calcularTotalPecasOS(OrdemServico? os) {
@@ -443,6 +498,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _osNumberController.clear();
     _checklistController.clear();
     _codigoPecaController.clear();
+    _descontoServicosController.clear();
+    _descontoPecasController.clear();
 
     setState(() {
       _checklistSelecionado = null;
@@ -459,6 +516,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _pecaEncontrada = null;
       _checklistsFiltrados = _checklists;
       _isViewMode = false;
+      _descontoServicos = 0.0;
+      _descontoPecas = 0.0;
     });
   }
 
@@ -1249,13 +1308,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 const SizedBox(height: 16),
                 _buildWarrantyAndPayment(),
                 const SizedBox(height: 32),
-                _buildFormSection('8. Observações Adicionais', Icons.notes_outlined),
-                const SizedBox(height: 16),
-                _buildObservationsSection(),
-                const SizedBox(height: 32),
-                _buildFormSection('9. Resumo de Valores', Icons.receipt_long_outlined),
+                _buildFormSection('8. Resumo de Valores', Icons.receipt_long_outlined),
                 const SizedBox(height: 16),
                 _buildPriceSummarySection(),
+                const SizedBox(height: 32),
+                _buildFormSection('9. Observações Adicionais', Icons.notes_outlined),
+                const SizedBox(height: 16),
+                _buildObservationsSection(),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -1408,6 +1467,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         TextField(
           controller: controller,
           readOnly: _isViewMode,
+          inputFormatters: label == 'Telefone/WhatsApp' ? [_maskTelefone] : null,
           onChanged: _isViewMode
               ? null
               : (value) {
@@ -1462,7 +1522,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               setState(() {
                 _clienteNomeController.text = c.nome;
                 _clienteCpfController.text = c.cpf;
-                _clienteTelefoneController.text = c.telefone;
+                _clienteTelefoneController.text = _maskTelefone.maskText(c.telefone);
                 _clienteEmailController.text = c.email;
               });
               _filtrarChecklists();
@@ -2899,7 +2959,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           },
                   ),
                 ],
-                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
+                if (_tipoPagamentoSelecionado?.codigo == 6) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Prazo (meses)',
@@ -2989,7 +3049,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   Widget _buildPriceSummarySection() {
     double totalPecas = _calcularTotalPecas();
     double totalServicos = _precoTotalServicos;
-    double totalGeral = totalServicos + totalPecas;
+    double totalServicosComDesconto = totalServicos - _descontoServicos;
+    double totalPecasComDesconto = totalPecas - _descontoPecas;
+    double totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -3001,6 +3063,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Seção de Serviços
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3008,35 +3071,126 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.green.shade200),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
-                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Total de Serviços:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(
-                      'Total de Serviços:',
+                      'R\$ ${totalServicos.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
                         color: Colors.green.shade800,
                         fontSize: 16,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  'R\$ ${totalServicos.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade800,
-                    fontSize: 16,
+                if (!_isViewMode) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Desconto Serviços (máx 10%):',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _descontoServicosController,
+                              keyboardType: TextInputType.number,
+                              onChanged: _onDescontoServicosChanged,
+                              decoration: InputDecoration(
+                                prefixText: 'R\$ ',
+                                hintText: '0,00',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                isDense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
+                if (_descontoServicos > 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.green.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Subtotal com desconto:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          'R\$ ${totalServicosComDesconto.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
+
+          // Seção de Peças
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3044,40 +3198,195 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.blue.shade200),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
-                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Total de Peças:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(
-                      'Total de Peças:',
+                      'R\$ ${totalPecas.toStringAsFixed(2)}',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
                         color: Colors.blue.shade800,
                         fontSize: 16,
                       ),
                     ),
                   ],
                 ),
-                Text(
-                  'R\$ ${totalPecas.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade800,
-                    fontSize: 16,
+                if (!_isViewMode) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Desconto Peças (máx margem lucro):',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: _descontoPecasController,
+                              keyboardType: TextInputType.number,
+                              onChanged: _onDescontoPecasChanged,
+                              decoration: InputDecoration(
+                                prefixText: 'R\$ ',
+                                hintText: '0,00',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                isDense: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
+                if (_descontoPecas > 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Subtotal com desconto:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          'R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
+
+          // Mostrar descontos aplicados
+          if (_descontoServicos > 0 || _descontoPecas > 0) ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                children: [
+                  if (_descontoServicos > 0)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '(-) Desconto Serviços:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.orange.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '-R\$ ${_descontoServicos.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (_descontoPecas > 0) ...[
+                    if (_descontoServicos > 0) const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '(-) Desconto Peças:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.orange.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '-R\$ ${_descontoPecas.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
           Container(
             height: 1,
             color: Colors.grey[300],
             margin: const EdgeInsets.symmetric(vertical: 8),
           ),
+
+          // Total Geral
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3170,6 +3479,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         servicosRealizados: _servicosSelecionados,
         pecasUtilizadas: _pecasSelecionadas,
         precoTotal: _precoTotal,
+        precoTotalServicos: _precoTotalServicos,
+        precoTotalPecas: _calcularTotalPecas(),
+        descontoServicos: _descontoServicos > 0 ? _descontoServicos : null,
+        descontoPecas: _descontoPecas > 0 ? _descontoPecas : null,
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: _numeroParcelas,
@@ -3235,15 +3548,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             pw.SizedBox(height: 16),
             _buildPdfClientVehicleData(os),
             pw.SizedBox(height: 12),
-            if ((os?.checklistId != null) || (_checklistSelecionado != null))
-              _buildPdfSection(
-                'CHECKLIST VINCULADO',
-                [
-                  ['Número:', os?.checklistId?.toString() ?? _checklistSelecionado!.numeroChecklist]
-                ],
-                compact: true,
-              ),
-            if ((os?.checklistId != null) || (_checklistSelecionado != null)) pw.SizedBox(height: 12),
+            // Checklist is shown only in the header now.
             _buildPdfSection(
               'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
               [],
@@ -3316,6 +3621,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         style: pw.TextStyle(fontSize: 10, color: PdfColors.white)),
                   ],
                 ),
+                pw.SizedBox(height: 6),
+                if ((os?.checklistId != null) || (_checklistSelecionado != null))
+                  pw.Text(
+                    'Checklist: ${os?.checklistId?.toString() ?? _checklistSelecionado!.numeroChecklist}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.white),
+                  ),
               ],
             ),
           ),
@@ -3626,7 +3937,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final totalPecas = pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
 
     final totalServicos = _calcularTotalServicosOS(os);
-    final totalGeral = totalServicos + totalPecas;
+
+    // Obter descontos
+    final descontoServicos = os?.descontoServicos ?? _descontoServicos;
+    final descontoPecas = os?.descontoPecas ?? _descontoPecas;
+
+    // Calcular valores com desconto
+    final totalServicosComDesconto = totalServicos - (descontoServicos > 0 ? descontoServicos : 0.0);
+    final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
+    final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -3650,6 +3969,26 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
             ],
           ),
+          // Mostrar desconto de serviços se aplicado
+          if (descontoServicos > 0) ...[
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('(-) Desconto Serviços:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                pw.Text('-R\$ ${descontoServicos.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+              ],
+            ),
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Subtotal Serviços:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                pw.Text('R\$ ${totalServicosComDesconto.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+              ],
+            ),
+          ],
           pw.SizedBox(height: 4),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -3659,7 +3998,45 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
             ],
           ),
+          // Mostrar desconto de peças se aplicado
+          if (descontoPecas > 0) ...[
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('(-) Desconto Peças:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                pw.Text('-R\$ ${descontoPecas.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+              ],
+            ),
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Subtotal Peças:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                pw.Text('R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+              ],
+            ),
+          ],
           pw.SizedBox(height: 8),
+          // Mostrar total de descontos se houver algum
+          if (descontoServicos > 0 || descontoPecas > 0) ...[
+            pw.Container(
+              height: 0.5,
+              color: PdfColors.orange400,
+              margin: const pw.EdgeInsets.symmetric(vertical: 4),
+            ),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('TOTAL DE DESCONTOS:',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange700)),
+                pw.Text('-R\$ ${(descontoServicos + descontoPecas).toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange700)),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+          ],
           pw.Container(
             height: 1,
             color: PdfColors.grey400,
@@ -3764,9 +4141,21 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         }()),
                         _buildResumoItem('Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
                         _buildResumoItem('Valor Peças:', 'R\$ ${_calcularTotalPecasOS(os).toStringAsFixed(2)}'),
-                        _buildResumoItem(
-                            'TOTAL GERAL:', 'R\$ ${(_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)).toStringAsFixed(2)}',
-                            isTotal: true),
+                        // Mostrar descontos se aplicados
+                        if ((os?.descontoServicos ?? _descontoServicos) > 0)
+                          _buildResumoItem('(-) Desc. Serviços:', '-R\$ ${(os?.descontoServicos ?? _descontoServicos).toStringAsFixed(2)}',
+                              isDesconto: true),
+                        if ((os?.descontoPecas ?? _descontoPecas) > 0)
+                          _buildResumoItem('(-) Desc. Peças:', '-R\$ ${(os?.descontoPecas ?? _descontoPecas).toStringAsFixed(2)}',
+                              isDesconto: true),
+                        _buildResumoItem('TOTAL GERAL:', () {
+                          final totalServicos = _calcularTotalServicosOS(os);
+                          final totalPecas = _calcularTotalPecasOS(os);
+                          final descontoServicos = os?.descontoServicos ?? _descontoServicos;
+                          final descontoPecas = os?.descontoPecas ?? _descontoPecas;
+                          final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
+                          return 'R\$ ${totalComDesconto.toStringAsFixed(2)}';
+                        }(), isTotal: true),
                         if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
                           _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
                         if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 &&
@@ -3883,7 +4272,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
-  pw.Widget _buildResumoItem(String label, String value, {bool isTotal = false}) {
+  pw.Widget _buildResumoItem(String label, String value, {bool isTotal = false, bool isDesconto = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),
       child: pw.Row(
@@ -3895,7 +4284,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               style: pw.TextStyle(
                 fontSize: isTotal ? 11 : 10,
                 fontWeight: pw.FontWeight.bold,
-                color: isTotal ? PdfColors.green700 : PdfColors.black,
+                color: isTotal
+                    ? PdfColors.green700
+                    : isDesconto
+                        ? PdfColors.red700
+                        : PdfColors.black,
               ),
             ),
           ),
@@ -3905,7 +4298,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               style: pw.TextStyle(
                 fontSize: isTotal ? 11 : 10,
                 fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
-                color: isTotal ? PdfColors.green700 : PdfColors.black,
+                color: isTotal
+                    ? PdfColors.green700
+                    : isDesconto
+                        ? PdfColors.red700
+                        : PdfColors.black,
               ),
             ),
           ),
@@ -3930,7 +4327,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _timeController.text = DateFormat('HH:mm').format(osCompleta.dataHora);
           _clienteNomeController.text = osCompleta.clienteNome;
           _clienteCpfController.text = osCompleta.clienteCpf;
-          _clienteTelefoneController.text = osCompleta.clienteTelefone ?? '';
+          _clienteTelefoneController.text = _maskTelefone.maskText(osCompleta.clienteTelefone);
           _clienteEmailController.text = osCompleta.clienteEmail ?? '';
           _veiculoNomeController.text = osCompleta.veiculoNome;
           _veiculoMarcaController.text = osCompleta.veiculoMarca;
@@ -3943,6 +4340,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _garantiaMeses = osCompleta.garantiaMeses;
           _precoTotal = osCompleta.precoTotal;
           _precoTotalServicos = osCompleta.precoTotalServicos ?? 0.0;
+          _descontoServicos = osCompleta.descontoServicos ?? 0.0;
+          _descontoPecas = osCompleta.descontoPecas ?? 0.0;
+          _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
+          _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _mecanicoSelecionado = osCompleta.nomeMecanico;
           _consultorSelecionado = osCompleta.nomeConsultor;
@@ -4087,6 +4488,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _garantiaMeses = osCompleta.garantiaMeses;
           _precoTotal = osCompleta.precoTotal;
           _precoTotalServicos = osCompleta.precoTotalServicos ?? 0.0;
+          _descontoServicos = osCompleta.descontoServicos ?? 0.0;
+          _descontoPecas = osCompleta.descontoPecas ?? 0.0;
+          _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
+          _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _mecanicoSelecionado = osCompleta.nomeMecanico;
           _consultorSelecionado = osCompleta.nomeConsultor;

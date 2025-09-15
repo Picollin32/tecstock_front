@@ -897,7 +897,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.assignment_outlined,
+              Icons.checklist_outlined,
               size: 32,
               color: Colors.white,
             ),
@@ -1066,7 +1066,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         child: Column(
           children: [
             Icon(
-              Icons.assignment_outlined,
+              Icons.checklist_outlined,
               size: 64,
               color: Colors.grey[300],
             ),
@@ -1184,7 +1184,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
-                      Icons.assignment,
+                      Icons.checklist_outlined,
                       color: Colors.white,
                       size: 24,
                     ),
@@ -1249,7 +1249,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         child: IconButton(
                           icon: Icon(
                             Icons.visibility_outlined,
-                            color: Colors.green.shade600,
+                            color: Colors.grey.shade600,
                             size: 20,
                           ),
                           onPressed: () => _visualizarChecklist(c),
@@ -1483,33 +1483,20 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   ),
                 ),
                 Container(
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _printChecklist,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.print, color: Colors.teal.shade600, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'PDF',
-                              style: TextStyle(
-                                color: Colors.teal.shade600,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  child: IconButton(
+                    onPressed: () => _printChecklist(),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    tooltip: 'PDF',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
                 ),
               ],

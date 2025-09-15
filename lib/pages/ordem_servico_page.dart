@@ -78,9 +78,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   String? _consultorSelecionado;
 
   final TextEditingController _codigoPecaController = TextEditingController();
-  // Controller usado no campo de busca/autocomplete de peças — será
-  // inicializado em initState e atualizado com o controller fornecido
-  // pelo Autocomplete.fieldViewBuilder para manter o comportamento.
+
   late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
@@ -136,7 +134,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _fadeController.forward();
     _slideController.forward();
-    // Inicializa o controller de busca de peças
     _pecaSearchController = TextEditingController();
   }
 
@@ -287,7 +284,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     double totalPecas = _calcularTotalPecas();
 
-    // Aplicar descontos
     double totalServicosComDesconto = totalServicos - _descontoServicos;
     double totalPecasComDesconto = totalPecas - _descontoPecas;
 
@@ -302,13 +298,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   double _calcularMaxDescontoServicos() {
-    return _precoTotalServicos * 0.10; // Máximo 10% para serviços
+    return _precoTotalServicos * 0.10;
   }
 
   double _calcularMaxDescontoPecas() {
     double maxDesconto = 0.0;
     for (var pecaOS in _pecasSelecionadas) {
-      // Margem de lucro = precoFinal - precoUnitario
       double margemPorUnidade = pecaOS.peca.precoFinal - pecaOS.peca.precoUnitario;
       double margemTotal = margemPorUnidade * pecaOS.quantidade;
       maxDesconto += margemTotal;
@@ -398,8 +393,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _showErrorSnackBar('Peça ${peca.nome} está sem estoque (${peca.quantidadeEstoque} unidades disponíveis)');
           return;
         }
-
-        // Calcular total já usado desta peça na OS
         int totalJaUsado = _pecasSelecionadas.where((p) => p.peca.id == peca.id).fold(0, (total, p) => total + p.quantidade);
 
         if (quantidade + totalJaUsado > peca.quantidadeEstoque) {
@@ -411,7 +404,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         if (pecaJaAdicionada != null) {
           final quantidadeTotal = pecaJaAdicionada.quantidade + quantidade;
 
-          // Calcular total já usado desta peça na OS (excluindo a peça atual)
           int totalUsadoOutrasPecas =
               _pecasSelecionadas.where((p) => p.peca.id == peca.id && p != pecaJaAdicionada).fold(0, (total, p) => total + p.quantidade);
 
@@ -460,9 +452,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _clearFormFields() async {
-    // Agora o backend gerencia o estoque automaticamente
-    // Não precisamos restaurar estoque no frontend
-
     _clienteNomeController.clear();
     _clienteCpfController.clear();
     _clienteTelefoneController.clear();
@@ -573,7 +562,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
-              Icons.build_circle_outlined,
+              Icons.description,
               size: 32,
               color: Colors.white,
             ),
@@ -741,7 +730,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         child: Column(
           children: [
             Icon(
-              Icons.build_circle_outlined,
+              Icons.description,
               size: 64,
               color: Colors.grey[300],
             ),
@@ -894,7 +883,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
-            Icons.build_circle,
+            Icons.description,
             color: Colors.white,
             size: 24,
           ),
@@ -991,7 +980,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ],
                 ),
-              // Mostrar total de descontos caso exista desconto em serviços ou peças
               if ((os.descontoServicos ?? 0) > 0 || (os.descontoPecas ?? 0) > 0)
                 Row(
                   children: [
@@ -1213,33 +1201,20 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                 ),
                 Container(
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => _printOS(null),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.print, color: Colors.teal.shade600, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'PDF',
-                              style: TextStyle(
-                                color: Colors.teal.shade600,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  child: IconButton(
+                    onPressed: () => _printOS(null),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    tooltip: 'PDF',
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
                 ),
               ],
@@ -1867,14 +1842,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             setState(() {
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
-              // Limpa o campo de busca do autocomplete para melhorar a UX
               _pecaSearchController.clear();
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            // O Autocomplete fornece um controller que gerencia as opções;
-            // armazenamos a referência em _pecaSearchController para podermos
-            // limpá-lo programaticamente sem quebrar o comportamento.
             _pecaSearchController = controller;
             return TextField(
               controller: controller,
@@ -1932,7 +1903,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       } else {
                         _buscarPecaPorCodigo(value);
                       }
-                      // Limpa o campo de busca após tentativa de adicionar
                       _pecaSearchController.clear();
                     },
             );
@@ -2552,12 +2522,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   novaQuantidade = 1;
                                 }
 
-                                // Calcular total já usado desta peça na OS (excluindo a peça atual)
                                 int totalUsadoOutrasPecas = _pecasSelecionadas
                                     .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                     .fold(0, (total, p) => total + p.quantidade);
 
-                                // Validar se nova quantidade + outras peças não excede estoque
                                 if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
                                   _showErrorSnackBar(
                                       'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
@@ -2578,12 +2546,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           onPressed: _isViewMode
                               ? null
                               : () {
-                                  // Calcular total já usado desta peça na OS (excluindo a peça atual)
                                   int totalUsadoOutrasPecas = _pecasSelecionadas
                                       .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                       .fold(0, (total, p) => total + p.quantidade);
 
-                                  // Validar se incremento não excede estoque
                                   if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
                                     setState(() {
                                       pecaOS.quantidade++;
@@ -3052,7 +3018,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Seção de Serviços
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3178,8 +3143,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
           ),
           const SizedBox(height: 12),
-
-          // Seção de Peças
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3305,8 +3268,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
           ),
           const SizedBox(height: 12),
-
-          // Mostrar descontos aplicados
           if (_descontoServicos > 0 || _descontoPecas > 0) ...[
             Container(
               padding: const EdgeInsets.all(10),
@@ -3368,14 +3329,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
             const SizedBox(height: 12),
           ],
-
           Container(
             height: 1,
             color: Colors.grey[300],
             margin: const EdgeInsets.symmetric(vertical: 8),
           ),
-
-          // Total Geral
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -3494,8 +3452,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       }
 
       if (sucesso) {
-        // O estoque já foi subtraído quando as peças foram adicionadas
-        // Não precisamos subtrair novamente aqui
         _showSuccessSnackBar(_editingOSId != null ? 'OS atualizada com sucesso' : 'OS criada com sucesso');
         await _clearFormFields();
         await _loadData();
@@ -3525,7 +3481,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             pw.SizedBox(height: 16),
             _buildPdfClientVehicleData(os),
             pw.SizedBox(height: 12),
-            // Checklist is shown only in the header now.
             _buildPdfSection(
               'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
               [],
@@ -3915,24 +3870,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     final totalServicos = _calcularTotalServicosOS(os);
 
-    // Obter descontos
     final descontoServicos = os?.descontoServicos ?? _descontoServicos;
     final descontoPecas = os?.descontoPecas ?? _descontoPecas;
 
-    // Calcular valores com desconto
     final totalServicosComDesconto = totalServicos - (descontoServicos > 0 ? descontoServicos : 0.0);
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
-    // Calcular valor da parcela arredondado e ajustar última parcela para bater com o total
     double valorParcelaCalculado = 0.0;
     double ultimaParcelaCalculada = 0.0;
     if (numeroParcelas != null && numeroParcelas > 0) {
       final raw = totalGeral / numeroParcelas;
-      // valor base com 2 casas
       final rounded = double.parse(raw.toStringAsFixed(2));
       valorParcelaCalculado = rounded;
-      // última parcela recebe o restante (pode ser igual ao rounded)
       ultimaParcelaCalculada = double.parse((totalGeral - rounded * (numeroParcelas - 1)).toStringAsFixed(2));
     }
 
@@ -3958,7 +3908,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
             ],
           ),
-          // Mostrar desconto de serviços se aplicado
           if (descontoServicos > 0) ...[
             pw.SizedBox(height: 2),
             pw.Row(
@@ -3987,7 +3936,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
             ],
           ),
-          // Mostrar desconto de peças se aplicado
           if (descontoPecas > 0) ...[
             pw.SizedBox(height: 2),
             pw.Row(
@@ -4008,7 +3956,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
           ],
           pw.SizedBox(height: 8),
-          // Mostrar total de descontos se houver algum
           if (descontoServicos > 0 || descontoPecas > 0) ...[
             pw.Container(
               height: 0.5,
@@ -4065,7 +4012,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
               ],
             ),
-            // Se houver diferença na última parcela, exibir nota com o valor da última parcela
             if (ultimaParcelaCalculada != valorParcelaCalculado)
               pw.Padding(
                 padding: const pw.EdgeInsets.only(top: 4),
@@ -4137,7 +4083,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         }()),
                         _buildResumoItem('Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
                         _buildResumoItem('Valor Peças:', 'R\$ ${_calcularTotalPecasOS(os).toStringAsFixed(2)}'),
-                        // Mostrar descontos se aplicados
                         if ((os?.descontoServicos ?? _descontoServicos) > 0)
                           _buildResumoItem('(-) Desc. Serviços:', '-R\$ ${(os?.descontoServicos ?? _descontoServicos).toStringAsFixed(2)}',
                               isDesconto: true),
@@ -4163,7 +4108,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             final descontoServicos = os?.descontoServicos ?? _descontoServicos;
                             final descontoPecas = os?.descontoPecas ?? _descontoPecas;
                             final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
-                            // Cálculo consistente com o PDF: parcelas arredondadas com ajuste na última
                             final raw = totalComDesconto / parcelas;
                             final rounded = double.parse(raw.toStringAsFixed(2));
                             final ultima = double.parse((totalComDesconto - rounded * (parcelas - 1)).toStringAsFixed(2));
@@ -4446,7 +4390,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              // O backend agora gerencia o estoque automaticamente na exclusão
               if (os.id != null) {
                 final sucesso = await OrdemServicoService.excluirOrdemServico(os.id!);
                 if (sucesso) {

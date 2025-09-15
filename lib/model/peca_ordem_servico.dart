@@ -16,13 +16,8 @@ class PecaOrdemServico {
     this.valorUnitario,
     this.valorTotal,
   }) {
-    // Só define valores padrão se não foram fornecidos explicitamente
-    if (valorUnitario == null) {
-      valorUnitario = peca.precoFinal;
-    }
-    if (valorTotal == null) {
-      valorTotal = valorUnitario! * quantidade;
-    }
+    valorUnitario ??= peca.precoFinal;
+    valorTotal ??= valorUnitario! * quantidade;
   }
 
   factory PecaOrdemServico.fromJson(Map<String, dynamic> json) {

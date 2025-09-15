@@ -178,7 +178,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     try {
-      // Executa todas as chamadas em paralelo e aguarda todas terminarem.
       final futures = {
         'agendamentos': AgendamentoService.listarAgendamentos(),
         'clientes': ClienteService.listarClientes(),
@@ -196,32 +195,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       final results = await Future.wait(futures.values.map((f) => f.catchError((e) => e)).toList());
 
-      // Constrói um mapa associando as chaves originais aos resultados
       final keys = futures.keys.toList();
       final Map<String, dynamic> loaded = {};
       for (var i = 0; i < keys.length; i++) {
         loaded[keys[i]] = results[i];
       }
 
-      // Verifica se houve erro em alguma chamada — colocamos um fallback para lista vazia
-      dynamic _safeList(String key) {
+      dynamic safeList(String key) {
         final val = loaded[key];
         if (val is Exception || val is Error) return <dynamic>[];
         return val ?? <dynamic>[];
       }
 
-      final agendamentos = _safeList('agendamentos') as List<dynamic>;
-      final clientes = _safeList('clientes') as List<dynamic>;
-      final veiculos = _safeList('veiculos') as List<dynamic>;
-      final checklists = _safeList('checklists') as List<dynamic>;
-      final marcas = _safeList('marcas') as List<dynamic>;
-      final fabricantes = _safeList('fabricantes') as List<dynamic>;
-      final servicos = _safeList('servicos') as List<dynamic>;
-      final fornecedores = _safeList('fornecedores') as List<dynamic>;
-      final funcionarios = _safeList('funcionarios') as List<dynamic>;
-      final pecas = _safeList('pecas') as List<dynamic>;
-      final tiposPagamento = _safeList('tiposPagamento') as List<dynamic>;
-      final ordens = _safeList('ordens') as List<dynamic>;
+      final agendamentos = safeList('agendamentos') as List<dynamic>;
+      final clientes = safeList('clientes') as List<dynamic>;
+      final veiculos = safeList('veiculos') as List<dynamic>;
+      final checklists = safeList('checklists') as List<dynamic>;
+      final marcas = safeList('marcas') as List<dynamic>;
+      final fabricantes = safeList('fabricantes') as List<dynamic>;
+      final servicos = safeList('servicos') as List<dynamic>;
+      final fornecedores = safeList('fornecedores') as List<dynamic>;
+      final funcionarios = safeList('funcionarios') as List<dynamic>;
+      final pecas = safeList('pecas') as List<dynamic>;
+      final tiposPagamento = safeList('tiposPagamento') as List<dynamic>;
+      final ordens = safeList('ordens') as List<dynamic>;
 
       int agendamentosHoje = 0;
       for (final agendamento in agendamentos) {
@@ -395,7 +392,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _isLoadingStats = false;
       });
     } catch (e) {
-      // Em caso de erro inesperado: garantir que o indicador pare, mas manter mensagem ao usuário
       print('Erro ao carregar dados do dashboard: $e');
       setState(() {
         _dashboardStats = {

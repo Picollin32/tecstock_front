@@ -76,7 +76,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     try {
       final lista = await MarcaService.listarMarcas();
       setState(() {
-        // MarcaService já retorna a lista ordenada alfabeticamente (case-insensitive)
         _marcas = lista;
         _filtrarMarcas();
       });

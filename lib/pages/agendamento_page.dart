@@ -1428,17 +1428,13 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     String? selectedMecanico = agendamentoExistente?.nomeMecanico;
     String? selectedConsultor = agendamentoExistente?.nomeConsultor;
     String? selectedService = agendamentoExistente?.cor;
-
-    // Para edição, use os horários do agendamento existente, senão use os do parâmetro horário
     String? inicioPref;
     String? fimPref;
 
     if (agendamentoExistente != null) {
-      // Se é edição, use os horários do agendamento existente
       inicioPref = agendamentoExistente.horaInicio;
       fimPref = agendamentoExistente.horaFim;
     } else {
-      // Se é novo agendamento, parse do parâmetro horario
       if (horario.contains(' - ')) {
         final parts = horario.split(' - ');
         inicioPref = parts[0].trim();
@@ -1448,7 +1444,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       }
     }
 
-    // Controllers para os campos de horário
     final horaInicioController = TextEditingController(text: inicioPref);
     final horaFimController = TextEditingController(text: fimPref);
 

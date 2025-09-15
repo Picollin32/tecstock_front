@@ -61,8 +61,6 @@ class Agendamento {
     };
     if (horaInicio != null) map['horaInicio'] = horaInicio;
     if (horaFim != null) map['horaFim'] = horaFim;
-    // Compatibilidade: alguns endpoints usam o campo único 'hora' em vez de 'horaInicio'/'horaFim'
-    // Enviaremos 'hora' quando houver apenas horaInicio (caso legacy) para garantir atualização correta.
     if (horaInicio != null && (horaFim == null || horaFim!.isEmpty)) {
       map['hora'] = horaInicio;
     }

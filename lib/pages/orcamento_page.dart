@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../services/servico_service.dart';
 import '../services/tipo_pagamento_service.dart';
 import '../services/orcamento_service.dart';
@@ -37,6 +40,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   late AnimationController _slideController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late ScrollController _scrollController;
+  late FocusNode _clienteFocusNode;
 
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
@@ -61,7 +66,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   List<dynamic> _funcionarios = [];
   List<dynamic> _pessoasTodasClientesFuncionarios = [];
   List<dynamic> _veiculos = [];
-  // ...existing code...
   List<Servico> _servicosDisponiveis = [];
   List<TipoPagamento> _tiposPagamento = [];
   List<Peca> _pecasDisponiveis = [];
@@ -75,7 +79,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   String? _categoriaSelecionada;
 
   final TextEditingController _codigoPecaController = TextEditingController();
-  // Controller usado pelo Autocomplete de peças (copiado do padrão da OS)
   late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
@@ -125,19 +128,16 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
     _dateController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
-
-    // Adicionar listeners para autocomplete
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
-
-    // Inicializa controller usado no autocomplete de peças
     _pecaSearchController = TextEditingController();
 
     _loadData();
     _searchController.addListener(_filtrarRecentes);
-
     _fadeController.forward();
     _slideController.forward();
+    _scrollController = ScrollController();
+    _clienteFocusNode = FocusNode();
   }
 
   @override
@@ -167,6 +167,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _descontoPecasController.dispose();
     _codigoPecaController.dispose();
     _pecaSearchController.dispose();
+    _scrollController.dispose();
+    _clienteFocusNode.dispose();
     super.dispose();
   }
 
@@ -190,18 +192,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         _recent = results[0] as List<Orcamento>;
         _servicosDisponiveis = results[1] as List<Servico>;
         _tiposPagamento = results[2] as List<TipoPagamento>;
+        final Map<int, TipoPagamento> tpById = {};
+        for (var tp in _tiposPagamento) {
+          if (tp.id != null) tpById[tp.id!] = tp;
+        }
+        _tiposPagamento = tpById.values.toList();
         _pecasDisponiveis = results[3] as List<Peca>;
         _clientes = results[4];
         _veiculos = results[5];
         _funcionarios = results[6];
-
-        // Combina listas para autocomplete de CPF (clientes + funcionários)
         _pessoasTodasClientesFuncionarios = [..._clientes, ..._funcionarios];
 
         _recent.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
         _recentFiltrados = List.from(_recent);
-
-        // Criar mapas para busca rápida (clientes + funcionários)
         _clienteByCpf.clear();
         for (var cliente in _clientes) {
           _clienteByCpf[cliente.cpf] = cliente;
@@ -303,6 +306,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           child: SlideTransition(
             position: _slideAnimation,
             child: SingleChildScrollView(
+              controller: _scrollController,
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +329,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildModernHeader(ColorScheme colorScheme) {
-    // Tornar idêntico ao header de Ordem de Serviço (mesmo visual e comportamento)
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -578,7 +581,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header do formulário
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -605,20 +607,26 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _showForm = false;
-                      _isViewMode = false;
-                      _editingOrcamentoId = null;
-                    });
-                  },
-                  icon: const Icon(Icons.close, color: Colors.white),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: () => _printOrcamento(null),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    tooltip: 'PDF',
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
                 ),
               ],
             ),
           ),
-          // Conteúdo do formulário
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -777,15 +785,18 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       child: ListTile(
         contentPadding: const EdgeInsets.all(16),
         leading: Container(
-          width: 48,
-          height: 48,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
-            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [Colors.teal.shade400, Colors.cyan.shade400],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            Icons.request_quote,
-            color: Colors.teal.shade600,
+          child: const Icon(
+            Icons.request_quote_outlined,
+            color: Colors.white,
             size: 24,
           ),
         ),
@@ -824,13 +835,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                 ],
               ),
-            // Mostrar valores somente se houver total calculado
             if (orcamento.precoTotal > 0) ...[
-              // Peças
               if (orcamento.pecasOrcadas.isNotEmpty || (orcamento.precoTotalPecas ?? 0) > 0)
                 Row(
                   children: [
-                    Icon(Icons.build_circle, size: 16, color: Colors.grey[600]),
+                    Icon(Icons.request_quote_outlined, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 6),
                     Text(
                       'Peças: R\$ ${((orcamento.precoTotalPecas != null && orcamento.precoTotalPecas! > 0) ? orcamento.precoTotalPecas! : orcamento.pecasOrcadas.fold<double>(0.0, (t, p) => t + (p.peca.precoFinal * p.quantidade))).toStringAsFixed(2)}',
@@ -841,7 +850,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                   ],
                 ),
-              // Serviços
               if (orcamento.servicosOrcados.isNotEmpty || (orcamento.precoTotalServicos ?? 0) > 0)
                 Row(
                   children: [
@@ -856,7 +864,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                   ],
                 ),
-              // Descontos
               if (((orcamento.descontoServicos ?? 0) > 0) || ((orcamento.descontoPecas ?? 0) > 0))
                 Row(
                   children: [
@@ -871,7 +878,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                   ],
                 ),
-              // Total
               Row(
                 children: [
                   Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
@@ -886,7 +892,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ],
               ),
             ],
-            // Data/hora
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
@@ -902,28 +907,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'R\$ ${orcamento.precoTotal.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal.shade600,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(orcamento.dataHora),
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(width: 8),
             Container(
               decoration: BoxDecoration(
@@ -984,15 +967,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   color: Colors.red.shade600,
                   size: 20,
                 ),
-                onPressed: () => _confirmarExclusao(orcamento),
+                onPressed: () => _confirmarExclusaoOrcamento(orcamento),
                 tooltip: 'Excluir Orçamento',
               ),
             ),
           ],
         ),
         onTap: () async {
-          // Abrir orçamento para edição (mesmo comportamento)
-          _carregarOrcamentoParaEdicao(orcamento);
+          _editOrcamento(orcamento);
         },
       ),
     );
@@ -1008,8 +990,577 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _printOrcamento(Orcamento? orcamento) {
-    // TODO: integrar PDF se desejar; por enquanto exibe mensagem e pode reutilizar lógica do serviço de impressão
-    _showSuccessMessage('Solicitado impressão do orçamento ${orcamento?.numeroOrcamento ?? ''}');
+    _generateOrcamentoPdf(orcamento);
+  }
+
+  Future<void> _generateOrcamentoPdf(Orcamento? orcamento) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(20),
+        build: (pw.Context context) => pw.Column(
+          children: [
+            _buildPdfHeaderOrcamento(orcamento),
+            pw.SizedBox(height: 16),
+            _buildPdfClientVehicleDataOrcamento(orcamento),
+            pw.SizedBox(height: 12),
+            _buildPdfSectionOrcamento(
+              'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
+              [],
+              content: orcamento?.queixaPrincipal ??
+                  (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
+              compact: true,
+            ),
+            pw.SizedBox(height: 12),
+            _buildPdfServicesSectionOrcamento(orcamento),
+            pw.SizedBox(height: 12),
+            _buildPdfPartsSectionOrcamento(orcamento),
+            pw.SizedBox(height: 12),
+            _buildPdfPricingSectionOrcamento(orcamento),
+            pw.SizedBox(height: 12),
+            _buildPdfSectionOrcamento(
+              'OBSERVAÇÕES',
+              [],
+              content: orcamento?.observacoes ??
+                  (_observacoesController.text.isNotEmpty ? _observacoesController.text : 'Nenhuma observação adicional'),
+              compact: true,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  pw.Widget _buildPdfHeaderOrcamento(Orcamento? orcamento) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        gradient: pw.LinearGradient(
+          colors: [PdfColors.teal600, PdfColors.cyan600],
+          begin: pw.Alignment.topLeft,
+          end: pw.Alignment.bottomRight,
+        ),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+      ),
+      padding: const pw.EdgeInsets.all(16),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'ORÇAMENTO',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                    color: PdfColors.white,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Row(
+                  children: [
+                    pw.Text('Data: ${DateFormat('dd/MM/yyyy').format(orcamento?.dataHora ?? DateTime.now())}',
+                        style: pw.TextStyle(fontSize: 10, color: PdfColors.white)),
+                    pw.SizedBox(width: 20),
+                    pw.Text('Hora: ${DateFormat('HH:mm').format(orcamento?.dataHora ?? DateTime.now())}',
+                        style: pw.TextStyle(fontSize: 10, color: PdfColors.white)),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+              ],
+            ),
+          ),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.white,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Text(
+              'ORC #${orcamento?.numeroOrcamento ?? (_orcamentoNumberController.text.isNotEmpty ? _orcamentoNumberController.text : DateTime.now().millisecondsSinceEpoch.toString().substring(8))}',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.teal600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfClientVehicleDataOrcamento(Orcamento? orcamento) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Expanded(
+          child: _buildPdfSectionOrcamento(
+            'DADOS DO CLIENTE',
+            [
+              ['Nome:', orcamento?.clienteNome ?? _clienteNomeController.text],
+              ['CPF:', orcamento?.clienteCpf ?? _clienteCpfController.text],
+              ['Telefone:', orcamento?.clienteTelefone ?? _clienteTelefoneController.text],
+              ['Email:', orcamento?.clienteEmail ?? _clienteEmailController.text],
+            ],
+            compact: true,
+          ),
+        ),
+        pw.SizedBox(width: 12),
+        pw.Expanded(
+          child: _buildPdfSectionOrcamento(
+            'DADOS DO VEÍCULO',
+            [
+              ['Veículo:', orcamento?.veiculoNome ?? _veiculoNomeController.text],
+              ['Marca:', orcamento?.veiculoMarca ?? _veiculoMarcaController.text],
+              ['Ano/Modelo:', orcamento?.veiculoAno ?? _veiculoAnoController.text],
+              ['Cor:', orcamento?.veiculoCor ?? _veiculoCorController.text],
+              ['Placa:', orcamento?.veiculoPlaca ?? _veiculoPlacaController.text],
+              ['Quilometragem:', orcamento?.veiculoQuilometragem ?? _veiculoQuilometragemController.text],
+            ],
+            compact: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfSectionOrcamento(String title, List<List<String>> data, {String? content, bool compact = false}) {
+    final paddingValue = compact ? 8.0 : 12.0;
+    final titleFontSize = compact ? 11.0 : 12.0;
+    final contentFontSize = compact ? 10.0 : 11.0;
+    final dataFontSize = compact ? 9.0 : 10.0;
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      padding: pw.EdgeInsets.all(paddingValue),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: titleFontSize, color: PdfColors.blue900),
+          ),
+          pw.SizedBox(height: compact ? 6 : 8),
+          if (content != null)
+            pw.Text(content, style: pw.TextStyle(fontSize: contentFontSize))
+          else
+            ...data.map((row) => pw.Padding(
+                  padding: pw.EdgeInsets.symmetric(vertical: compact ? 1 : 2),
+                  child: pw.Row(
+                    children: [
+                      pw.SizedBox(
+                        width: compact ? 80 : 100,
+                        child: pw.Text(row[0], style: pw.TextStyle(fontSize: dataFontSize, fontWeight: pw.FontWeight.bold)),
+                      ),
+                      pw.Expanded(
+                        child: pw.Text(row[1], style: pw.TextStyle(fontSize: dataFontSize)),
+                      ),
+                    ],
+                  ),
+                )),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfServicesSectionOrcamento(Orcamento? orcamento) {
+    final servicosParaPDF = orcamento?.servicosOrcados ?? _servicosSelecionados;
+    final categoriaVeiculo = orcamento?.veiculoCategoria ?? _categoriaSelecionada;
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(8),
+                topRight: pw.Radius.circular(8),
+              ),
+            ),
+            child: pw.Text(
+              'SERVIÇOS ORÇADOS',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(2),
+              2: const pw.FlexColumnWidth(1.5),
+            },
+            children: [
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.grey50),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Serviço', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Categoria', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Preço', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                ],
+              ),
+              ...servicosParaPDF.map((servico) {
+                double preco = 0.0;
+                if (categoriaVeiculo == 'Caminhonete') {
+                  preco = servico.precoCaminhonete ?? 0.0;
+                } else if (categoriaVeiculo == 'Passeio') {
+                  preco = servico.precoPasseio ?? 0.0;
+                }
+
+                return pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(servico.nome, style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(categoriaVeiculo ?? 'Não definida', style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text('R\$ ${preco.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfPartsSectionOrcamento(Orcamento? orcamento) {
+    final pecasParaPDF = orcamento?.pecasOrcadas ?? _pecasSelecionadas;
+
+    if (pecasParaPDF.isEmpty) {
+      return pw.Container(
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey300),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        ),
+        padding: const pw.EdgeInsets.all(10),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'PEÇAS ORÇADAS',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Text(
+              'Nenhuma peça foi orçada.',
+              style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic, color: PdfColors.grey600),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(8),
+                topRight: pw.Radius.circular(8),
+              ),
+            ),
+            child: pw.Text(
+              'PEÇAS ORÇADAS',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+            ),
+          ),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(3),
+              1: const pw.FlexColumnWidth(2),
+              2: const pw.FlexColumnWidth(1),
+              3: const pw.FlexColumnWidth(1.5),
+              4: const pw.FlexColumnWidth(1.5),
+            },
+            children: [
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.grey50),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Peça', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Código', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Qtd', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Valor Unit.', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text('Total', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                  ),
+                ],
+              ),
+              ...pecasParaPDF.map((pecaOS) {
+                return pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(pecaOS.peca.nome, style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text(pecaOS.peca.codigoFabricante, style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text('${pecaOS.quantidade}', style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text('R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 8)),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(5),
+                      child: pw.Text('R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
+                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfPricingSectionOrcamento(Orcamento? orcamento) {
+    final tipoPagamento = orcamento?.tipoPagamento ?? _tipoPagamentoSelecionado;
+    final numeroParcelas = orcamento?.numeroParcelas ?? _numeroParcelas;
+    final garantiaMeses = orcamento?.garantiaMeses ?? _garantiaMeses;
+
+    final pecasParaPDF = orcamento?.pecasOrcadas ?? _pecasSelecionadas;
+    final totalPecas = pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
+
+    double totalServicos = 0.0;
+    if (orcamento != null) {
+      final servicosParaPDF = orcamento.servicosOrcados;
+      final categoriaVeiculo = orcamento.veiculoCategoria;
+      for (var servico in servicosParaPDF) {
+        if (categoriaVeiculo == 'Caminhonete') {
+          totalServicos += servico.precoCaminhonete ?? 0.0;
+        } else if (categoriaVeiculo == 'Passeio') {
+          totalServicos += servico.precoPasseio ?? 0.0;
+        }
+      }
+    } else {
+      for (var servico in _servicosSelecionados) {
+        if (_categoriaSelecionada == 'Caminhonete') {
+          totalServicos += servico.precoCaminhonete ?? 0.0;
+        } else if (_categoriaSelecionada == 'Passeio') {
+          totalServicos += servico.precoPasseio ?? 0.0;
+        }
+      }
+    }
+
+    final descontoServicos = orcamento?.descontoServicos ?? _descontoServicos;
+    final descontoPecas = orcamento?.descontoPecas ?? _descontoPecas;
+
+    final totalServicosComDesconto = totalServicos - (descontoServicos > 0 ? descontoServicos : 0.0);
+    final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
+    final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
+
+    double valorParcelaCalculado = 0.0;
+    double ultimaParcelaCalculada = 0.0;
+    if (numeroParcelas != null && numeroParcelas > 0) {
+      final raw = totalGeral / numeroParcelas;
+      final rounded = double.parse(raw.toStringAsFixed(2));
+      valorParcelaCalculado = rounded;
+      ultimaParcelaCalculada = double.parse((totalGeral - rounded * (numeroParcelas - 1)).toStringAsFixed(2));
+    }
+
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      padding: const pw.EdgeInsets.all(10),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'INFORMAÇÕES FINANCEIRAS',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Valor dos Serviços:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalServicos.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+            ],
+          ),
+          if (descontoServicos > 0) ...[
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('(-) Desconto Serviços:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                pw.Text('-R\$ ${descontoServicos.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+              ],
+            ),
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Subtotal Serviços:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                pw.Text('R\$ ${totalServicosComDesconto.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+              ],
+            ),
+          ],
+          pw.SizedBox(height: 4),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Valor das Peças:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalPecas.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+            ],
+          ),
+          if (descontoPecas > 0) ...[
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('(-) Desconto Peças:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                pw.Text('-R\$ ${descontoPecas.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+              ],
+            ),
+            pw.SizedBox(height: 2),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Subtotal Peças:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                pw.Text('R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+              ],
+            ),
+          ],
+          pw.SizedBox(height: 8),
+          if (descontoServicos > 0 || descontoPecas > 0) ...[
+            pw.Container(
+              height: 0.5,
+              color: PdfColors.orange400,
+              margin: const pw.EdgeInsets.symmetric(vertical: 4),
+            ),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('TOTAL DE DESCONTOS:',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange700)),
+                pw.Text('-R\$ ${(descontoServicos + descontoPecas).toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.orange700)),
+              ],
+            ),
+            pw.SizedBox(height: 4),
+          ],
+          pw.Container(
+            height: 1,
+            color: PdfColors.grey400,
+            margin: const pw.EdgeInsets.symmetric(vertical: 4),
+          ),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('VALOR TOTAL GERAL:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text('R\$ ${totalGeral.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.purple700)),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Forma de Pagamento:', style: pw.TextStyle(fontSize: 9)),
+              pw.Text(tipoPagamento?.nome ?? 'Não informado', style: pw.TextStyle(fontSize: 9)),
+            ],
+          ),
+          if (tipoPagamento?.codigo == 3 && numeroParcelas != null) ...[
+            pw.SizedBox(height: 3),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Número de Parcelas:', style: pw.TextStyle(fontSize: 9)),
+                pw.Text('${numeroParcelas}x', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 3),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Valor por Parcela:', style: pw.TextStyle(fontSize: 9)),
+                pw.Text('R\$ ${valorParcelaCalculado.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+              ],
+            ),
+            if (ultimaParcelaCalculada != valorParcelaCalculado)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 4),
+                child: pw.Text('Última parcela: R\$ ${ultimaParcelaCalculada.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              ),
+          ],
+          pw.SizedBox(height: 4),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Garantia:', style: pw.TextStyle(fontSize: 9)),
+              pw.Text('$garantiaMeses meses', style: pw.TextStyle(fontSize: 9)),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   void _editOrcamento(Orcamento orcamento) {
@@ -1019,34 +1570,70 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _isViewMode = false;
     });
     _carregarOrcamentoParaEdicao(orcamento);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (_scrollController.hasClients) {
+          await _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOut,
+          );
+        }
+      } catch (_) {}
+
+      await Future.delayed(const Duration(milliseconds: 150));
+      if (mounted && !_isViewMode) _clienteFocusNode.requestFocus();
+    });
   }
 
-  void _confirmarExclusao(Orcamento orcamento) async {
-    final confirm = await showDialog<bool>(
+  Future<void> _confirmarExclusaoOrcamento(Orcamento orcamento) async {
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar exclusão'),
-        content: Text('Deseja realmente excluir o orçamento ${orcamento.numeroOrcamento}?'),
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.warning_amber, color: Colors.red.shade600),
+            ),
+            const SizedBox(width: 12),
+            const Text('Confirmar Exclusão'),
+          ],
+        ),
+        content: Text('Deseja realmente excluir o orçamento ${orcamento.numeroOrcamento}? Esta ação não pode ser desfeita.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Excluir')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (orcamento.id != null) {
+                final sucesso = await OrcamentoService.excluirOrcamento(orcamento.id!);
+                if (sucesso) {
+                  await _loadData();
+                  _showSuccessMessage('Orçamento excluído com sucesso');
+                } else {
+                  _showErrorMessage('Erro ao excluir orçamento');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Excluir', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      try {
-        final success = await OrcamentoService.excluirOrcamento(orcamento.id!);
-        if (success) {
-          _showSuccessMessage('Orçamento excluído');
-          await _loadData();
-        } else {
-          _showErrorMessage('Erro ao excluir orçamento');
-        }
-      } catch (e) {
-        _showErrorMessage('Erro ao excluir orçamento: $e');
-      }
-    }
   }
 
   void _carregarOrcamentoParaEdicao(Orcamento orcamento) {
@@ -1134,7 +1721,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           runSpacing: 16,
           children: [
             SizedBox(width: itemWidth, child: _buildCpfAutocomplete(fieldWidth: itemWidth)),
-            SizedBox(width: itemWidth, child: _buildLabeledController('Cliente', _clienteNomeController)),
+            SizedBox(width: itemWidth, child: _buildLabeledController('Cliente', _clienteNomeController, focusNode: _clienteFocusNode)),
             SizedBox(width: itemWidth, child: _buildLabeledController('Telefone/WhatsApp', _clienteTelefoneController)),
             SizedBox(width: itemWidth, child: _buildLabeledController('E-mail', _clienteEmailController)),
             SizedBox(width: itemWidth, child: _buildPlacaAutocomplete(fieldWidth: itemWidth)),
@@ -1720,12 +2307,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                   novaQuantidade = 1;
                                 }
 
-                                // Calcular total já usado desta peça na OS (excluindo a peça atual)
                                 int totalUsadoOutrasPecas = _pecasSelecionadas
                                     .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                     .fold(0, (total, p) => total + p.quantidade);
 
-                                // Validar se nova quantidade + outras peças não excede estoque
                                 if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
                                   _showErrorSnackBar(
                                       'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
@@ -1746,12 +2331,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           onPressed: _isViewMode
                               ? null
                               : () async {
-                                  // Calcular total já usado desta peça na OS (excluindo a peça atual)
                                   int totalUsadoOutrasPecas = _pecasSelecionadas
                                       .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                       .fold(0, (total, p) => total + p.quantidade);
 
-                                  // Validar se incremento não excede estoque
                                   if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
                                     setState(() {
                                       pecaOS.quantidade++;
@@ -1867,7 +2450,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Seção de Serviços
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -1993,8 +2575,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
           ),
           const SizedBox(height: 12),
-
-          // Seção de Peças
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -2009,7 +2589,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                        Icon(Icons.request_quote_outlined, color: Colors.blue.shade600, size: 20),
                         const SizedBox(width: 8),
                         Text(
                           'Total de Peças:',
@@ -2120,8 +2700,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
           ),
           const SizedBox(height: 12),
-
-          // Mostrar descontos aplicados
           if (_descontoServicos > 0 || _descontoPecas > 0) ...[
             Container(
               padding: const EdgeInsets.all(10),
@@ -2183,14 +2761,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
             const SizedBox(height: 12),
           ],
-
           Container(
             height: 1,
             color: Colors.grey[300],
             margin: const EdgeInsets.symmetric(vertical: 8),
           ),
-
-          // Total Geral
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -2213,7 +2788,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.receipt_long, color: Colors.white, size: 20),
+                    const Icon(Icons.request_quote_outlined, color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       'VALOR TOTAL GERAL:',
@@ -2312,8 +2887,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<TipoPagamento>(
-                  value: _tipoPagamentoSelecionado,
+                DropdownButtonFormField<int?>(
+                  value: _tipoPagamentoSelecionado?.id,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2333,17 +2908,22 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   hint: const Text('Selecione'),
                   items: _tiposPagamento.map((tipo) {
-                    return DropdownMenuItem<TipoPagamento>(
-                      value: tipo,
+                    return DropdownMenuItem<int?>(
+                      value: tipo.id,
                       child: Text(tipo.nome),
                     );
                   }).toList(),
                   onChanged: _isViewMode
                       ? null
-                      : (value) {
+                      : (selectedId) {
                           setState(() {
-                            _tipoPagamentoSelecionado = value;
-                            if (value?.codigo != 3 && value?.codigo != 4) {
+                            try {
+                              _tipoPagamentoSelecionado = _tiposPagamento.firstWhere((t) => t.id == selectedId);
+                            } on StateError {
+                              _tipoPagamentoSelecionado = null;
+                            }
+                            if (_tipoPagamentoSelecionado == null ||
+                                (_tipoPagamentoSelecionado?.codigo != 3 && _tipoPagamentoSelecionado?.codigo != 4)) {
                               _numeroParcelas = null;
                             }
                           });
@@ -2491,8 +3071,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     );
   }
 
-  // _buildValueRow removed (unused) to avoid unused-declaration compile error
-
   void _onServicoToggled(Servico servico) {
     setState(() {
       if (_servicosSelecionados.any((s) => s.id == servico.id)) {
@@ -2524,7 +3102,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           return;
         }
 
-        // Calcular total já usado desta peça na ORÇAMENTO
         int totalJaUsado = _pecasSelecionadas.where((p) => p.peca.id == peca.id).fold(0, (total, p) => total + p.quantidade);
 
         if (quantidade + totalJaUsado > peca.quantidadeEstoque) {
@@ -2536,7 +3113,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         if (pecaJaAdicionada != null) {
           final quantidadeTotal = pecaJaAdicionada.quantidade + quantidade;
 
-          // Calcular total já usado desta peça (excluindo a peça atual)
           int totalUsadoOutrasPecas =
               _pecasSelecionadas.where((p) => p.peca.id == peca.id && p != pecaJaAdicionada).fold(0, (total, p) => total + p.quantidade);
 
@@ -2585,13 +3161,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   double _calcularMaxDescontoServicos() {
-    return _precoTotalServicos * 0.10; // Máximo 10% para serviços
+    return _precoTotalServicos * 0.10;
   }
 
   double _calcularMaxDescontoPecas() {
     double maxDesconto = 0.0;
     for (var pecaOS in _pecasSelecionadas) {
-      // Margem de lucro = precoFinal - precoUnitario
       double margemPorUnidade = pecaOS.peca.precoFinal - pecaOS.peca.precoUnitario;
       double margemTotal = margemPorUnidade * pecaOS.quantidade;
       maxDesconto += margemTotal;
@@ -2646,13 +3221,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     } else if (_categoriaSelecionada == 'Passeio') {
       return servico.precoPasseio ?? 0.0;
     } else {
-      // Se categoria não definida, usar preço padrão (passeio)
       return servico.precoPasseio ?? 0.0;
     }
   }
 
   void _salvarOrcamento() async {
-    // Validações básicas
     if (_clienteNomeController.text.trim().isEmpty) {
       _showErrorMessage('O nome do cliente é obrigatório');
       return;
@@ -2684,13 +3257,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     }
 
     try {
-      final numeroOrcamento = _orcamentoNumberController.text.isNotEmpty
-          ? _orcamentoNumberController.text
-          : 'ORC${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
-
       final orcamento = Orcamento(
         id: _editingOrcamentoId,
-        numeroOrcamento: numeroOrcamento,
+        numeroOrcamento: _editingOrcamentoId != null ? _orcamentoNumberController.text : '',
         dataHora: DateTime.now(),
         clienteNome: _clienteNomeController.text.trim(),
         clienteCpf: _clienteCpfController.text.trim(),
@@ -2717,7 +3286,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         nomeMecanico: _mecanicoSelecionado,
         nomeConsultor: _consultorSelecionado,
         observacoes: _observacoesController.text.trim().isNotEmpty ? _observacoesController.text.trim() : null,
-        // Não definimos status padrão para orçamentos (sistema trata status separadamente)
       );
 
       bool sucesso;
@@ -2779,7 +3347,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     );
   }
 
-  // Compatibility wrapper used by the OS copy-paste: shows error SnackBar (delegates to _showErrorMessage)
   void _showErrorSnackBar(String message) {
     _showErrorMessage(message);
   }
@@ -2811,12 +3378,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           _veiculoQuilometragemController.text = veiculo.quilometragem?.toString() ?? '';
           _categoriaSelecionada = veiculo.categoria;
         });
-        _calcularPrecoTotal(); // Recalcular preços com base na categoria
+        _calcularPrecoTotal();
       }
     }
   }
-
-  // checklist functionality removed for orçamento (not needed)
 
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
     final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList();
@@ -2846,7 +3411,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 _clienteTelefoneController.text = _maskTelefone.maskText(c.telefone);
                 _clienteEmailController.text = c.email;
               });
-              // checklist removed for orçamento
             }
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
@@ -2861,7 +3425,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ? null
                   : (value) {
                       _clienteCpfController.text = value;
-                      // checklist removed for orçamento
                     },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
@@ -2913,7 +3476,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildLabeledController(String label, TextEditingController controller) {
+  Widget _buildLabeledController(String label, TextEditingController controller, {FocusNode? focusNode}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2928,13 +3491,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          focusNode: focusNode,
           readOnly: _isViewMode,
           inputFormatters: label == 'Telefone/WhatsApp' ? [_maskTelefone] : null,
-          onChanged: _isViewMode
-              ? null
-              : (value) {
-                  // checklist removed for orçamento
-                },
+          onChanged: _isViewMode ? null : (value) {},
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -3003,7 +3563,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ? null
                   : (value) {
                       _veiculoPlacaController.text = value;
-                      // checklist removed for orçamento
                     },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
@@ -3083,14 +3642,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             setState(() {
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
-              // Limpa o campo de busca do autocomplete para melhorar a UX
               _pecaSearchController.clear();
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            // O Autocomplete fornece um controller que gerencia as opções;
-            // armazenamos a referência em _pecaSearchController para podermos
-            // limpá-lo programaticamente sem quebrar o comportamento.
             _pecaSearchController = controller;
             return TextField(
               controller: controller,
@@ -3148,7 +3703,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       } else {
                         _buscarPecaPorCodigo(value);
                       }
-                      // Limpa o campo de busca após tentativa de adicionar
                       _pecaSearchController.clear();
                     },
             );

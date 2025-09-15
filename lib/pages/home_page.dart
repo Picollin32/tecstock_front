@@ -178,21 +178,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     try {
-      final agendamentos = await AgendamentoService.listarAgendamentos();
-      final clientes = await ClienteService.listarClientes();
-      final veiculos = await VeiculoService.listarVeiculos();
-      final checklists = await ChecklistService.listarChecklists();
-      final marcas = await MarcaService.listarMarcas();
-      final fabricantes = await FabricanteService.listarFabricantes();
-      final servicos = await ServicoService.listarServicos();
-      final fornecedores = await FornecedorService.listarFornecedores();
-      final funcionarios = await Funcionarioservice.listarFuncionarios();
-      final pecas = await PecaService.listarPecas();
-      final tiposPagamento = await TipoPagamentoService.listarTiposPagamento();
-      final ordens = await OrdemServicoService.listarOrdensServico();
+      // Executa todas as chamadas em paralelo e aguarda todas terminarem.
+      final futures = {
+        'agendamentos': AgendamentoService.listarAgendamentos(),
+        'clientes': ClienteService.listarClientes(),
+        'veiculos': VeiculoService.listarVeiculos(),
+        'checklists': ChecklistService.listarChecklists(),
+        'marcas': MarcaService.listarMarcas(),
+        'fabricantes': FabricanteService.listarFabricantes(),
+        'servicos': ServicoService.listarServicos(),
+        'fornecedores': FornecedorService.listarFornecedores(),
+        'funcionarios': Funcionarioservice.listarFuncionarios(),
+        'pecas': PecaService.listarPecas(),
+        'tiposPagamento': TipoPagamentoService.listarTiposPagamento(),
+        'ordens': OrdemServicoService.listarOrdensServico(),
+      };
+
+      final results = await Future.wait(futures.values.map((f) => f.catchError((e) => e)).toList());
+
+      // Constrói um mapa associando as chaves originais aos resultados
+      final keys = futures.keys.toList();
+      final Map<String, dynamic> loaded = {};
+      for (var i = 0; i < keys.length; i++) {
+        loaded[keys[i]] = results[i];
+      }
+
+      // Verifica se houve erro em alguma chamada — colocamos um fallback para lista vazia
+      dynamic _safeList(String key) {
+        final val = loaded[key];
+        if (val is Exception || val is Error) return <dynamic>[];
+        return val ?? <dynamic>[];
+      }
+
+      final agendamentos = _safeList('agendamentos') as List<dynamic>;
+      final clientes = _safeList('clientes') as List<dynamic>;
+      final veiculos = _safeList('veiculos') as List<dynamic>;
+      final checklists = _safeList('checklists') as List<dynamic>;
+      final marcas = _safeList('marcas') as List<dynamic>;
+      final fabricantes = _safeList('fabricantes') as List<dynamic>;
+      final servicos = _safeList('servicos') as List<dynamic>;
+      final fornecedores = _safeList('fornecedores') as List<dynamic>;
+      final funcionarios = _safeList('funcionarios') as List<dynamic>;
+      final pecas = _safeList('pecas') as List<dynamic>;
+      final tiposPagamento = _safeList('tiposPagamento') as List<dynamic>;
+      final ordens = _safeList('ordens') as List<dynamic>;
 
       int agendamentosHoje = 0;
-
       for (final agendamento in agendamentos) {
         if (_isToday(agendamento.data)) {
           agendamentosHoje++;
@@ -245,7 +276,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         }
 
         _addActivityFromEntity<dynamic>(
-          entities: clientes,
+          entities: clientes.cast<dynamic>(),
           getName: (cliente) => cliente.nome,
           getSubtitle: (cliente) => '${cliente.nome} - CPF: ${cliente.cpf}',
           getCreatedAt: (cliente) => cliente.createdAt,
@@ -256,7 +287,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: veiculos,
+          entities: veiculos.cast<dynamic>(),
           getName: (veiculo) => veiculo.modelo,
           getSubtitle: (veiculo) => '${veiculo.modelo} - Placa: ${veiculo.placa}',
           getCreatedAt: (veiculo) => veiculo.createdAt,
@@ -267,7 +298,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: marcas,
+          entities: marcas.cast<dynamic>(),
           getName: (marca) => marca.marca,
           getSubtitle: (marca) => marca.marca,
           getCreatedAt: (marca) => marca.createdAt,
@@ -278,7 +309,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: fabricantes,
+          entities: fabricantes.cast<dynamic>(),
           getName: (fabricante) => fabricante.nome,
           getSubtitle: (fabricante) => fabricante.nome,
           getCreatedAt: (fabricante) => fabricante.createdAt,
@@ -289,7 +320,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: servicos,
+          entities: servicos.cast<dynamic>(),
           getName: (servico) => servico.nome,
           getSubtitle: (servico) => servico.nome,
           getCreatedAt: (servico) => servico.createdAt,
@@ -300,7 +331,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: fornecedores,
+          entities: fornecedores.cast<dynamic>(),
           getName: (fornecedor) => fornecedor.nome,
           getSubtitle: (fornecedor) => '${fornecedor.nome} - CNPJ: ${fornecedor.cnpj ?? 'N/A'}',
           getCreatedAt: (fornecedor) => fornecedor.createdAt,
@@ -311,7 +342,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: funcionarios,
+          entities: funcionarios.cast<dynamic>(),
           getName: (funcionario) => funcionario.nome,
           getSubtitle: (funcionario) => '${funcionario.nome} - CPF: ${funcionario.cpf ?? 'N/A'}',
           getCreatedAt: (funcionario) => funcionario.createdAt,
@@ -322,7 +353,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: pecas,
+          entities: pecas.cast<dynamic>(),
           getName: (peca) => peca.nome,
           getSubtitle: (peca) => '${peca.nome} - Código: ${peca.codigoFabricante ?? 'N/A'}',
           getCreatedAt: (peca) => peca.createdAt,
@@ -333,7 +364,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: tiposPagamento,
+          entities: tiposPagamento.cast<dynamic>(),
           getName: (tipo) => tipo.nome,
           getSubtitle: (tipo) => '${tipo.nome} - Código: ${tipo.codigo?.toString().padLeft(2, '0') ?? 'N/A'}',
           getCreatedAt: (tipo) => tipo.createdAt,
@@ -344,7 +375,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
 
         _addActivityFromEntity<dynamic>(
-          entities: ordens,
+          entities: ordens.cast<dynamic>(),
           getName: (os) => os.numeroOS ?? 'OS',
           getSubtitle: (os) => 'OS: ${os.numeroOS} - Cliente: ${os.clienteNome ?? 'N/A'}',
           getCreatedAt: (os) => os.createdAt,
@@ -364,6 +395,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _isLoadingStats = false;
       });
     } catch (e) {
+      // Em caso de erro inesperado: garantir que o indicador pare, mas manter mensagem ao usuário
       print('Erro ao carregar dados do dashboard: $e');
       setState(() {
         _dashboardStats = {

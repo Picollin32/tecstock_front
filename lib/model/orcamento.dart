@@ -32,7 +32,6 @@ class Orcamento {
   int? numeroParcelas;
   String? nomeMecanico;
   String? nomeConsultor;
-  String status;
   String? observacoes;
   DateTime? createdAt;
   DateTime? updatedAt;
@@ -65,7 +64,6 @@ class Orcamento {
     this.numeroParcelas,
     this.nomeMecanico,
     this.nomeConsultor,
-    this.status = 'ABERTO',
     this.observacoes,
     this.createdAt,
     this.updatedAt,
@@ -100,7 +98,6 @@ class Orcamento {
       numeroParcelas: json['numeroParcelas'],
       nomeMecanico: json['nomeMecanico'],
       nomeConsultor: json['nomeConsultor'],
-      status: json['status'] ?? 'ABERTO',
       observacoes: json['observacoes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
@@ -137,7 +134,6 @@ class Orcamento {
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
     if (nomeMecanico != null) map['nomeMecanico'] = nomeMecanico;
     if (nomeConsultor != null) map['nomeConsultor'] = nomeConsultor;
-    map['status'] = status;
     if (observacoes != null) map['observacoes'] = observacoes;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();
     if (updatedAt != null) map['updatedAt'] = updatedAt!.toIso8601String();

@@ -78,6 +78,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   String? _consultorSelecionado;
 
   final TextEditingController _codigoPecaController = TextEditingController();
+  // Controller usado no campo de busca/autocomplete de peças — será
+  // inicializado em initState e atualizado com o controller fornecido
+  // pelo Autocomplete.fieldViewBuilder para manter o comportamento.
+  late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
@@ -132,6 +136,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _fadeController.forward();
     _slideController.forward();
+    // Inicializa o controller de busca de peças
+    _pecaSearchController = TextEditingController();
   }
 
   @override
@@ -158,6 +164,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _searchController.dispose();
     _descontoServicosController.dispose();
     _descontoPecasController.dispose();
+    _pecaSearchController.dispose();
     super.dispose();
   }
 
@@ -392,59 +399,49 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           return;
         }
 
-        if (quantidade > peca.quantidadeEstoque) {
-          _showErrorSnackBar('Quantidade solicitada ($quantidade) é maior que o estoque disponível (${peca.quantidadeEstoque} unidades)');
+        // Calcular total já usado desta peça na OS
+        int totalJaUsado = _pecasSelecionadas.where((p) => p.peca.id == peca.id).fold(0, (total, p) => total + p.quantidade);
+
+        if (quantidade + totalJaUsado > peca.quantidadeEstoque) {
+          _showErrorSnackBar('Não é possível adicionar mais desta peça. Total usado: $totalJaUsado, Estoque: ${peca.quantidadeEstoque}');
           return;
         }
 
         final pecaJaAdicionada = _pecasSelecionadas.where((p) => p.peca.id == peca.id).firstOrNull;
         if (pecaJaAdicionada != null) {
           final quantidadeTotal = pecaJaAdicionada.quantidade + quantidade;
-          if (quantidadeTotal > (peca.quantidadeEstoque + pecaJaAdicionada.quantidade)) {
+
+          // Calcular total já usado desta peça na OS (excluindo a peça atual)
+          int totalUsadoOutrasPecas =
+              _pecasSelecionadas.where((p) => p.peca.id == peca.id && p != pecaJaAdicionada).fold(0, (total, p) => total + p.quantidade);
+
+          if (quantidadeTotal + totalUsadoOutrasPecas > peca.quantidadeEstoque) {
             _showErrorSnackBar(
-                'Quantidade total ($quantidadeTotal) seria maior que o estoque disponível (${peca.quantidadeEstoque + pecaJaAdicionada.quantidade} unidades)');
+                'Quantidade total (${quantidadeTotal + totalUsadoOutrasPecas}) excederia o estoque disponível (${peca.quantidadeEstoque} unidades)');
             return;
           }
 
-          try {
-            peca.quantidadeEstoque -= quantidade;
-            await PecaService.atualizarPeca(peca.id!, peca);
-
-            setState(() {
-              pecaJaAdicionada.quantidade = quantidadeTotal;
-              pecaJaAdicionada.valorUnitario = peca.precoFinal;
-              pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
-              _codigoPecaController.clear();
-            });
-            _calcularPrecoTotal();
-            _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
-          } catch (e) {
-            print('Erro ao atualizar estoque: $e');
-            peca.quantidadeEstoque += quantidade;
-            _showErrorSnackBar('Erro ao atualizar estoque da peça');
-          }
+          setState(() {
+            pecaJaAdicionada.quantidade = quantidadeTotal;
+            pecaJaAdicionada.valorUnitario = peca.precoFinal;
+            pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
+            _codigoPecaController.clear();
+          });
+          _calcularPrecoTotal();
+          _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
         } else {
-          try {
-            peca.quantidadeEstoque -= quantidade;
-            await PecaService.atualizarPeca(peca.id!, peca);
-
-            final pecaOS = PecaOrdemServico(
-              peca: peca,
-              quantidade: quantidade,
-              valorUnitario: peca.precoFinal,
-              valorTotal: peca.precoFinal * quantidade,
-            );
-            setState(() {
-              _pecasSelecionadas.add(pecaOS);
-              _codigoPecaController.clear();
-            });
-            _calcularPrecoTotal();
-            _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
-          } catch (e) {
-            print('Erro ao atualizar estoque: $e');
-            peca.quantidadeEstoque += quantidade;
-            _showErrorSnackBar('Erro ao atualizar estoque da peça');
-          }
+          final pecaOS = PecaOrdemServico(
+            peca: peca,
+            quantidade: quantidade,
+            valorUnitario: peca.precoFinal,
+            valorTotal: peca.precoFinal * quantidade,
+          );
+          setState(() {
+            _pecasSelecionadas.add(pecaOS);
+            _codigoPecaController.clear();
+          });
+          _calcularPrecoTotal();
+          _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
         }
       } else {
         _showErrorSnackBar('Peça não encontrada com o código: $codigo');
@@ -455,33 +452,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _removerPeca(PecaOrdemServico pecaOS) async {
-    try {
-      setState(() {
-        _pecasSelecionadas.remove(pecaOS);
-      });
-      final peca = pecaOS.peca;
-      peca.quantidadeEstoque += pecaOS.quantidade;
-
-      await PecaService.atualizarPeca(peca.id!, peca);
-
-      _calcularPrecoTotal();
-      _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome} (${pecaOS.quantidade} unid. retornadas ao estoque)');
-    } catch (e) {
-      print('Erro ao retornar peça ao estoque: $e');
-      _calcularPrecoTotal();
-      _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
-    }
+    setState(() {
+      _pecasSelecionadas.remove(pecaOS);
+    });
+    _calcularPrecoTotal();
+    _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
   }
 
   Future<void> _clearFormFields() async {
-    for (var pecaOS in _pecasSelecionadas) {
-      try {
-        pecaOS.peca.quantidadeEstoque += pecaOS.quantidade;
-        await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
-      } catch (e) {
-        print('Erro ao retornar peça ${pecaOS.peca.nome} ao estoque: $e');
-      }
-    }
+    // Agora o backend gerencia o estoque automaticamente
+    // Não precisamos restaurar estoque no frontend
 
     _clienteNomeController.clear();
     _clienteCpfController.clear();
@@ -1007,6 +987,21 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       style: TextStyle(
                         color: Colors.green[700],
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              // Mostrar total de descontos caso exista desconto em serviços ou peças
+              if ((os.descontoServicos ?? 0) > 0 || (os.descontoPecas ?? 0) > 0)
+                Row(
+                  children: [
+                    Icon(Icons.local_offer, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Descontos: R\$ ${((os.descontoServicos ?? 0) + (os.descontoPecas ?? 0)).toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -1872,9 +1867,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             setState(() {
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
+              // Limpa o campo de busca do autocomplete para melhorar a UX
+              _pecaSearchController.clear();
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+            // O Autocomplete fornece um controller que gerencia as opções;
+            // armazenamos a referência em _pecaSearchController para podermos
+            // limpá-lo programaticamente sem quebrar o comportamento.
+            _pecaSearchController = controller;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -1931,6 +1932,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       } else {
                         _buscarPecaPorCodigo(value);
                       }
+                      // Limpa o campo de busca após tentativa de adicionar
+                      _pecaSearchController.clear();
                     },
             );
           },
@@ -2496,22 +2499,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         IconButton(
                           onPressed: _isViewMode
                               ? null
-                              : () async {
+                              : () {
                                   if (pecaOS.quantidade > 1) {
-                                    try {
-                                      pecaOS.peca.quantidadeEstoque++;
-                                      await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
-
-                                      setState(() {
-                                        pecaOS.quantidade--;
-                                        pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                        pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                      });
-                                      _calcularPrecoTotal();
-                                    } catch (e) {
-                                      print('Erro ao atualizar estoque: $e');
-                                      pecaOS.peca.quantidadeEstoque--;
-                                    }
+                                    setState(() {
+                                      pecaOS.quantidade--;
+                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                    });
+                                    _calcularPrecoTotal();
                                   }
                                 },
                           icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
@@ -2549,37 +2544,32 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                               filled: true,
                               fillColor: Colors.blue.shade50,
                             ),
-                            onChanged: (value) async {
+                            onChanged: (value) {
                               if (value.isNotEmpty) {
                                 int novaQuantidade = int.tryParse(value) ?? 1;
-                                int quantidadeAnterior = pecaOS.quantidade;
 
                                 if (novaQuantidade <= 0) {
                                   novaQuantidade = 1;
                                 }
 
-                                int diferenca = novaQuantidade - quantidadeAnterior;
+                                // Calcular total já usado desta peça na OS (excluindo a peça atual)
+                                int totalUsadoOutrasPecas = _pecasSelecionadas
+                                    .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                    .fold(0, (total, p) => total + p.quantidade);
 
-                                if (diferenca > 0 && diferenca > pecaOS.peca.quantidadeEstoque) {
-                                  novaQuantidade = quantidadeAnterior + pecaOS.peca.quantidadeEstoque;
-                                  diferenca = novaQuantidade - quantidadeAnterior;
-                                  _showErrorSnackBar('Estoque insuficiente. Quantidade máxima possível: $novaQuantidade');
+                                // Validar se nova quantidade + outras peças não excede estoque
+                                if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
+                                  _showErrorSnackBar(
+                                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
+                                  return;
                                 }
 
-                                try {
-                                  pecaOS.peca.quantidadeEstoque -= diferenca;
-                                  await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
-
-                                  setState(() {
-                                    pecaOS.quantidade = novaQuantidade;
-                                    pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                    pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                  });
-                                  _calcularPrecoTotal();
-                                } catch (e) {
-                                  print('Erro ao atualizar estoque: $e');
-                                  pecaOS.peca.quantidadeEstoque += diferenca;
-                                }
+                                setState(() {
+                                  pecaOS.quantidade = novaQuantidade;
+                                  pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                  pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                });
+                                _calcularPrecoTotal();
                               }
                             },
                           ),
@@ -2587,24 +2577,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         IconButton(
                           onPressed: _isViewMode
                               ? null
-                              : () async {
-                                  if (pecaOS.peca.quantidadeEstoque > 0) {
-                                    try {
-                                      pecaOS.peca.quantidadeEstoque--;
-                                      await PecaService.atualizarPeca(pecaOS.peca.id!, pecaOS.peca);
+                              : () {
+                                  // Calcular total já usado desta peça na OS (excluindo a peça atual)
+                                  int totalUsadoOutrasPecas = _pecasSelecionadas
+                                      .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                      .fold(0, (total, p) => total + p.quantidade);
 
-                                      setState(() {
-                                        pecaOS.quantidade++;
-                                        pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                        pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                      });
-                                      _calcularPrecoTotal();
-                                    } catch (e) {
-                                      print('Erro ao atualizar estoque: $e');
-                                      pecaOS.peca.quantidadeEstoque++;
-                                    }
+                                  // Validar se incremento não excede estoque
+                                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
+                                    setState(() {
+                                      pecaOS.quantidade++;
+                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                    });
+                                    _calcularPrecoTotal();
                                   } else {
-                                    _showErrorSnackBar('Estoque esgotado para esta peça');
+                                    _showErrorSnackBar(
+                                        'Não é possível aumentar quantidade. Estoque disponível: ${pecaOS.peca.quantidadeEstoque} unidades');
                                   }
                                 },
                           icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
@@ -3505,20 +3494,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       }
 
       if (sucesso) {
-        if (_editingOSId == null) {
-          for (var pecaOS in _pecasSelecionadas) {
-            try {
-              final peca = pecaOS.peca;
-              var novaQuant = peca.quantidadeEstoque - pecaOS.quantidade;
-              if (novaQuant < 0) novaQuant = 0;
-              peca.quantidadeEstoque = novaQuant;
-              await PecaService.atualizarPeca(peca.id!, peca);
-            } catch (e) {
-              print('Erro ao atualizar estoque da peça: $e');
-            }
-          }
-        }
-
+        // O estoque já foi subtraído quando as peças foram adicionadas
+        // Não precisamos subtrair novamente aqui
         _showSuccessSnackBar(_editingOSId != null ? 'OS atualizada com sucesso' : 'OS criada com sucesso');
         await _clearFormFields();
         await _loadData();
@@ -3947,6 +3924,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
+    // Calcular valor da parcela arredondado e ajustar última parcela para bater com o total
+    double valorParcelaCalculado = 0.0;
+    double ultimaParcelaCalculada = 0.0;
+    if (numeroParcelas != null && numeroParcelas > 0) {
+      final raw = totalGeral / numeroParcelas;
+      // valor base com 2 casas
+      final rounded = double.parse(raw.toStringAsFixed(2));
+      valorParcelaCalculado = rounded;
+      // última parcela recebe o restante (pode ser igual ao rounded)
+      ultimaParcelaCalculada = double.parse((totalGeral - rounded * (numeroParcelas - 1)).toStringAsFixed(2));
+    }
+
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
@@ -4072,10 +4061,17 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text('Valor por Parcela:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('R\$ ${(totalGeral / numeroParcelas).toStringAsFixed(2)}',
+                pw.Text('R\$ ${valorParcelaCalculado.toStringAsFixed(2)}',
                     style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
               ],
             ),
+            // Se houver diferença na última parcela, exibir nota com o valor da última parcela
+            if (ultimaParcelaCalculada != valorParcelaCalculado)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 4),
+                child: pw.Text('Última parcela: R\$ ${ultimaParcelaCalculada.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+              ),
           ],
           pw.SizedBox(height: 4),
           pw.Row(
@@ -4160,8 +4156,22 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
                         if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 &&
                             (os?.numeroParcelas ?? _numeroParcelas) != null)
-                          _buildResumoItem('Parcelas:',
-                              '${(os?.numeroParcelas ?? _numeroParcelas)}x de R\$ ${((_calcularTotalServicosOS(os) + _calcularTotalPecasOS(os)) / (os?.numeroParcelas ?? _numeroParcelas)!).toStringAsFixed(2)}'),
+                          _buildResumoItem('Parcelas:', () {
+                            final parcelas = (os?.numeroParcelas ?? _numeroParcelas)!;
+                            final totalServicos = _calcularTotalServicosOS(os);
+                            final totalPecas = _calcularTotalPecasOS(os);
+                            final descontoServicos = os?.descontoServicos ?? _descontoServicos;
+                            final descontoPecas = os?.descontoPecas ?? _descontoPecas;
+                            final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
+                            // Cálculo consistente com o PDF: parcelas arredondadas com ajuste na última
+                            final raw = totalComDesconto / parcelas;
+                            final rounded = double.parse(raw.toStringAsFixed(2));
+                            final ultima = double.parse((totalComDesconto - rounded * (parcelas - 1)).toStringAsFixed(2));
+                            if (ultima != rounded) {
+                              return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)} (última R\$ ${ultima.toStringAsFixed(2)})';
+                            }
+                            return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)}';
+                          }()),
                       ],
                     ),
                   ),
@@ -4387,8 +4397,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           if (osCompleta.pecasUtilizadas.isNotEmpty) {
             for (var pecaOS in osCompleta.pecasUtilizadas) {
               _pecasSelecionadas.add(PecaOrdemServico(
+                id: pecaOS.id,
                 peca: pecaOS.peca,
                 quantidade: pecaOS.quantidade,
+                valorUnitario: pecaOS.valorUnitario,
+                valorTotal: pecaOS.valorTotal,
               ));
             }
           }
@@ -4433,15 +4446,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              for (var pecaOS in os.pecasUtilizadas) {
-                try {
-                  final peca = pecaOS.peca;
-                  peca.quantidadeEstoque = peca.quantidadeEstoque + pecaOS.quantidade;
-                  await PecaService.atualizarPeca(peca.id!, peca);
-                } catch (e) {
-                  print('Erro ao restaurar estoque da peça: $e');
-                }
-              }
+              // O backend agora gerencia o estoque automaticamente na exclusão
               if (os.id != null) {
                 final sucesso = await OrdemServicoService.excluirOrdemServico(os.id!);
                 if (sucesso) {
@@ -4538,8 +4543,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 id: pecaOS.id,
                 peca: pecaOS.peca,
                 quantidade: pecaOS.quantidade,
-                valorUnitario: pecaOS.valorUnitario ?? pecaOS.peca.precoFinal,
-                valorTotal: pecaOS.valorTotal ?? (pecaOS.peca.precoFinal * pecaOS.quantidade),
+                valorUnitario: pecaOS.valorUnitario,
+                valorTotal: pecaOS.valorTotal,
               );
               _pecasSelecionadas.add(pecaComValores);
             }

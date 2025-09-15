@@ -12,6 +12,7 @@ class MovimentacaoEstoqueService {
     required double precoUnitario,
     required String numeroNotaFiscal,
     String? observacoes,
+    String? origem,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/entrada').replace(queryParameters: {
@@ -21,6 +22,7 @@ class MovimentacaoEstoqueService {
         'precoUnitario': precoUnitario.toString(),
         'numeroNotaFiscal': numeroNotaFiscal,
         if (observacoes != null && observacoes.isNotEmpty) 'observacoes': observacoes,
+        if (origem != null && origem.isNotEmpty) 'origem': origem,
       });
 
       final response = await http.post(uri);
@@ -42,6 +44,7 @@ class MovimentacaoEstoqueService {
     required int quantidade,
     required String numeroNotaFiscal,
     String? observacoes,
+    String? origem,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/saida').replace(queryParameters: {
@@ -50,6 +53,7 @@ class MovimentacaoEstoqueService {
         'quantidade': quantidade.toString(),
         'numeroNotaFiscal': numeroNotaFiscal,
         if (observacoes != null && observacoes.isNotEmpty) 'observacoes': observacoes,
+        if (origem != null && origem.isNotEmpty) 'origem': origem,
       });
 
       final response = await http.post(uri);

@@ -69,10 +69,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
 
-  static const Color primaryColor = Color(0xFF0F172A);
-  static const Color secondaryColor = Color(0xFF6366F1);
+  static const Color primaryColor = Color(0xFF4F46E5);
+  static const Color secondaryColor = Color(0xFF7C3AED);
   static const Color errorColor = Color(0xFFDC2626);
   static const Color successColor = Color(0xFF16A34A);
   static const Color shadowColor = Color(0x1A000000);
@@ -108,11 +112,30 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
 
   void _initializeAnimations() {
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut));
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut));
+
     _fadeController.forward();
+    _slideController.forward();
+    _scaleController.forward();
   }
 
   Future<void> _carregarVeiculos() async {
@@ -127,8 +150,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       final lista = await Funcionarioservice.listarFuncionarios();
       setState(() {
         _funcionarios = lista.reversed.toList();
-        _consultores = _funcionarios.where((f) => f.nivelAcesso == 1).toList();
-        _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 2).toList();
+        _consultores = _funcionarios.where((f) => f.nivelAcesso == 1).toList()..sort((a, b) => a.nome.compareTo(b.nome));
+        _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 2).toList()..sort((a, b) => a.nome.compareTo(b.nome));
       });
     } catch (e) {
       print('Erro ao carregar funcionários: $e');
@@ -144,6 +167,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   void dispose() {
     _selectedEvents.dispose();
     _fadeController.dispose();
+    _slideController.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
@@ -344,26 +369,39 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          _currentStep == AgendamentoStep.calendario ? 'Calendário de Agendamentos' : 'Horários do Dia',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+      backgroundColor: Colors.grey[50],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.indigo.shade50,
+              Colors.purple.shade50,
+              Colors.cyan.shade50,
+            ],
+            stops: const [0.0, 0.5, 1.0],
           ),
         ),
-        backgroundColor: primaryColor,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
         child: Column(
           children: [
-            Expanded(child: _buildCurrentStepView()),
-            if (_currentStep == AgendamentoStep.calendario) _buildLegend(),
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Column(
+                      children: [
+                        Expanded(child: _buildCurrentStepView()),
+                        if (_currentStep == AgendamentoStep.calendario) _buildLegend(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -380,212 +418,353 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   Widget _buildCalendarView() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: secondaryColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: 15,
+              offset: const Offset(0, 5),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_month, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Selecione uma Data',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryColor.withOpacity(0.1), secondaryColor.withOpacity(0.1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                AnimatedScale(
-                  scale: 1.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: _showDatePicker,
-                      borderRadius: BorderRadius.circular(8),
-                      splashColor: Colors.white.withOpacity(0.3),
-                      highlightColor: Colors.white.withOpacity(0.1),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.date_range, color: Colors.white, size: 16),
-                            const SizedBox(width: 4),
-                            Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TableCalendar<Agendamento>(
-              locale: 'pt_BR',
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              availableCalendarFormats: const {
-                CalendarFormat.month: 'Mês',
-                CalendarFormat.twoWeeks: '2 semanas',
-                CalendarFormat.week: 'Semana',
-              },
-              headerStyle: HeaderStyle(
-                formatButtonVisible: true,
-                titleCentered: true,
-                formatButtonTextStyle: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-                formatButtonDecoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border.all(
                   color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                leftChevronIcon: Icon(Icons.chevron_left, color: primaryColor),
-                rightChevronIcon: Icon(Icons.chevron_right, color: primaryColor),
-                titleTextStyle: TextStyle(
-                  color: primaryColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  width: 1,
                 ),
               ),
-              calendarStyle: CalendarStyle(
-                outsideDaysVisible: false,
-                weekendTextStyle: const TextStyle(color: Colors.black),
-                holidayTextStyle: const TextStyle(color: Colors.red),
-                selectedDecoration: BoxDecoration(
-                  color: secondaryColor,
-                  shape: BoxShape.circle,
-                ),
-                todayDecoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.7),
-                  shape: BoxShape.circle,
-                ),
-                markerDecoration: const BoxDecoration(
-                  color: Colors.transparent,
-                ),
-                markersMaxCount: 0,
-                defaultTextStyle: TextStyle(color: primaryColor),
-              ),
-              calendarBuilders: CalendarBuilders(
-                defaultBuilder: (context, day, focusedDay) {
-                  if (day.weekday == DateTime.sunday) {
-                    return Container(
-                      margin: const EdgeInsets.all(4.0),
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [primaryColor, secondaryColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: Text(
-                        day.day.toString(),
-                        style: const TextStyle(color: Colors.red),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.calendar_month, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Calendário de Agendamentos',
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Selecione uma data para ver os agendamentos',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showDatePicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.date_range, color: primaryColor, size: 16),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Navegar',
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.keyboard_arrow_down, color: primaryColor, size: 14),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: TableCalendar<Agendamento>(
+                locale: 'pt_BR',
+                startingDayOfWeek: StartingDayOfWeek.monday,
+                daysOfWeekHeight: 45,
+                rowHeight: 55,
+                availableCalendarFormats: const {
+                  CalendarFormat.month: 'Mês',
+                  CalendarFormat.twoWeeks: '2 semanas',
+                  CalendarFormat.week: 'Semana',
+                },
+                headerStyle: HeaderStyle(
+                  formatButtonVisible: true,
+                  titleCentered: true,
+                  formatButtonTextStyle: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  formatButtonDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, secondaryColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  leftChevronIcon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.chevron_left, color: primaryColor, size: 20),
+                  ),
+                  rightChevronIcon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.chevron_right, color: primaryColor, size: 20),
+                  ),
+                  titleTextStyle: TextStyle(
+                    color: primaryColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  headerPadding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  weekendTextStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500, fontSize: 16),
+                  holidayTextStyle: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500, fontSize: 16),
+                  selectedDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [primaryColor, secondaryColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  selectedTextStyle: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  todayDecoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primaryColor, width: 2),
+                  ),
+                  todayTextStyle: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  markerDecoration: const BoxDecoration(
+                    color: Colors.transparent,
+                  ),
+                  markersMaxCount: 0,
+                  defaultTextStyle: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
+                  cellMargin: const EdgeInsets.all(6),
+                  cellPadding: const EdgeInsets.all(0),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    final hasEvents = _getEventsForDay(day).isNotEmpty;
+
+                    if (day.weekday == DateTime.sunday) {
+                      return Container(
+                        margin: const EdgeInsets.all(2.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: hasEvents ? Colors.red.withOpacity(0.1) : null,
+                          border: hasEvents ? Border.all(color: Colors.red.withOpacity(0.3), width: 1) : null,
+                        ),
+                        child: Text(
+                          day.day.toString(),
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: hasEvents ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (hasEvents) {
+                      return Container(
+                        margin: const EdgeInsets.all(2.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: primaryColor.withOpacity(0.1),
+                          border: Border.all(color: primaryColor.withOpacity(0.3), width: 1),
+                        ),
+                        child: Text(
+                          day.day.toString(),
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return null;
+                  },
+                  markerBuilder: (context, day, events) {
+                    final cores = _getCoresServicosNoDia(day);
+                    if (cores.isEmpty) return null;
+
+                    return Positioned(
+                      bottom: 2,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: cores
+                            .take(3)
+                            .map((cor) => Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                                  decoration: BoxDecoration(
+                                    color: cor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 0.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: cor.withOpacity(0.5),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                ))
+                            .toList(),
                       ),
                     );
-                  }
-                  return null;
-                },
-                markerBuilder: (context, day, events) {
-                  final cores = _getCoresServicosNoDia(day);
-                  if (cores.isEmpty) return null;
+                  },
+                  dowBuilder: (context, day) {
+                    const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+                    final dayText = labels[day.weekday - 1];
+                    final isWeekend = day.weekday == DateTime.sunday;
 
-                  return Positioned(
-                    bottom: 4,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: cores
-                          .take(3)
-                          .map((cor) => Container(
-                                width: 8,
-                                height: 8,
-                                margin: const EdgeInsets.symmetric(horizontal: 1),
-                                decoration: BoxDecoration(
-                                  color: cor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 1),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  );
-                },
-                dowBuilder: (context, day) {
-                  const labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-                  final dayText = labels[day.weekday - 1];
-                  final isRed = day.weekday == DateTime.sunday;
-
-                  return Container(
-                    alignment: Alignment.center,
-                    child: Text(
-                      dayText,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isRed ? Colors.red : primaryColor,
+                    return Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isWeekend ? Colors.red.withOpacity(0.05) : primaryColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                  );
-                },
+                      child: Text(
+                        dayText,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isWeekend ? Colors.red : primaryColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                  weekendStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                  ),
+                ),
+                firstDay: DateTime.utc(2025),
+                lastDay: DateTime.utc(2050),
+                focusedDay: _focusedDay,
+                calendarFormat: _calendarFormat,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                eventLoader: _getEventsForDay,
+                onDaySelected: _onDaySelected,
+                onFormatChanged: (format) => setState(() => _calendarFormat = format),
+                onPageChanged: (focusedDay) => _focusedDay = focusedDay,
               ),
-              daysOfWeekStyle: DaysOfWeekStyle(
-                weekdayStyle: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-                weekendStyle: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                ),
-              ),
-              firstDay: DateTime.utc(2025),
-              lastDay: DateTime.utc(2050),
-              focusedDay: _focusedDay,
-              calendarFormat: _calendarFormat,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              eventLoader: _getEventsForDay,
-              onDaySelected: _onDaySelected,
-              onFormatChanged: (format) => setState(() => _calendarFormat = format),
-              onPageChanged: (focusedDay) => _focusedDay = focusedDay,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -601,7 +780,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     });
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -892,12 +1071,17 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           const SizedBox(width: 16),
           Expanded(
             child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: 20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: serviceInfo['color'].withOpacity(0.2)),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: serviceInfo['color'].withOpacity(0.3), width: 1.5),
                 boxShadow: [
+                  BoxShadow(
+                    color: serviceInfo['color'].withOpacity(0.15),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
                   BoxShadow(
                     color: shadowColor,
                     blurRadius: 8,
@@ -908,90 +1092,123 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   onTap: () => _showAgendamentoDialog(horaDisplay, agendamento),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: serviceInfo['lightColor'],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(
-                                serviceInfo['icon'],
-                                color: serviceInfo['color'],
-                                size: 20,
-                              ),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [serviceInfo['color'].withOpacity(0.1), serviceInfo['color'].withOpacity(0.05)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        horaDisplay,
-                                        style: TextStyle(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: serviceInfo['color'].withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: serviceInfo['color'],
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: serviceInfo['color'].withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  serviceInfo['icon'],
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.access_time_filled, size: 18, color: serviceInfo['color']),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          horaDisplay,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            color: serviceInfo['color'],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: serviceInfo['color'],
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: serviceInfo['color'].withOpacity(0.3),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        agendamento.cor,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.grey[800],
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: serviceInfo['lightColor'],
-                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Text(
-                                      agendamento.cor,
-                                      style: TextStyle(
-                                        color: serviceInfo['color'],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_ios,
-                              color: Colors.grey[400],
-                              size: 16,
-                            ),
-                          ],
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: serviceInfo['color'].withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: serviceInfo['color'],
+                                  size: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             Expanded(
-                              child: _buildDetailItem(
-                                Icons.directions_car,
+                              child: _buildEnhancedDetailItem(
+                                Icons.directions_car_rounded,
                                 'Veículo',
                                 agendamento.placaVeiculo,
-                                Colors.blue,
+                                primaryColor,
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildDetailItem(
-                                Icons.category,
+                              child: _buildEnhancedDetailItem(
+                                Icons.category_rounded,
                                 'Categoria',
                                 _getVeiculoCategoria(agendamento.placaVeiculo),
-                                Colors.green,
+                                secondaryColor,
                               ),
                             ),
                           ],
@@ -1000,25 +1217,61 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         Row(
                           children: [
                             Expanded(
-                              child: _buildDetailItem(
-                                Icons.person,
+                              child: _buildEnhancedDetailItem(
+                                Icons.engineering_rounded,
                                 'Mecânico',
                                 agendamento.nomeMecanico,
-                                Colors.orange,
+                                Colors.orange.shade600,
                               ),
                             ),
                             if (agendamento.nomeConsultor != null) ...[
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _buildDetailItem(
-                                  Icons.support_agent,
+                                child: _buildEnhancedDetailItem(
+                                  Icons.support_agent_rounded,
                                   'Consultor',
                                   agendamento.nomeConsultor!,
-                                  Colors.purple,
+                                  Colors.teal.shade600,
                                 ),
                               ),
                             ],
                           ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: serviceInfo['color'],
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Toque para ver detalhes',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.info_outline_rounded,
+                                size: 16,
+                                color: Colors.grey.shade500,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -1032,36 +1285,57 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     );
   }
 
-  Widget _buildDetailItem(IconData icon, String label, String value, Color color) {
+  Widget _buildEnhancedDetailItem(IconData icon, String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
                   color: color,
-                  fontWeight: FontWeight.w600,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Colors.grey[800],
             ),
@@ -1221,15 +1495,16 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
 
   Widget _buildLegend() {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: primaryColor.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
-            blurRadius: 6,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -1237,51 +1512,90 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tipos de Serviço',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [primaryColor.withOpacity(0.1), secondaryColor.withOpacity(0.1)],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.palette_outlined,
+                  color: primaryColor,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Legenda de Serviços',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'As bolinhas coloridas indicam os tipos de serviços agendados no dia',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: _serviceTypes.entries.map((entry) {
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: entry.value['color'],
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1),
-                    ),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: _serviceTypes.entries.map((entry) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: entry.value['color'].withOpacity(0.3)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: entry.value['color'].withOpacity(0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    entry.key,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: entry.value['color'],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          entry.value['icon'],
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: entry.value['color'],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
@@ -1553,12 +1867,16 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        items: _mecanicos.map((mecanico) {
-                          return DropdownMenuItem(
-                            value: mecanico.nome,
-                            child: Text(mecanico.nome),
-                          );
-                        }).toList(),
+                        items: (() {
+                          final lista = List.from(_mecanicos);
+                          lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                          return lista.map<DropdownMenuItem<String>>((mecanico) {
+                            return DropdownMenuItem<String>(
+                              value: mecanico.nome,
+                              child: Text(mecanico.nome),
+                            );
+                          }).toList();
+                        })(),
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
@@ -1571,18 +1889,22 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text("Nenhum"),
-                          ),
-                          ..._consultores.map((consultor) {
-                            return DropdownMenuItem(
-                              value: consultor.nome,
-                              child: Text(consultor.nome),
-                            );
-                          }),
-                        ],
+                        items: (() {
+                          final lista = List.from(_consultores);
+                          lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                          return <DropdownMenuItem<String>>[
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text("Nenhum"),
+                            ),
+                            ...lista.map<DropdownMenuItem<String>>((consultor) {
+                              return DropdownMenuItem<String>(
+                                value: consultor.nome,
+                                child: Text(consultor.nome),
+                              );
+                            })
+                          ];
+                        })(),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -1625,19 +1947,24 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        items: _serviceTypes.entries.map((entry) {
-                          final serviceInfo = entry.value;
-                          return DropdownMenuItem(
-                            value: entry.key,
-                            child: Row(
-                              children: [
-                                Icon(serviceInfo['icon'], color: serviceInfo['color'], size: 20),
-                                const SizedBox(width: 8),
-                                Text(entry.key),
-                              ],
-                            ),
-                          );
-                        }).toList(),
+                        items: (() {
+                          final ordem = ["Troca de Peça", "Diagnóstico", "Revisão"];
+                          final lista =
+                              ordem.where((k) => _serviceTypes.containsKey(k)).map((k) => MapEntry(k, _serviceTypes[k]!)).toList();
+                          return lista.map<DropdownMenuItem<String>>((entry) {
+                            final serviceInfo = entry.value;
+                            return DropdownMenuItem<String>(
+                              value: entry.key,
+                              child: Row(
+                                children: [
+                                  Icon(serviceInfo['icon'], color: serviceInfo['color'], size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(entry.key),
+                                ],
+                              ),
+                            );
+                          }).toList();
+                        })(),
                       ),
                     ],
                   ),

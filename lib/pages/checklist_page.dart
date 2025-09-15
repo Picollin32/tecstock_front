@@ -543,7 +543,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
-          colors: [PdfColors.teal600, PdfColors.cyan600],
+          colors: [PdfColors.purple600, PdfColors.deepPurple600],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
         ),
@@ -587,7 +587,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 style: pw.TextStyle(
                   fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.teal600,
+                  color: PdfColors.purple600,
                 ),
               ),
             ),
@@ -837,8 +837,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.teal.shade50,
-              Colors.cyan.shade50,
+              Colors.purple.shade50,
+              Colors.deepPurple.shade50,
               Colors.blue.shade50,
             ],
             stops: const [0.0, 0.5, 1.0],
@@ -875,14 +875,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.teal.shade600, Colors.cyan.shade600],
+          colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withOpacity(0.3),
+            color: Colors.purple.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -962,14 +962,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     children: [
                       Icon(
                         _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.teal.shade600,
+                        color: Colors.purple.shade600,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _showForm ? 'Cancelar' : 'Novo Checklist',
                         style: TextStyle(
-                          color: Colors.teal.shade600,
+                          color: Colors.purple.shade600,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1003,7 +1003,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         children: [
           Row(
             children: [
-              Icon(Icons.search, color: Colors.teal.shade600),
+              Icon(Icons.search, color: Colors.purple.shade600),
               const SizedBox(width: 12),
               Text(
                 'Buscar Checklists',
@@ -1036,7 +1036,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
               ),
               filled: true,
               fillColor: Colors.grey[50],
@@ -1111,7 +1111,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           ),
           child: Row(
             children: [
-              Icon(Icons.history, color: Colors.teal.shade600),
+              Icon(Icons.history, color: Colors.purple.shade600),
               const SizedBox(width: 12),
               Text(
                 _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca',
@@ -1124,13 +1124,13 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
+                  color: Colors.purple.shade50,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
                   style: TextStyle(
-                    color: Colors.teal.shade700,
+                    color: Colors.purple.shade700,
                     fontWeight: FontWeight.w500,
                     fontSize: 12,
                   ),
@@ -1179,7 +1179,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Colors.teal.shade400, Colors.cyan.shade400],
+                        colors: [Colors.purple.shade400, Colors.deepPurple.shade400],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1431,7 +1431,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1442,25 +1442,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             child: Row(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () {
-                      setState(() {
-                        _showForm = false;
-                        _isViewMode = false;
-                        _editingChecklistId = null;
-                        _checklistNumberController.clear();
-                        _clearFormFields();
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
+                const Icon(Icons.checklist, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1493,7 +1476,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   ),
                   child: IconButton(
                     onPressed: () => _printChecklist(),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.purple.shade600, size: 20),
                     tooltip: 'PDF',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1562,12 +1545,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                      colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
                     ),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.teal.withOpacity(0.3),
+                        color: Colors.purple.withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -1611,10 +1594,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
+            color: Colors.purple.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.teal.shade600, size: 20),
+          child: Icon(icon, color: Colors.purple.shade600, size: 20),
         ),
         const SizedBox(width: 12),
         Text(
@@ -1962,7 +1945,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+              borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -1999,19 +1982,23 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+              borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
           hint: const Text('Selecione um consultor'),
-          items: _funcionarios.map((funcionario) {
-            return DropdownMenuItem<Funcionario>(
-              value: funcionario,
-              child: Text(funcionario.nome),
-            );
-          }).toList(),
+          items: (() {
+            final lista = List<Funcionario>.from(_funcionarios);
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+              return DropdownMenuItem<Funcionario>(
+                value: funcionario,
+                child: Text(funcionario.nome),
+              );
+            }).toList();
+          })(),
           onChanged: (Funcionario? funcionario) {
             setState(() {
               _consultorSelecionado = funcionario;
@@ -2075,7 +2062,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -2115,7 +2102,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildPlacaAutocomplete({required double fieldWidth}) {
-    final options = _veiculos.map((v) => (v as Veiculo).placa).whereType<String>().toList();
+    final options = _veiculos.map((v) => (v as Veiculo).placa).whereType<String>().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2162,7 +2150,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -2225,7 +2213,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+            borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
           ),
           filled: true,
           fillColor: Colors.white,
@@ -2264,7 +2252,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.teal.shade50,
+              color: Colors.purple.shade50,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -2273,20 +2261,20 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     flex: 3,
                     child: Text(
                       'Item',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade700),
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
                     )),
                 Expanded(
                     flex: 2,
                     child: Text(
                       'Status',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade700),
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
                       textAlign: TextAlign.center,
                     )),
                 Expanded(
                     flex: 3,
                     child: Text(
                       'Observações',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade700),
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
                       textAlign: TextAlign.center,
                     )),
               ],
@@ -2348,7 +2336,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 filled: true,
@@ -2483,15 +2471,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
+                  color: Colors.purple.shade50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.teal.shade200),
+                  border: Border.all(color: Colors.purple.shade200),
                 ),
                 child: Text(
                   '${(_fuelLevel * 25).toStringAsFixed(0)}%',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.teal.shade700,
+                    color: Colors.purple.shade700,
                     fontSize: 16,
                   ),
                 ),
@@ -2508,11 +2496,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           const SizedBox(height: 16),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.teal.shade400,
+              activeTrackColor: Colors.purple.shade400,
               inactiveTrackColor: Colors.grey[300],
-              thumbColor: Colors.teal.shade600,
+              thumbColor: Colors.purple.shade600,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-              overlayColor: Colors.teal.withOpacity(0.2),
+              overlayColor: Colors.purple.withOpacity(0.2),
               trackHeight: 8,
             ),
             child: Slider(
@@ -2596,7 +2584,7 @@ class _StatusSelectorState extends State<_StatusSelector> {
       },
       constraints: const BoxConstraints(minWidth: 50, minHeight: 32),
       borderRadius: BorderRadius.circular(8),
-      selectedBorderColor: widget.label1 == 'OK' ? Colors.green.shade400 : Colors.teal.shade400,
+      selectedBorderColor: widget.label1 == 'OK' ? Colors.green.shade400 : Colors.purple.shade400,
       selectedColor: Colors.white,
       fillColor: widget.label1 == 'OK'
           ? (_selected[0]
@@ -2605,7 +2593,7 @@ class _StatusSelectorState extends State<_StatusSelector> {
                   ? Colors.red.shade400
                   : null)
           : (_selected[0]
-              ? Colors.teal.shade400
+              ? Colors.purple.shade400
               : _selected[1]
                   ? Colors.orange.shade400
                   : null),

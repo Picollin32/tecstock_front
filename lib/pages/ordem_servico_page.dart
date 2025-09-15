@@ -502,8 +502,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.teal.shade50,
-              Colors.cyan.shade50,
+              Colors.orange.shade50,
+              Colors.deepOrange.shade50,
               Colors.blue.shade50,
             ],
             stops: const [0.0, 0.5, 1.0],
@@ -540,14 +540,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.teal.shade600, Colors.cyan.shade600],
+          colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withOpacity(0.3),
+            color: Colors.orange.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -626,14 +626,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     children: [
                       Icon(
                         _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.teal.shade600,
+                        color: Colors.orange.shade600,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _showForm ? 'Cancelar' : 'Nova OS',
                         style: TextStyle(
-                          color: Colors.teal.shade600,
+                          color: Colors.orange.shade600,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -667,7 +667,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         children: [
           Row(
             children: [
-              Icon(Icons.search, color: Colors.teal.shade600),
+              Icon(Icons.search, color: Colors.orange.shade600),
               const SizedBox(width: 12),
               Text(
                 'Buscar Ordens de Serviço',
@@ -700,7 +700,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
               ),
               filled: true,
               fillColor: Colors.grey[50],
@@ -775,7 +775,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ),
           child: Row(
             children: [
-              Icon(Icons.history, color: Colors.teal.shade600),
+              Icon(Icons.history, color: Colors.orange.shade600),
               const SizedBox(width: 12),
               Text(
                 _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca',
@@ -788,13 +788,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
+                  color: Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
                   style: TextStyle(
-                    color: Colors.teal.shade700,
+                    color: Colors.orange.shade700,
                     fontWeight: FontWeight.w500,
                     fontSize: 12,
                   ),
@@ -878,7 +878,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.teal.shade400, Colors.cyan.shade400],
+              colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1025,13 +1025,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: IconButton(
                 icon: Icon(
                   Icons.visibility_outlined,
-                  color: Colors.grey.shade600,
+                  color: Colors.green.shade600,
                   size: 20,
                 ),
                 onPressed: () => _visualizarOS(os),
@@ -1075,13 +1075,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             if (os.status == 'ENCERRADA')
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: Colors.purple.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: IconButton(
                   icon: Icon(
                     Icons.lock_outlined,
-                    color: Colors.green.shade600,
+                    color: Colors.purple.shade600,
                     size: 20,
                   ),
                   onPressed: null,
@@ -1147,7 +1147,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1158,23 +1158,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
             child: Row(
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () async {
-                      await _clearFormFields();
-                      setState(() {
-                        _showForm = false;
-                        _editingOSId = null;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
+                const Icon(Icons.description, color: Colors.white, size: 24),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1211,7 +1196,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   child: IconButton(
                     onPressed: () => _printOS(null),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.orange.shade600, size: 20),
                     tooltip: 'PDF',
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(minWidth: 36, minHeight: 36),
@@ -1328,12 +1313,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                            colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.teal.withOpacity(0.3),
+                              color: Colors.orange.withOpacity(0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -1371,10 +1356,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
+            color: Colors.orange.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.teal.shade600, size: 20),
+          child: Icon(icon, color: Colors.orange.shade600, size: 20),
         ),
         const SizedBox(width: 12),
         Text(
@@ -1456,7 +1441,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+              borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -1523,7 +1508,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -1622,7 +1607,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -1727,7 +1712,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -2215,11 +2200,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ],
                   ),
                   onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
-                  selectedColor: Colors.teal.shade400,
+                  selectedColor: Colors.orange.shade400,
                   backgroundColor: Colors.white,
                   checkmarkColor: Colors.white,
                   side: BorderSide(
-                    color: isSelected ? Colors.teal.shade400 : Colors.grey[300]!,
+                    color: isSelected ? Colors.orange.shade400 : Colors.grey[300]!,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 );
@@ -2263,7 +2248,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Adicionar'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal.shade600,
+                          backgroundColor: Colors.orange.shade600,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -2683,19 +2668,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um mecânico'),
-                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).map((funcionario) {
-                    return DropdownMenuItem<String>(
-                      value: funcionario.nome,
-                      child: Text(funcionario.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map<DropdownMenuItem<String>>((funcionario) {
+                      return DropdownMenuItem<String>(
+                        value: funcionario.nome,
+                        child: Text(funcionario.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (value) {
@@ -2733,19 +2722,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um consultor'),
-                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).map((funcionario) {
-                    return DropdownMenuItem<String>(
-                      value: funcionario.nome,
-                      child: Text(funcionario.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map<DropdownMenuItem<String>>((funcionario) {
+                      return DropdownMenuItem<String>(
+                        value: funcionario.nome,
+                        child: Text(funcionario.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (value) {
@@ -2797,7 +2790,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -2846,7 +2839,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -2893,7 +2886,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                        borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.white,
@@ -2937,7 +2930,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                        borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.white,
@@ -2991,7 +2984,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+            borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
           ),
           filled: true,
           fillColor: Colors.white,
@@ -3522,7 +3515,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
-          colors: [PdfColors.teal600, PdfColors.cyan600],
+          colors: [PdfColors.orange600, PdfColors.deepOrange600],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
         ),
@@ -3573,7 +3566,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.teal600,
+                color: PdfColors.orange600,
               ),
             ),
           ),

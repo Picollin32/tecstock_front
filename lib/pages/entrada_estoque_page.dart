@@ -554,12 +554,16 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               value: _fornecedorSelecionado,
               label: 'Fornecedor',
               icon: Icons.store,
-              items: _fornecedores
-                  .map((fornecedor) => DropdownMenuItem<Fornecedor>(
-                        value: fornecedor,
-                        child: Text(fornecedor.nome),
-                      ))
-                  .toList(),
+              items: (() {
+                final lista = List<Fornecedor>.from(_fornecedores);
+                lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                return lista
+                    .map<DropdownMenuItem<Fornecedor>>((fornecedor) => DropdownMenuItem<Fornecedor>(
+                          value: fornecedor,
+                          child: Text(fornecedor.nome),
+                        ))
+                    .toList();
+              })(),
               onChanged: (value) {
                 setState(() {
                   _fornecedorSelecionado = value;

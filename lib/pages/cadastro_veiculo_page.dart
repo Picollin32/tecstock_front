@@ -681,12 +681,16 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
             value: _categoriaSelecionada,
             label: 'Categoria',
             icon: Icons.category,
-            items: _categorias
-                .map((categoria) => DropdownMenuItem<String>(
-                      value: categoria,
-                      child: Text(categoria),
-                    ))
-                .toList(),
+            items: (() {
+              final lista = List<String>.from(_categorias);
+              lista.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+              return lista
+                  .map<DropdownMenuItem<String>>((categoria) => DropdownMenuItem<String>(
+                        value: categoria,
+                        child: Text(categoria),
+                      ))
+                  .toList();
+            })(),
             onChanged: (value) => setState(() => _categoriaSelecionada = value),
             validator: (value) => value == null ? 'Selecione uma categoria' : null,
           ),

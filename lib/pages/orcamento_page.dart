@@ -294,9 +294,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.teal.shade50,
-              Colors.cyan.shade50,
               Colors.blue.shade50,
+              Colors.indigo.shade50,
+              Colors.lightBlue.shade50,
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
@@ -333,14 +333,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.teal.shade600, Colors.cyan.shade600],
+          colors: [Colors.blue.shade600, Colors.indigo.shade600],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withOpacity(0.3),
+            color: Colors.blue.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -419,14 +419,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     children: [
                       Icon(
                         _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.teal.shade600,
+                        color: Colors.blue.shade600,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _showForm ? 'Cancelar' : 'Novo Orçamento',
                         style: TextStyle(
-                          color: Colors.teal.shade600,
+                          color: Colors.blue.shade600,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -460,7 +460,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         children: [
           Row(
             children: [
-              Icon(Icons.search, color: Colors.teal.shade600),
+              Icon(Icons.search, color: Colors.blue.shade600),
               const SizedBox(width: 12),
               Text(
                 'Buscar Orçamentos',
@@ -493,7 +493,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
               ),
               filled: true,
               fillColor: Colors.grey[50],
@@ -585,7 +585,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                colors: [Colors.blue.shade600, Colors.indigo.shade600],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -599,7 +599,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 const Icon(Icons.request_quote, color: Colors.white, size: 24),
                 const SizedBox(width: 12),
                 Text(
-                  _editingOrcamentoId == null ? 'Novo Orçamento' : 'Editar Orçamento',
+                  _editingOrcamentoId == null
+                      ? 'Novo Orçamento'
+                      : _isViewMode
+                          ? 'Visualizar Orçamento'
+                          : 'Editar Orçamento',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -618,7 +622,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   child: IconButton(
                     onPressed: () => _printOrcamento(null),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.teal.shade600, size: 20),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.blue.shade600, size: 20),
                     tooltip: 'PDF',
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(minWidth: 36, minHeight: 36),
@@ -731,12 +735,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.teal.shade600, Colors.cyan.shade600],
+                            colors: [Colors.blue.shade600, Colors.indigo.shade600],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.teal.withOpacity(0.3),
+                              color: Colors.blue.withOpacity(0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -788,7 +792,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.teal.shade400, Colors.cyan.shade400],
+              colors: [Colors.blue.shade400, Colors.indigo.shade400],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -910,13 +914,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             const SizedBox(width: 8),
             Container(
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: IconButton(
                 icon: Icon(
                   Icons.visibility_outlined,
-                  color: Colors.grey.shade600,
+                  color: Colors.green.shade600,
                   size: 20,
                 ),
                 onPressed: () => _visualizarOrcamento(orcamento),
@@ -1039,7 +1043,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
-          colors: [PdfColors.teal600, PdfColors.cyan600],
+          colors: [PdfColors.blue600, PdfColors.indigo600],
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
         ),
@@ -1085,7 +1089,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.teal600,
+                color: PdfColors.blue600,
               ),
             ),
           ),
@@ -1640,7 +1644,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     setState(() {
       _editingOrcamentoId = orcamento.id;
       _showForm = true;
-      _isViewMode = false;
 
       _orcamentoNumberController.text = orcamento.numeroOrcamento;
       _dateController.text = DateFormat('dd/MM/yyyy').format(orcamento.dataHora);
@@ -1687,10 +1690,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.teal.shade50,
+            color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.teal.shade600, size: 20),
+          child: Icon(icon, color: Colors.blue.shade600, size: 20),
         ),
         const SizedBox(width: 12),
         Text(
@@ -1772,19 +1775,23 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um mecânico'),
-                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).map((funcionario) {
-                    return DropdownMenuItem<String>(
-                      value: funcionario.nome,
-                      child: Text(funcionario.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map<DropdownMenuItem<String>>((funcionario) {
+                      return DropdownMenuItem<String>(
+                        value: funcionario.nome,
+                        child: Text(funcionario.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (value) {
@@ -1822,19 +1829,23 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione um consultor'),
-                  items: _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).map((funcionario) {
-                    return DropdownMenuItem<String>(
-                      value: funcionario.nome,
-                      child: Text(funcionario.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map<DropdownMenuItem<String>>((funcionario) {
+                      return DropdownMenuItem<String>(
+                        value: funcionario.nome,
+                        child: Text(funcionario.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (value) {
@@ -1885,7 +1896,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -2000,11 +2011,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ],
                   ),
                   onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
-                  selectedColor: Colors.teal.shade400,
+                  selectedColor: Colors.blue.shade400,
                   backgroundColor: Colors.white,
                   checkmarkColor: Colors.white,
                   side: BorderSide(
-                    color: isSelected ? Colors.teal.shade400 : Colors.grey[300]!,
+                    color: isSelected ? Colors.blue.shade400 : Colors.grey[300]!,
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 );
@@ -2048,7 +2059,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Adicionar'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal.shade600,
+                          backgroundColor: Colors.blue.shade600,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -2851,7 +2862,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -2900,7 +2911,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.white,
@@ -2952,7 +2963,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                        borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.white,
@@ -2996,7 +3007,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                        borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                       ),
                       filled: true,
                       fillColor: Colors.white,
@@ -3059,7 +3070,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -3437,7 +3448,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -3506,7 +3517,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+              borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -3575,7 +3586,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.teal.shade400, width: 2),
+                  borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,

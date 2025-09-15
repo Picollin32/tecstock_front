@@ -21,6 +21,7 @@ import 'package:TecStock/services/funcionario_service.dart';
 import 'package:TecStock/services/peca_service.dart';
 import 'package:TecStock/services/tipo_pagamento_service.dart';
 import 'package:TecStock/services/ordem_servico_service.dart';
+import 'package:TecStock/services/orcamento_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -191,6 +192,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'pecas': PecaService.listarPecas(),
         'tiposPagamento': TipoPagamentoService.listarTiposPagamento(),
         'ordens': OrdemServicoService.listarOrdensServico(),
+        'orcamentos': OrcamentoService.listarOrcamentos(),
       };
 
       final results = await Future.wait(futures.values.map((f) => f.catchError((e) => e)).toList());
@@ -219,6 +221,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final pecas = safeList('pecas') as List<dynamic>;
       final tiposPagamento = safeList('tiposPagamento') as List<dynamic>;
       final ordens = safeList('ordens') as List<dynamic>;
+      final orcamentos = safeList('orcamentos') as List<dynamic>;
 
       int agendamentosHoje = 0;
       for (final agendamento in agendamentos) {
@@ -380,6 +383,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           entityType: 'ordem de serviço',
           createIcon: Icons.description,
           createColor: const Color(0xFF009688),
+        );
+
+        _addActivityFromEntity<dynamic>(
+          entities: orcamentos.cast<dynamic>(),
+          getName: (orcamento) => orcamento.numeroOrcamento ?? 'Orçamento',
+          getSubtitle: (orcamento) => 'Orçamento: ${orcamento.numeroOrcamento} - Cliente: ${orcamento.clienteNome ?? 'N/A'}',
+          getCreatedAt: (orcamento) => orcamento.createdAt,
+          getUpdatedAt: (orcamento) => orcamento.updatedAt,
+          entityType: 'orçamento',
+          createIcon: Icons.request_quote,
+          createColor: const Color(0xFF6366F1),
         );
 
         _recentActivities.sort((a, b) {

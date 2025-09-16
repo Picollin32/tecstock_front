@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/cliente_service.dart';
 import '../services/veiculo_service.dart';
 import '../services/funcionario_service.dart';
@@ -44,6 +46,13 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   final _veiculoAnoController = TextEditingController();
   final _veiculoCorController = TextEditingController();
   final _veiculoPlacaController = TextEditingController();
+  final _maskPlaca = MaskTextInputFormatter(
+      mask: 'AAA-#X##',
+      filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
+      type: MaskAutoCompletionType.lazy);
+  final _upperCaseFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
+    return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
+  });
   final _veiculoQuilometragemController = TextEditingController();
 
   final _queixaPrincipalController = TextEditingController();
@@ -51,6 +60,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   double _fuelLevel = 2.0;
   List<Funcionario> _funcionarios = [];
   Funcionario? _consultorSelecionado;
+  String? _categoriaSelecionada;
 
   final Map<String, String> _inspecaoVisualStatus = {
     'Para-choque Dianteiro': '',
@@ -132,6 +142,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _fuelLevel = 2.0;
     _checklistNumberController.clear();
     _consultorSelecionado = null;
+    _categoriaSelecionada = null;
     _isViewMode = false;
 
     _inspecaoVisualStatus.updateAll((key, value) => '');
@@ -1189,12 +1200,44 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       size: 24,
                     ),
                   ),
-                  title: Text(
-                    'Checklist ${c.numeroChecklist}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                  title: Row(
+                    children: [
+                      Text(
+                        'Checklist ${c.numeroChecklist}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: c.status == 'FECHADO' ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: c.status == 'FECHADO' ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              c.status == 'FECHADO' ? Icons.lock : Icons.lock_open,
+                              size: 12,
+                              color: c.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              c.status == 'FECHADO' ? 'Fechado' : 'Aberto',
+                              style: TextStyle(
+                                color: c.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1286,45 +1329,64 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.edit_outlined,
-                            color: Colors.orange.shade600,
-                            size: 20,
+                      if (c.status != 'FECHADO')
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                          onPressed: () async {
-                            setState(() {
-                              _editingChecklistId = c.id;
-                              _checklistNumberController.text = c.numeroChecklist;
-                              _showForm = true;
-                            });
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.edit_outlined,
+                              color: Colors.orange.shade600,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              setState(() {
+                                _editingChecklistId = c.id;
+                                _checklistNumberController.text = c.numeroChecklist;
+                                _showForm = true;
+                              });
 
-                            if (c.id != null) {
-                              await _carregarDadosChecklistParaEdicao(c.id!);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: Colors.red.shade600,
-                            size: 20,
+                              if (c.id != null) {
+                                await _carregarDadosChecklistParaEdicao(c.id!);
+                              }
+                            },
+                            tooltip: 'Editar Checklist',
                           ),
-                          onPressed: () => _confirmarExclusao(c),
+                        )
+                      else
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.lock_outlined,
+                              color: Colors.purple.shade600,
+                              size: 20,
+                            ),
+                            onPressed: null,
+                            tooltip: 'Checklist Fechado',
+                          ),
                         ),
-                      ),
+                      const SizedBox(width: 8),
+                      if (c.status != 'FECHADO')
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: Colors.red.shade600,
+                              size: 20,
+                            ),
+                            onPressed: () => _confirmarExclusao(c),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -1632,6 +1694,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           _queixaPrincipalController.text = checklist.queixaPrincipal ?? '';
           _fuelLevel = (checklist.nivelCombustivel ?? 0) / 25.0;
 
+          // Carregar categoria do checklist ou buscar pela placa
+          if (checklist.veiculoCategoria != null && checklist.veiculoCategoria!.isNotEmpty) {
+            _categoriaSelecionada = checklist.veiculoCategoria;
+          } else if (checklist.veiculoPlaca != null) {
+            final veiculo = _veiculoByPlaca[checklist.veiculoPlaca!];
+            if (veiculo != null) {
+              _categoriaSelecionada = veiculo.categoria;
+            }
+          }
+
           if (checklist.consultorId != null) {
             try {
               _consultorSelecionado = _funcionarios.firstWhere(
@@ -1794,6 +1866,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       veiculoCor: _veiculoCorController.text,
       veiculoPlaca: _veiculoPlacaController.text,
       veiculoQuilometragem: _veiculoQuilometragemController.text,
+      veiculoCategoria: _categoriaSelecionada,
       queixaPrincipal: _queixaPrincipalController.text,
       nivelCombustivel: (_fuelLevel * 25).toInt(),
       consultorId: _consultorSelecionado?.id,
@@ -1912,6 +1985,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             SizedBox(width: itemWidth, child: _buildLabeledController('Ano/Modelo', _veiculoAnoController)),
             SizedBox(width: itemWidth, child: _buildLabeledController('Cor', _veiculoCorController)),
             SizedBox(width: itemWidth, child: _buildLabeledController('Quilometragem', _veiculoQuilometragemController)),
+            SizedBox(width: itemWidth, child: _buildCategoriaDropdown()),
             SizedBox(width: itemWidth, child: _buildConsultorDropdown()),
           ],
         );
@@ -2009,8 +2083,53 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
+  Widget _buildCategoriaDropdown() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Categoria do Veículo',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[800],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: _categoriaSelecionada == null ? Colors.purple[300]! : Colors.grey[300]!,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: _categoriaSelecionada == null ? Colors.purple[50] : Colors.grey[50],
+          ),
+          child: Row(
+            children: [
+              if (_categoriaSelecionada == null) Icon(Icons.info_outline, color: Colors.purple[600], size: 16),
+              if (_categoriaSelecionada == null) const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _categoriaSelecionada ?? 'Selecione um veículo para definir a categoria',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _categoriaSelecionada != null ? Colors.grey[700] : Colors.purple[700],
+                    fontStyle: _categoriaSelecionada == null ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
-    final options = _clienteByCpf.keys.toList();
+    final options = _clienteByCpf.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2131,6 +2250,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 _veiculoCorController.text = v.cor;
                 _veiculoPlacaController.text = v.placa;
                 _veiculoQuilometragemController.text = v.quilometragem.toString();
+                _categoriaSelecionada = v.categoria;
               });
             }
           },
@@ -2139,6 +2259,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             return TextField(
               controller: controller,
               focusNode: focusNode,
+              inputFormatters: [_maskPlaca, _upperCaseFormatter],
+              onChanged: (value) {
+                _veiculoPlacaController.text = value;
+              },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

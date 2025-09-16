@@ -47,4 +47,19 @@ class Funcionario {
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! Funcionario) return false;
+    return id == other.id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return 'Funcionario{id: $id, nome: $nome}';
+  }
 }

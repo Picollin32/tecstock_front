@@ -117,6 +117,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   Fornecedor? _fornecedorSelecionado;
   List<Fornecedor> _fornecedores = [];
   Peca? _pecaEncontrada;
+  List<Peca> _pecasDisponiveis = [];
 
   bool _isLoading = false;
   bool _isLoadingPeca = false;
@@ -134,7 +135,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     super.initState();
     _initializeAnimations();
     _carregarFornecedores();
-    _codigoPecaController.addListener(_buscarPecaPorCodigo);
     _numeroNotaFiscalController.addListener(_updateSubmitState);
     _quantidadeController.addListener(_updateSubmitState);
     _precoUnitarioController.addListener(_updateSubmitState);
@@ -152,7 +152,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   @override
   void dispose() {
     _fadeController.dispose();
-    _codigoPecaController.removeListener(_buscarPecaPorCodigo);
     _numeroNotaFiscalController.removeListener(_updateSubmitState);
     _quantidadeController.removeListener(_updateSubmitState);
     _precoUnitarioController.removeListener(_updateSubmitState);
@@ -166,52 +165,17 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
   Future<void> _carregarFornecedores() async {
     try {
-      final listaFornecedores = await FornecedorService.listarFornecedores();
+      final results = await Future.wait([
+        FornecedorService.listarFornecedores(),
+        PecaService.listarPecas(),
+      ]);
+
       setState(() {
-        _fornecedores = listaFornecedores;
+        _fornecedores = results[0] as List<Fornecedor>;
+        _pecasDisponiveis = results[1] as List<Peca>;
       });
     } catch (e) {
-      _showError('Erro ao carregar fornecedores');
-    }
-  }
-
-  void _buscarPecaPorCodigo() async {
-    final codigo = _codigoPecaController.text.trim();
-
-    if (codigo.length < 3) {
-      setState(() {
-        _pecaEncontrada = null;
-      });
-      _updateSubmitState();
-      return;
-    }
-
-    if (_fornecedorSelecionado == null) {
-      _updateSubmitState();
-      return;
-    }
-
-    setState(() => _isLoadingPeca = true);
-
-    try {
-      final pecas = await PecaService.listarPecas();
-      final peca = pecas
-          .where((p) => p.codigoFabricante.toLowerCase() == codigo.toLowerCase() && p.fornecedor?.id == _fornecedorSelecionado!.id)
-          .firstOrNull;
-
-      setState(() {
-        _pecaEncontrada = peca;
-        if (peca != null) {
-          _precoUnitarioController.text = peca.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
-        } else {
-          _precoUnitarioController.clear();
-        }
-      });
-    } catch (e) {
-      print('Erro ao buscar peça: $e');
-    } finally {
-      setState(() => _isLoadingPeca = false);
-      _updateSubmitState();
+      _showError('Erro ao carregar dados');
     }
   }
 
@@ -520,6 +484,202 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     return const SizedBox.shrink();
   }
 
+  Widget _buildPecaAutocomplete() {
+    // Filtrar peças do fornecedor selecionado
+    final pecasFornecedor =
+        _fornecedorSelecionado != null ? _pecasDisponiveis.where((p) => p.fornecedor?.id == _fornecedorSelecionado!.id).toList() : <Peca>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Código da Peça',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            color: primaryColor,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Autocomplete<Peca>(
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty || _fornecedorSelecionado == null) {
+              return const Iterable<Peca>.empty();
+            }
+            return pecasFornecedor.where((peca) {
+              final searchText = textEditingValue.text.toLowerCase();
+              return peca.codigoFabricante.toLowerCase().contains(searchText) || peca.nome.toLowerCase().contains(searchText);
+            });
+          },
+          displayStringForOption: (Peca peca) => '${peca.codigoFabricante} - ${peca.nome}',
+          onSelected: (Peca selection) {
+            setState(() {
+              _pecaEncontrada = selection;
+              _codigoPecaController.text = selection.codigoFabricante;
+              _precoUnitarioController.text = selection.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
+            });
+            _updateSubmitState();
+            // Fechar o teclado e perder o foco para fechar as opções
+            FocusScope.of(context).unfocus();
+          },
+          fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+            // Sincronizar com o controller principal
+            if (controller.text != _codigoPecaController.text) {
+              controller.text = _codigoPecaController.text;
+            }
+
+            return TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              validator: (v) => v!.isEmpty ? 'Informe o código da peça' : null,
+              onChanged: (value) {
+                _codigoPecaController.text = value;
+                // Buscar peça exata quando o texto corresponder a um código específico
+                final pecaExata = pecasFornecedor.where((p) => p.codigoFabricante.toLowerCase() == value.toLowerCase()).firstOrNull;
+
+                if (pecaExata != null && _pecaEncontrada?.id != pecaExata.id) {
+                  setState(() {
+                    _pecaEncontrada = pecaExata;
+                    _precoUnitarioController.text = pecaExata.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
+                  });
+                } else if (pecaExata == null && _pecaEncontrada != null) {
+                  setState(() {
+                    _pecaEncontrada = null;
+                    _precoUnitarioController.clear();
+                  });
+                }
+                _updateSubmitState();
+              },
+              decoration: InputDecoration(
+                hintText: _fornecedorSelecionado != null ? 'Digite o código ou nome da peça...' : 'Selecione um fornecedor primeiro',
+                prefixIcon: Icon(Icons.qr_code, color: primaryColor),
+                suffixIcon: _pecaEncontrada != null
+                    ? Container(
+                        margin: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _pecaEncontrada!.quantidadeEstoque <= 5
+                              ? Colors.red[50]
+                              : _pecaEncontrada!.quantidadeEstoque <= 10
+                                  ? Colors.orange[50]
+                                  : Colors.green[50],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Estoque: ${_pecaEncontrada!.quantidadeEstoque}',
+                          style: TextStyle(
+                            color: _pecaEncontrada!.quantidadeEstoque <= 5
+                                ? Colors.red[700]
+                                : _pecaEncontrada!.quantidadeEstoque <= 10
+                                    ? Colors.orange[700]
+                                    : Colors.green[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: errorColor),
+                ),
+                filled: true,
+                fillColor: _fornecedorSelecionado != null ? Colors.grey[50] : Colors.grey[100],
+                enabled: _fornecedorSelecionado != null,
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            final optList = options.toList();
+            if (optList.isEmpty) return const SizedBox.shrink();
+
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 200),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: optList.length,
+                    itemBuilder: (context, index) {
+                      final peca = optList[index];
+                      return ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: peca.quantidadeEstoque <= 5
+                                ? Colors.red[100]
+                                : peca.quantidadeEstoque <= 10
+                                    ? Colors.orange[100]
+                                    : Colors.green[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${peca.quantidadeEstoque}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: peca.quantidadeEstoque <= 5
+                                    ? Colors.red[700]
+                                    : peca.quantidadeEstoque <= 10
+                                        ? Colors.orange[700]
+                                        : Colors.green[700],
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          '${peca.codigoFabricante} - ${peca.nome}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fabricante: ${peca.fabricante.nome}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              'Preço: R\$ ${peca.precoUnitario.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        onTap: () => onSelected(peca),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
@@ -568,19 +728,15 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                 setState(() {
                   _fornecedorSelecionado = value;
                   _pecaEncontrada = null;
+                  _codigoPecaController.clear();
+                  _precoUnitarioController.clear();
                 });
-                _buscarPecaPorCodigo();
                 _updateSubmitState();
               },
               validator: (value) => value == null ? 'Selecione um fornecedor' : null,
             ),
             const SizedBox(height: 16),
-            _buildTextField(
-              controller: _codigoPecaController,
-              label: 'Código da Peça',
-              icon: Icons.qr_code,
-              validator: (v) => v!.isEmpty ? 'Informe o código da peça' : null,
-            ),
+            _buildPecaAutocomplete(),
             const SizedBox(height: 16),
             _buildPecaInfo(),
             const SizedBox(height: 16),

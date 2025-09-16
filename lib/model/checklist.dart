@@ -14,6 +14,7 @@ class Checklist {
   String? veiculoCor;
   String? veiculoPlaca;
   String? veiculoQuilometragem;
+  String? veiculoCategoria;
   String? queixaPrincipal;
   int? nivelCombustivel;
   int? consultorId;
@@ -58,6 +59,7 @@ class Checklist {
   String? chaveRoda;
   String? triangulo;
   String? tapetes;
+  String status;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -76,6 +78,7 @@ class Checklist {
     this.veiculoCor,
     this.veiculoPlaca,
     this.veiculoQuilometragem,
+    this.veiculoCategoria,
     this.queixaPrincipal,
     this.nivelCombustivel,
     this.consultorId,
@@ -120,6 +123,7 @@ class Checklist {
     this.chaveRoda,
     this.triangulo,
     this.tapetes,
+    this.status = 'ABERTO',
     this.createdAt,
     this.updatedAt,
   });
@@ -141,6 +145,7 @@ class Checklist {
       veiculoCor: json['veiculoCor'],
       veiculoPlaca: json['veiculoPlaca'],
       veiculoQuilometragem: json['veiculoQuilometragem'],
+      veiculoCategoria: json['veiculoCategoria'],
       queixaPrincipal: json['queixaPrincipal'],
       nivelCombustivel: json['nivelCombustivel'],
       consultorId: json['consultor'] != null ? json['consultor']['id'] : null,
@@ -185,6 +190,7 @@ class Checklist {
       chaveRoda: json['chaveRoda'],
       triangulo: json['triangulo'],
       tapetes: json['tapetes'],
+      status: json['status'] ?? 'ABERTO',
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -209,6 +215,7 @@ class Checklist {
     if (veiculoCor != null) map['veiculoCor'] = veiculoCor;
     if (veiculoPlaca != null) map['veiculoPlaca'] = veiculoPlaca;
     if (veiculoQuilometragem != null) map['veiculoQuilometragem'] = veiculoQuilometragem;
+    if (veiculoCategoria != null) map['veiculoCategoria'] = veiculoCategoria;
     if (queixaPrincipal != null) map['queixaPrincipal'] = queixaPrincipal;
     if (nivelCombustivel != null) map['nivelCombustivel'] = nivelCombustivel;
     if (consultorId != null) map['consultor'] = {'id': consultorId};
@@ -252,6 +259,7 @@ class Checklist {
     if (chaveRoda != null) map['chaveRoda'] = chaveRoda;
     if (triangulo != null) map['triangulo'] = triangulo;
     if (tapetes != null) map['tapetes'] = tapetes;
+    map['status'] = status;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();
     if (updatedAt != null) map['updatedAt'] = updatedAt!.toIso8601String();
 

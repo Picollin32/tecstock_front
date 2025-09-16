@@ -8,7 +8,8 @@ class MovimentacaoEstoque {
   double? precoUnitario;
   String numeroNotaFiscal;
   TipoMovimentacao tipoMovimentacao;
-  DateTime dataMovimentacao;
+  DateTime? dataEntrada;
+  DateTime? dataSaida;
   String? observacoes;
 
   MovimentacaoEstoque({
@@ -19,7 +20,8 @@ class MovimentacaoEstoque {
     this.precoUnitario,
     required this.numeroNotaFiscal,
     required this.tipoMovimentacao,
-    required this.dataMovimentacao,
+    this.dataEntrada,
+    this.dataSaida,
     this.observacoes,
   });
 
@@ -34,7 +36,8 @@ class MovimentacaoEstoque {
       tipoMovimentacao: TipoMovimentacao.values.firstWhere(
         (e) => e.toString().split('.').last == json['tipoMovimentacao'],
       ),
-      dataMovimentacao: DateTime.parse(json['dataMovimentacao']),
+      dataEntrada: json['dataEntrada'] != null ? DateTime.parse(json['dataEntrada']) : null,
+      dataSaida: json['dataSaida'] != null ? DateTime.parse(json['dataSaida']) : null,
       observacoes: json['observacoes'],
     );
   }
@@ -48,9 +51,21 @@ class MovimentacaoEstoque {
       'precoUnitario': precoUnitario,
       'numeroNotaFiscal': numeroNotaFiscal,
       'tipoMovimentacao': tipoMovimentacao.toString().split('.').last,
-      'dataMovimentacao': dataMovimentacao.toIso8601String(),
+      'dataEntrada': dataEntrada?.toIso8601String(),
+      'dataSaida': dataSaida?.toIso8601String(),
       'observacoes': observacoes,
     };
+  }
+
+  // Getter para compatibilidade com código existente
+  // Retorna a data da movimentação baseada no tipo
+  DateTime? get dataMovimentacao {
+    if (tipoMovimentacao == TipoMovimentacao.ENTRADA) {
+      return dataEntrada;
+    } else if (tipoMovimentacao == TipoMovimentacao.SAIDA) {
+      return dataSaida;
+    }
+    return dataEntrada ?? dataSaida;
   }
 }
 

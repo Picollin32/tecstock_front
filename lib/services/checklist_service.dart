@@ -74,4 +74,16 @@ class ChecklistService {
       return false;
     }
   }
+
+  static Future<bool> fecharChecklist(int id) async {
+    String baseUrl = 'http://localhost:8081/api/checklists/fechar/$id';
+
+    try {
+      final response = await http.put(Uri.parse(baseUrl));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Erro ao fechar checklist: $e');
+      return false;
+    }
+  }
 }

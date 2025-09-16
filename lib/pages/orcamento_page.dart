@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/servico_service.dart';
 import '../services/tipo_pagamento_service.dart';
 import '../services/orcamento_service.dart';
@@ -16,6 +18,7 @@ import '../model/tipo_pagamento.dart';
 import '../model/orcamento.dart';
 import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
+import '../model/funcionario.dart';
 
 extension IterableExtension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
@@ -58,6 +61,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   final _veiculoAnoController = TextEditingController();
   final _veiculoCorController = TextEditingController();
   final _veiculoPlacaController = TextEditingController();
+  final _maskPlaca = MaskTextInputFormatter(
+      mask: 'AAA-#X##',
+      filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
+      type: MaskAutoCompletionType.lazy);
+  final _upperCaseFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
+    return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
+  });
   final _veiculoQuilometragemController = TextEditingController();
   final _queixaPrincipalController = TextEditingController();
   final _observacoesController = TextEditingController();
@@ -67,6 +77,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   List<dynamic> _pessoasTodasClientesFuncionarios = [];
   List<dynamic> _veiculos = [];
   List<Servico> _servicosDisponiveis = [];
+  List<Servico> _servicosFiltrados = [];
   List<TipoPagamento> _tiposPagamento = [];
   List<Peca> _pecasDisponiveis = [];
   final List<Servico> _servicosSelecionados = [];
@@ -74,11 +85,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
-  String? _mecanicoSelecionado;
-  String? _consultorSelecionado;
+  Funcionario? _mecanicoSelecionado;
+  Funcionario? _consultorSelecionado;
   String? _categoriaSelecionada;
 
   final TextEditingController _codigoPecaController = TextEditingController();
+  final TextEditingController _servicoSearchController = TextEditingController();
   late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
@@ -134,6 +146,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
     _loadData();
     _searchController.addListener(_filtrarRecentes);
+    _servicoSearchController.addListener(_filtrarServicos);
     _fadeController.forward();
     _slideController.forward();
     _scrollController = ScrollController();
@@ -163,6 +176,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _observacoesController.dispose();
     _searchController.removeListener(_filtrarRecentes);
     _searchController.dispose();
+    _servicoSearchController.removeListener(_filtrarServicos);
+    _servicoSearchController.dispose();
     _descontoServicosController.dispose();
     _descontoPecasController.dispose();
     _codigoPecaController.dispose();
@@ -191,6 +206,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       setState(() {
         _recent = results[0] as List<Orcamento>;
         _servicosDisponiveis = results[1] as List<Servico>;
+        // Ordena serviços alfabeticamente
+        _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+        _servicosFiltrados = _servicosDisponiveis;
         _tiposPagamento = results[2] as List<TipoPagamento>;
         final Map<int, TipoPagamento> tpById = {};
         for (var tp in _tiposPagamento) {
@@ -247,6 +265,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     });
   }
 
+  void _filtrarServicos() {
+    final query = _servicoSearchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _servicosFiltrados = _servicosDisponiveis;
+      } else {
+        _servicosFiltrados = _servicosDisponiveis.where((servico) {
+          return servico.nome.toLowerCase().contains(query);
+        }).toList();
+      }
+    });
+  }
+
   void _clearForm() {
     _dateController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
@@ -265,6 +296,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _observacoesController.clear();
     _descontoServicosController.clear();
     _descontoPecasController.clear();
+    _servicoSearchController.clear();
     _codigoPecaController.clear();
 
     setState(() {
@@ -1675,11 +1707,28 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _precoTotalServicos = orcamento.precoTotalServicos ?? 0.0;
       _descontoServicos = orcamento.descontoServicos ?? 0.0;
       _descontoPecas = orcamento.descontoPecas ?? 0.0;
+
+      // Preencher os campos de desconto nos controllers
+      _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
+      _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
+
       _garantiaMeses = orcamento.garantiaMeses;
       _tipoPagamentoSelecionado = orcamento.tipoPagamento;
       _numeroParcelas = orcamento.numeroParcelas;
-      _mecanicoSelecionado = orcamento.nomeMecanico;
-      _consultorSelecionado = orcamento.nomeConsultor;
+
+      // Buscar mecânico na lista por ID para garantir consistência
+      if (orcamento.mecanico != null && orcamento.mecanico!.id != null) {
+        _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+      } else {
+        _mecanicoSelecionado = null;
+      }
+
+      // Buscar consultor na lista por ID para garantir consistência
+      if (orcamento.consultor != null && orcamento.consultor!.id != null) {
+        _consultorSelecionado = _funcionarios.where((f) => f.id == orcamento.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+      } else {
+        _consultorSelecionado = null;
+      }
     });
     _calcularPrecoTotal();
   }
@@ -1762,7 +1811,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
+                DropdownButtonFormField<Funcionario>(
                   value: _mecanicoSelecionado,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -1785,9 +1834,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   items: (() {
                     final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<String>>((funcionario) {
-                      return DropdownMenuItem<String>(
-                        value: funcionario.nome,
+                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+                      return DropdownMenuItem<Funcionario>(
+                        value: funcionario,
                         child: Text(funcionario.nome),
                       );
                     }).toList();
@@ -1816,7 +1865,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
+                DropdownButtonFormField<Funcionario>(
                   value: _consultorSelecionado,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -1839,9 +1888,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   items: (() {
                     final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<String>>((funcionario) {
-                      return DropdownMenuItem<String>(
-                        value: funcionario.nome,
+                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+                      return DropdownMenuItem<Funcionario>(
+                        value: funcionario,
                         child: Text(funcionario.nome),
                       );
                     }).toList();
@@ -1948,6 +1997,42 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
+          // Campo de pesquisa de serviços
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _servicoSearchController,
+              enabled: !_isViewMode,
+              decoration: InputDecoration(
+                hintText: 'Pesquisar serviços...',
+                prefixIcon: Icon(Icons.search, color: Colors.blue.shade600),
+                suffixIcon: _servicoSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _servicoSearchController.clear(),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           if (_servicosDisponiveis.isEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -1964,11 +2049,27 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ],
               ),
             )
+          else if (_servicosFiltrados.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search_off, color: Colors.blue.shade600),
+                  const SizedBox(width: 8),
+                  const Text('Nenhum serviço encontrado com o termo pesquisado.'),
+                ],
+              ),
+            )
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _servicosDisponiveis.map((servico) {
+              children: _servicosFiltrados.map((servico) {
                 final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
                 return FilterChip(
                   selected: isSelected,
@@ -2272,6 +2373,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
+                                    _resetarDescontos(); // Reset desconto ao decrementar quantidade
                                     _calcularPrecoTotal();
                                   }
                                 },
@@ -2333,6 +2435,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                   pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                   pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                 });
+                                _resetarDescontos(); // Reset desconto ao alterar quantidade manualmente
                                 _calcularPrecoTotal();
                               }
                             },
@@ -2352,6 +2455,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
+                                    _resetarDescontos(); // Reset desconto ao incrementar quantidade
                                     _calcularPrecoTotal();
                                   } else {
                                     _showErrorSnackBar(
@@ -2918,12 +3022,16 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione'),
-                  items: _tiposPagamento.map((tipo) {
-                    return DropdownMenuItem<int?>(
-                      value: tipo.id,
-                      child: Text(tipo.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = List<TipoPagamento>.from(_tiposPagamento);
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map((tipo) {
+                      return DropdownMenuItem<int?>(
+                        value: tipo.id,
+                        child: Text(tipo.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (selectedId) {
@@ -3089,6 +3197,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       } else {
         _servicosSelecionados.add(servico);
       }
+      _resetarDescontos(); // Reset desconto ao adicionar/remover serviços
       _calcularPrecoTotal();
     });
   }
@@ -3139,6 +3248,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
             _codigoPecaController.clear();
           });
+          _resetarDescontos(); // Reset desconto ao atualizar quantidade da peça
           _calcularPrecoTotal();
           _showSuccessMessage('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
         } else {
@@ -3152,6 +3262,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             _pecasSelecionadas.add(pecaOS);
             _codigoPecaController.clear();
           });
+          _resetarDescontos(); // Reset desconto ao adicionar nova peça
           _calcularPrecoTotal();
           _showSuccessMessage('Peça adicionada: ${peca.nome} ($quantidade unid.)');
         }
@@ -3167,6 +3278,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     setState(() {
       _pecasSelecionadas.remove(pecaOS);
     });
+    _resetarDescontos(); // Reset desconto ao remover peça
     _calcularPrecoTotal();
     _showSuccessMessage('Peça removida: ${pecaOS.peca.nome}');
   }
@@ -3211,6 +3323,15 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _descontoPecas = desconto;
     }
     _calcularPrecoTotal();
+  }
+
+  void _resetarDescontos() {
+    setState(() {
+      _descontoServicos = 0.0;
+      _descontoPecas = 0.0;
+      _descontoServicosController.clear();
+      _descontoPecasController.clear();
+    });
   }
 
   double _calcularTotalPecas() {
@@ -3294,8 +3415,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: _numeroParcelas,
-        nomeMecanico: _mecanicoSelecionado,
-        nomeConsultor: _consultorSelecionado,
+        mecanico: _mecanicoSelecionado,
+        consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.trim().isNotEmpty ? _observacoesController.text.trim() : null,
       );
 
@@ -3395,7 +3516,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
-    final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList();
+    final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3570,6 +3692,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [_maskPlaca, _upperCaseFormatter],
               onChanged: _isViewMode
                   ? null
                   : (value) {

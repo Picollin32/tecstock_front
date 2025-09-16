@@ -417,8 +417,21 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        if (constraints.maxWidth >= 1100) {
+          crossAxisCount = 3;
+        } else if (constraints.maxWidth >= 700) {
           crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        double childAspectRatio;
+        if (crossAxisCount == 1) {
+          childAspectRatio = 3.2;
+        } else if (crossAxisCount == 2) {
+          childAspectRatio = 2.2;
+        } else {
+          childAspectRatio = 1.4;
         }
 
         return GridView.builder(
@@ -426,9 +439,9 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.1,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: _clientesFiltrados.length,
           itemBuilder: (context, index) => _buildClientCard(_clientesFiltrados[index]),
@@ -467,21 +480,22 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarCliente(cliente),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     CircleAvatar(
-                      radius: 24,
+                      radius: 20,
                       backgroundColor: primaryColor.withOpacity(0.1),
                       child: Text(
                         initials,
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                          fontSize: 16,
                         ),
                       ),
                     ),
@@ -494,7 +508,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                             cliente.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -510,7 +524,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                               '$idade anos',
                               style: TextStyle(
                                 color: primaryColor,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -551,42 +565,68 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _buildInfoRow(Icons.badge, _maskCpf.maskText(cliente.cpf)),
-                _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
-                _buildInfoRow(Icons.email, cliente.email),
-                _buildInfoRow(Icons.cake, DateFormat('dd/MM/yyyy').format(cliente.dataNascimento)),
-                const Spacer(),
-                if (cliente.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(cliente.createdAt!)}',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
+                const SizedBox(height: 12),
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow(Icons.badge, _maskCpf.maskText(cliente.cpf)),
+                      _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
+                      _buildInfoRow(Icons.email, cliente.email),
+                      _buildInfoRow(Icons.cake, DateFormat('dd/MM/yyyy').format(cliente.dataNascimento)),
+                    ],
+                  ),
+                ),
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // ID do cliente
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 12, color: Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Text(
+                            'ID: ${cliente.id}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Data de cadastro
+                      if (cliente.createdAt != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(cliente.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
-                Row(
-                  children: [
-                    Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      'ID: ${cliente.id}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),

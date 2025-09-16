@@ -1,6 +1,7 @@
 import 'servico.dart';
 import 'tipo_pagamento.dart';
 import 'peca_ordem_servico.dart';
+import 'funcionario.dart';
 
 class OrdemServico {
   int? id;
@@ -31,8 +32,8 @@ class OrdemServico {
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
-  String? nomeMecanico;
-  String? nomeConsultor;
+  Funcionario? mecanico;
+  Funcionario? consultor;
   String status;
   String? observacoes;
   DateTime? createdAt;
@@ -65,8 +66,8 @@ class OrdemServico {
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
-    this.nomeMecanico,
-    this.nomeConsultor,
+    this.mecanico,
+    this.consultor,
     this.status = 'ABERTA',
     this.observacoes,
     this.createdAt,
@@ -103,8 +104,8 @@ class OrdemServico {
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
-      nomeMecanico: json['nomeMecanico'],
-      nomeConsultor: json['nomeConsultor'],
+      mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
+      consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       status: json['status'] ?? 'ABERTA',
       observacoes: json['observacoes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
@@ -141,8 +142,8 @@ class OrdemServico {
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
-    if (nomeMecanico != null) map['nomeMecanico'] = nomeMecanico;
-    if (nomeConsultor != null) map['nomeConsultor'] = nomeConsultor;
+    if (mecanico != null) map['mecanico'] = mecanico!.toJson();
+    if (consultor != null) map['consultor'] = consultor!.toJson();
     map['status'] = status;
     if (observacoes != null) map['observacoes'] = observacoes;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();

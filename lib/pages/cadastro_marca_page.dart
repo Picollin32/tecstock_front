@@ -420,6 +420,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     CircleAvatar(
@@ -469,30 +470,55 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  marca.marca,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Spacer(),
-                if (marca.createdAt != null)
-                  Row(
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.schedule, size: 14, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
                       Text(
-                        'Cadastrado em ${DateFormat('dd/MM/yyyy').format(marca.createdAt!)}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+                        marca.marca,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
+                ),
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // Data de cadastro
+                      if (marca.createdAt != null)
+                        Row(
+                          children: [
+                            Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Cadastrado: ${DateFormat('dd/MM/yyyy').format(marca.createdAt!)}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

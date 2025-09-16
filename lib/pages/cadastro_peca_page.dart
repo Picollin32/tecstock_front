@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../model/fornecedor.dart';
 import '../model/peca.dart';
@@ -95,7 +96,13 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     try {
       final listaPecas = await PecaService.listarPecas();
       setState(() {
-        _pecas = listaPecas.reversed.toList();
+        // Ordenar por data de atualização (updatedAt) ou criação (createdAt) mais recente
+        _pecas = listaPecas
+          ..sort((a, b) {
+            final dataA = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final dataB = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return dataB.compareTo(dataA); // Mais recente primeiro
+          });
         _filtrarPecas();
       });
     } catch (e) {
@@ -505,10 +512,21 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        if (constraints.maxWidth >= 1100) {
           crossAxisCount = 3;
-        } else if (constraints.maxWidth > 600) {
+        } else if (constraints.maxWidth >= 700) {
           crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        double childAspectRatio;
+        if (crossAxisCount == 1) {
+          childAspectRatio = 2.6;
+        } else if (crossAxisCount == 2) {
+          childAspectRatio = 1.6;
+        } else {
+          childAspectRatio = 1.1;
         }
 
         return GridView.builder(
@@ -516,9 +534,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 0.85,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
           ),
           itemCount: _pecasFiltradas.length,
           itemBuilder: (context, index) => _buildPartCard(_pecasFiltradas[index]),
@@ -551,14 +569,15 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
             // _editarPeca(peca);
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -566,7 +585,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       child: Icon(
                         Icons.inventory_2,
                         color: primaryColor,
-                        size: 20,
+                        size: 16,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -578,7 +597,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             peca.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 13,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -594,7 +613,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                               'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: successColor,
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -636,58 +655,96 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _buildInfoRow(Icons.qr_code, peca.codigoFabricante),
-                _buildInfoRow(Icons.business, peca.fabricante.nome),
-                _buildInfoRow(
-                  Icons.store,
-                  peca.fornecedor != null
-                      ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(0)}%)"
-                      : "Não informado",
+                const SizedBox(height: 8),
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow(Icons.qr_code, peca.codigoFabricante),
+                      _buildInfoRow(Icons.business, peca.fabricante.nome),
+                      _buildInfoRow(
+                        Icons.store,
+                        peca.fornecedor != null
+                            ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(0)}%)"
+                            : "Não informado",
+                      ),
+                      _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
+                      _buildInfoRow(Icons.sell, 'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
+                    ],
+                  ),
                 ),
-                _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
-                _buildInfoRow(Icons.sell, 'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
-                const Spacer(),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: stockStatus['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${peca.quantidadeEstoque} / ${peca.estoqueSeguranca}',
-                        style: TextStyle(
-                          color: stockStatus['color'],
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // Data de cadastro
+                      if (peca.createdAt != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(peca.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      // Informações de estoque
+                      Row(
+                        children: [
+                          Icon(Icons.inventory, size: 12, color: stockStatus['color']),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Estoque: ${peca.quantidadeEstoque} unid.',
+                            style: TextStyle(
+                              color: stockStatus['color'],
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: stockStatus['color'].withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              stockStatus['label'],
+                              style: TextStyle(
+                                color: stockStatus['color'],
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            stockStatus['icon'],
+                            color: stockStatus['color'],
+                            size: 14,
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: stockStatus['color'].withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        stockStatus['label'],
-                        style: TextStyle(
-                          color: stockStatus['color'],
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      stockStatus['icon'],
-                      color: stockStatus['color'],
-                      size: 16,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1071,10 +1128,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ],
                     ),
                     child: IconButton(
-                      onPressed: () {
-                        EntradaEstoquePage.showModal(context).then((_) {
-                          _carregarPecas();
-                        });
+                      onPressed: () async {
+                        await EntradaEstoquePage.showModal(context);
+                        // Recarregar peças após entrada de estoque para refletir as movimentações recentes
+                        await _carregarPecas();
                       },
                       icon: const Icon(Icons.add_box, color: Colors.white),
                       iconSize: 28,
@@ -1205,7 +1262,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               const SizedBox(height: 24),
               if (_searchController.text.isEmpty && _filtroEstoque == 'todos' && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
                 Text(
-                  'Últimas Peças Cadastradas',
+                  'Movimentações Recentes',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

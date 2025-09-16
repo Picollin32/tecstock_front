@@ -54,6 +54,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   static const Color primaryColor = Color(0xFF2196F3);
   static const Color errorColor = Color(0xFFE53E3E);
   static const Color successColor = Color(0xFF38A169);
+  static const Color warningColor = Color(0xFFF59E0B);
   static const Color shadowColor = Color(0x1A000000);
 
   @override
@@ -439,10 +440,21 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        if (constraints.maxWidth >= 1100) {
           crossAxisCount = 3;
-        } else if (constraints.maxWidth > 600) {
+        } else if (constraints.maxWidth >= 700) {
           crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        double childAspectRatio;
+        if (crossAxisCount == 1) {
+          childAspectRatio = 3.2;
+        } else if (crossAxisCount == 2) {
+          childAspectRatio = 2.2;
+        } else {
+          childAspectRatio = 1.4;
         }
 
         return GridView.builder(
@@ -450,9 +462,9 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.1,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: _veiculosFiltrados.length,
           itemBuilder: (context, index) => _buildVehicleCard(_veiculosFiltrados[index]),
@@ -480,14 +492,15 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarVeiculo(veiculo),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -495,7 +508,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                       child: Icon(
                         veiculo.categoria == 'Passeio' ? Icons.directions_car : Icons.local_shipping,
                         color: primaryColor,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -507,7 +520,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                             veiculo.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -523,7 +536,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                               veiculo.categoria,
                               style: TextStyle(
                                 color: primaryColor,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -564,31 +577,70 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _buildInfoRow(Icons.pin_drop, veiculo.placa),
-                _buildInfoRow(Icons.build, '${veiculo.modelo} - ${veiculo.ano}'),
-                _buildInfoRow(Icons.business, veiculo.marca?.marca ?? "Não informada"),
-                _buildInfoRow(Icons.palette, veiculo.cor),
-                _buildInfoRow(Icons.speed, '${veiculo.quilometragem.toStringAsFixed(0)} km'),
-                const Spacer(),
-                if (veiculo.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(veiculo.createdAt!)}',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
+                const SizedBox(height: 10),
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow(Icons.pin_drop, veiculo.placa),
+                      _buildInfoRow(Icons.build, '${veiculo.modelo} - ${veiculo.ano}'),
+                      _buildInfoRow(Icons.business, veiculo.marca?.marca ?? "Não informada"),
+                      _buildInfoRow(Icons.palette, veiculo.cor),
+                      _buildInfoRow(Icons.speed, '${veiculo.quilometragem.toStringAsFixed(0)} km'),
+                    ],
+                  ),
+                ),
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // Quilometragem destaque
+                      Row(
+                        children: [
+                          Icon(Icons.speed, size: 12, color: warningColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'KM: ${veiculo.quilometragem.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: warningColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Data de cadastro
+                      if (veiculo.createdAt != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(veiculo.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),

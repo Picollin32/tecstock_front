@@ -459,6 +459,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -540,29 +541,67 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildInfoRow(Icons.badge, _maskCnpj.maskText(fornecedor.cnpj)),
-                _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
-                _buildInfoRow(Icons.email, fornecedor.email),
-                const Spacer(),
-                if (fornecedor.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(fornecedor.createdAt!)}',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow(Icons.badge, _maskCnpj.maskText(fornecedor.cnpj)),
+                      _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
+                      _buildInfoRow(Icons.email, fornecedor.email),
+                    ],
+                  ),
+                ),
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // Margem de lucro destaque
+                      Row(
+                        children: [
+                          Icon(Icons.trending_up, size: 12, color: margemColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Margem de Lucro: ${margem.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: margemColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Data de cadastro
+                      if (fornecedor.createdAt != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(fornecedor.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
-                Row(),
+                ),
               ],
             ),
           ),

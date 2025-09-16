@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/cliente_service.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import '../services/veiculo_service.dart';
@@ -18,6 +20,7 @@ import '../model/tipo_pagamento.dart';
 import '../model/ordem_servico.dart';
 import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
+import '../model/funcionario.dart';
 
 class OrdemServicoPage extends StatelessWidget {
   const OrdemServicoPage({super.key});
@@ -54,6 +57,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final _veiculoAnoController = TextEditingController();
   final _veiculoCorController = TextEditingController();
   final _veiculoPlacaController = TextEditingController();
+  final _maskPlaca = MaskTextInputFormatter(
+      mask: 'AAA-#X##',
+      filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
+      type: MaskAutoCompletionType.lazy);
+  final _upperCaseFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
+    return TextEditingValue(text: newValue.text.toUpperCase(), selection: newValue.selection);
+  });
   final _veiculoQuilometragemController = TextEditingController();
   final _queixaPrincipalController = TextEditingController();
   final _observacoesController = TextEditingController();
@@ -66,6 +76,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   List<Checklist> _checklists = [];
   List<Checklist> _checklistsFiltrados = [];
   List<Servico> _servicosDisponiveis = [];
+  List<Servico> _servicosFiltrados = [];
   List<TipoPagamento> _tiposPagamento = [];
   List<Peca> _pecasDisponiveis = [];
   Checklist? _checklistSelecionado;
@@ -74,10 +85,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
-  String? _mecanicoSelecionado;
-  String? _consultorSelecionado;
+  Funcionario? _mecanicoSelecionado;
+  Funcionario? _consultorSelecionado;
 
   final TextEditingController _codigoPecaController = TextEditingController();
+  final TextEditingController _servicoSearchController = TextEditingController();
 
   late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
@@ -131,6 +143,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _loadData();
     _searchController.addListener(_filtrarRecentes);
+    _servicoSearchController.addListener(_filtrarServicos);
 
     _fadeController.forward();
     _slideController.forward();
@@ -159,6 +172,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _checklistController.dispose();
     _searchController.removeListener(_filtrarRecentes);
     _searchController.dispose();
+    _servicoSearchController.removeListener(_filtrarServicos);
+    _servicoSearchController.dispose();
     _descontoServicosController.dispose();
     _descontoPecasController.dispose();
     _pecaSearchController.dispose();
@@ -195,6 +210,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
         _checklistsFiltrados = _checklists;
         _servicosDisponiveis = results[4] as List<Servico>;
+        // Ordena serviços alfabeticamente
+        _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+        _servicosFiltrados = _servicosDisponiveis;
         _tiposPagamento = results[5] as List<TipoPagamento>;
         _pecasDisponiveis = results[7] as List<Peca>;
 
@@ -240,6 +258,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     });
   }
 
+  void _filtrarServicos() {
+    final query = _servicoSearchController.text.toLowerCase().trim();
+    setState(() {
+      if (query.isEmpty) {
+        _servicosFiltrados = _servicosDisponiveis;
+      } else {
+        _servicosFiltrados = _servicosDisponiveis.where((servico) {
+          return servico.nome.toLowerCase().contains(query);
+        }).toList();
+      }
+    });
+  }
+
   void _filtrarChecklists() {
     setState(() {
       _checklistsFiltrados = _checklists.where((checklist) {
@@ -267,6 +298,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       } else {
         _servicosSelecionados.add(servico);
       }
+      _resetarDescontos(); // Reset desconto ao adicionar/remover serviços
       _calcularPrecoTotal();
     });
   }
@@ -337,6 +369,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _descontoPecas = desconto;
     }
     _calcularPrecoTotal();
+  }
+
+  void _resetarDescontos() {
+    setState(() {
+      _descontoServicos = 0.0;
+      _descontoPecas = 0.0;
+      _descontoServicosController.clear();
+      _descontoPecasController.clear();
+    });
   }
 
   double _calcularTotalPecasOS(OrdemServico? os) {
@@ -419,6 +460,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
             _codigoPecaController.clear();
           });
+          _resetarDescontos(); // Reset desconto ao atualizar quantidade da peça
           _calcularPrecoTotal();
           _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
         } else {
@@ -432,6 +474,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             _pecasSelecionadas.add(pecaOS);
             _codigoPecaController.clear();
           });
+          _resetarDescontos(); // Reset desconto ao adicionar nova peça
           _calcularPrecoTotal();
           _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
         }
@@ -447,6 +490,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     setState(() {
       _pecasSelecionadas.remove(pecaOS);
     });
+    _resetarDescontos(); // Reset desconto ao remover peça
     _calcularPrecoTotal();
     _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
   }
@@ -467,6 +511,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _osNumberController.clear();
     _checklistController.clear();
     _codigoPecaController.clear();
+    _servicoSearchController.clear();
     _descontoServicosController.clear();
     _descontoPecasController.clear();
 
@@ -1453,7 +1498,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
-    final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList();
+    final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1590,6 +1636,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [_maskPlaca, _upperCaseFormatter],
               onChanged: _isViewMode
                   ? null
                   : (value) {
@@ -1661,8 +1708,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         Autocomplete<Checklist>(
           optionsBuilder: (TextEditingValue textEditingValue) {
             final baseList = _checklistsFiltrados.isNotEmpty ? _checklistsFiltrados : _checklists;
-            if (textEditingValue.text == '') return baseList;
-            return baseList.where((checklist) {
+
+            // Filtrar checklists fechados apenas se não estiver em modo de visualização
+            final availableList = _isViewMode ? baseList : baseList.where((checklist) => checklist.status != 'FECHADO').toList();
+
+            if (textEditingValue.text == '') return availableList;
+            return availableList.where((checklist) {
               final searchText = textEditingValue.text.toLowerCase();
               return checklist.numeroChecklist.toLowerCase().contains(searchText) ||
                   (checklist.clienteNome?.toLowerCase().contains(searchText) ?? false) ||
@@ -1672,6 +1723,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           displayStringForOption: (Checklist checklist) =>
               'Checklist ${checklist.numeroChecklist}${checklist.createdAt != null ? ' - ${DateFormat('dd/MM/yyyy').format(checklist.createdAt!)}' : ''}',
           onSelected: (Checklist selection) {
+            // Verificar se o checklist não está fechado
+            if (selection.status == 'FECHADO' && !_isViewMode) {
+              _showErrorSnackBar('Este checklist está fechado e não pode ser usado em uma nova OS');
+              return;
+            }
+
             setState(() {
               _checklistSelecionado = selection;
               _checklistController.text = 'Checklist ${selection.numeroChecklist}';
@@ -1753,12 +1810,47 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Checklist ${checklist.numeroChecklist}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Checklist ${checklist.numeroChecklist}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: checklist.status == 'FECHADO' ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                          color:
+                                              checklist.status == 'FECHADO' ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          checklist.status == 'FECHADO' ? Icons.lock : Icons.lock_open,
+                                          size: 12,
+                                          color: checklist.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          checklist.status == 'FECHADO' ? 'Fechado' : 'Aberto',
+                                          style: TextStyle(
+                                            color: checklist.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                               if (checklist.createdAt != null)
                                 Text(
@@ -2137,6 +2229,42 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
           const SizedBox(height: 16),
+          // Campo de pesquisa de serviços
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _servicoSearchController,
+              enabled: !_isViewMode,
+              decoration: InputDecoration(
+                hintText: 'Pesquisar serviços...',
+                prefixIcon: Icon(Icons.search, color: Colors.orange.shade600),
+                suffixIcon: _servicoSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _servicoSearchController.clear(),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           if (_servicosDisponiveis.isEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -2153,11 +2281,27 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ],
               ),
             )
+          else if (_servicosFiltrados.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search_off, color: Colors.blue.shade600),
+                  const SizedBox(width: 8),
+                  const Text('Nenhum serviço encontrado com o termo pesquisado.'),
+                ],
+              ),
+            )
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _servicosDisponiveis.map((servico) {
+              children: _servicosFiltrados.map((servico) {
                 final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
                 return FilterChip(
                   selected: isSelected,
@@ -2461,6 +2605,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
+                                    _resetarDescontos(); // Reset desconto ao decrementar quantidade
                                     _calcularPrecoTotal();
                                   }
                                 },
@@ -2522,6 +2667,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                   pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                 });
+                                _resetarDescontos(); // Reset desconto ao alterar quantidade manualmente
                                 _calcularPrecoTotal();
                               }
                             },
@@ -2541,6 +2687,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
+                                    _resetarDescontos(); // Reset desconto ao incrementar quantidade
                                     _calcularPrecoTotal();
                                   } else {
                                     _showErrorSnackBar(
@@ -2655,7 +2802,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
+                DropdownButtonFormField<Funcionario>(
                   value: _mecanicoSelecionado,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -2678,9 +2825,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   items: (() {
                     final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<String>>((funcionario) {
-                      return DropdownMenuItem<String>(
-                        value: funcionario.nome,
+                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+                      return DropdownMenuItem<Funcionario>(
+                        value: funcionario,
                         child: Text(funcionario.nome),
                       );
                     }).toList();
@@ -2709,7 +2856,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       ),
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
+                DropdownButtonFormField<Funcionario>(
                   value: _consultorSelecionado,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -2732,9 +2879,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   items: (() {
                     final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<String>>((funcionario) {
-                      return DropdownMenuItem<String>(
-                        value: funcionario.nome,
+                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+                      return DropdownMenuItem<Funcionario>(
+                        value: funcionario,
                         child: Text(funcionario.nome),
                       );
                     }).toList();
@@ -2846,12 +2993,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
                   hint: const Text('Selecione'),
-                  items: _tiposPagamento.map((tipo) {
-                    return DropdownMenuItem<TipoPagamento>(
-                      value: tipo,
-                      child: Text(tipo.nome),
-                    );
-                  }).toList(),
+                  items: (() {
+                    final lista = List<TipoPagamento>.from(_tiposPagamento);
+                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+                    return lista.map((tipo) {
+                      return DropdownMenuItem<TipoPagamento>(
+                        value: tipo,
+                        child: Text(tipo.nome),
+                      );
+                    }).toList();
+                  })(),
                   onChanged: _isViewMode
                       ? null
                       : (value) {
@@ -3426,8 +3577,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: _numeroParcelas,
-        nomeMecanico: _mecanicoSelecionado,
-        nomeConsultor: _consultorSelecionado,
+        mecanico: _mecanicoSelecionado,
+        consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
       );
 
@@ -4292,8 +4443,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
-          _mecanicoSelecionado = osCompleta.nomeMecanico;
-          _consultorSelecionado = osCompleta.nomeConsultor;
+
+          // Buscar mecânico na lista por ID para garantir consistência
+          if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
+            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+          } else {
+            _mecanicoSelecionado = null;
+          }
+
+          // Buscar consultor na lista por ID para garantir consistência
+          if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
+            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+          } else {
+            _consultorSelecionado = null;
+          }
+
+          // Consultor já vem como objeto completo
+          _consultorSelecionado = osCompleta.consultor;
 
           if (osCompleta.checklistId != null) {
             _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;
@@ -4434,8 +4600,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
-          _mecanicoSelecionado = osCompleta.nomeMecanico;
-          _consultorSelecionado = osCompleta.nomeConsultor;
+
+          // Buscar mecânico na lista por ID para garantir consistência
+          if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
+            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+          } else {
+            _mecanicoSelecionado = null;
+          }
+
+          // Buscar consultor na lista por ID para garantir consistência
+          if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
+            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+          } else {
+            _consultorSelecionado = null;
+          }
+
+          // Consultor já vem como objeto completo
+          _consultorSelecionado = osCompleta.consultor;
 
           if (osCompleta.checklistId != null) {
             _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;
@@ -4556,12 +4737,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final success = await OrdemServicoService.atualizarStatus(os.id!, 'ENCERRADA');
-                if (success) {
+                final resultado = await OrdemServicoService.fecharOrdemServico(os.id!);
+                if (resultado['sucesso']) {
+                  // Se a OS foi fechada com sucesso e tem um checklist associado, fechar o checklist também
+                  if (os.checklistId != null) {
+                    final checklistFechado = await ChecklistService.fecharChecklist(os.checklistId!);
+                    if (checklistFechado) {
+                      print('Checklist ID ${os.checklistId} foi fechado automaticamente');
+                    } else {
+                      print('Erro ao fechar checklist ID ${os.checklistId}');
+                    }
+                  }
+
                   await _loadData();
-                  _showSuccessSnackBar('OS encerrada com sucesso');
+                  _showSuccessSnackBar(
+                      'OS fechada com sucesso! Estoque atualizado e movimentações registradas.${os.checklistId != null ? ' Checklist associado foi fechado.' : ''}');
                 } else {
-                  _showErrorSnackBar('Erro ao encerrar OS');
+                  _showErrorSnackBar('Erro ao fechar OS: ${resultado['mensagem']}');
                 }
               } catch (e) {
                 _showErrorSnackBar('Erro ao encerrar OS: ${e.toString()}');

@@ -93,6 +93,28 @@ class OrdemServicoService {
     }
   }
 
+  /// Fecha uma ordem de serviço, executando toda a lógica de subtração de estoque
+  /// e registro de movimentações
+  static Future<Map<String, dynamic>> fecharOrdemServico(int id) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/$id/fechar'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': true, 'mensagem': 'Ordem de serviço fechada com sucesso', 'ordemServico': OrdemServico.fromJson(jsonData)};
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao fechar ordem de serviço'};
+      }
+    } catch (e) {
+      print('Erro ao fechar ordem de serviço: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
   static Future<List<OrdemServico>> buscarPorCliente(String cpf) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/buscar-por-cliente/$cpf'));

@@ -83,6 +83,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
+        // Mostrar apenas os 6 últimos funcionários quando não houver busca
         _funcionariosFiltrados = _funcionarios.take(6).toList();
       } else {
         _funcionariosFiltrados = _funcionarios.where((funcionario) {
@@ -425,9 +426,23 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Definir número de colunas responsivamente, preferindo 3 por linha em larguras maiores
         int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        if (constraints.maxWidth >= 1100) {
+          crossAxisCount = 3;
+        } else if (constraints.maxWidth >= 700) {
           crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        double childAspectRatio;
+        if (crossAxisCount == 1) {
+          childAspectRatio = 2.8;
+        } else if (crossAxisCount == 2) {
+          childAspectRatio = 2.0;
+        } else {
+          childAspectRatio = 1.2; // mais compacto para 3 colunas
         }
 
         return GridView.builder(
@@ -435,9 +450,9 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.1,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
           ),
           itemCount: _funcionariosFiltrados.length,
           itemBuilder: (context, index) => _buildEmployeeCard(_funcionariosFiltrados[index]),
@@ -469,14 +484,15 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarFuncionario(funcionario),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: (nivelInfo['color'] as Color).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -484,10 +500,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                       child: Icon(
                         nivelInfo['icon'],
                         color: nivelInfo['color'],
-                        size: 24,
+                        size: 18,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +512,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                             funcionario.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 13,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -512,7 +528,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                               nivelInfo['label'],
                               style: TextStyle(
                                 color: nivelInfo['color'],
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -553,30 +569,69 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _buildInfoRow(Icons.badge, _maskCpf.maskText(funcionario.cpf)),
-                _buildInfoRow(Icons.phone, _maskTelefone.maskText(funcionario.telefone)),
-                _buildInfoRow(Icons.email, funcionario.email),
-                _buildInfoRow(Icons.cake, '$idade anos'),
-                const Spacer(),
-                if (funcionario.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.schedule, size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Cadastrado em ${DateFormat('dd/MM/yyyy').format(funcionario.createdAt!)}',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
+                const SizedBox(height: 10),
+
+                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoRow(Icons.badge, _maskCpf.maskText(funcionario.cpf)),
+                      _buildInfoRow(Icons.phone, _maskTelefone.maskText(funcionario.telefone)),
+                      _buildInfoRow(Icons.email, funcionario.email),
+                      _buildInfoRow(Icons.cake, '$idade anos'),
+                    ],
+                  ),
+                ),
+
+                // Rodapé do card - sempre no bottom
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    children: [
+                      // Nível de acesso destaque
+                      Row(
+                        children: [
+                          Icon(nivelInfo['icon'], size: 12, color: nivelInfo['color']),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Nível: ${nivelInfo['label']}',
+                            style: TextStyle(
+                              color: nivelInfo['color'],
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Data de cadastro
+                      if (funcionario.createdAt != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(funcionario.createdAt!)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),

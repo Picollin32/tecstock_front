@@ -83,7 +83,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     final query = _searchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
-        // Mostrar apenas os 6 últimos funcionários quando não houver busca
         _funcionariosFiltrados = _funcionarios.take(6).toList();
       } else {
         _funcionariosFiltrados = _funcionarios.where((funcionario) {
@@ -426,7 +425,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Definir número de colunas responsivamente, preferindo 3 por linha em larguras maiores
         int crossAxisCount = 1;
         if (constraints.maxWidth >= 1100) {
           crossAxisCount = 3;
@@ -442,7 +440,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         } else if (crossAxisCount == 2) {
           childAspectRatio = 2.0;
         } else {
-          childAspectRatio = 1.2; // mais compacto para 3 colunas
+          childAspectRatio = 1.2;
         }
 
         return GridView.builder(
@@ -488,7 +486,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -570,8 +567,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                   ],
                 ),
                 const SizedBox(height: 10),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -583,8 +578,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -595,7 +588,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      // Nível de acesso destaque
                       Row(
                         children: [
                           Icon(nivelInfo['icon'], size: 12, color: nivelInfo['color']),
@@ -610,7 +602,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                           ),
                         ],
                       ),
-                      // Data de cadastro
                       if (funcionario.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

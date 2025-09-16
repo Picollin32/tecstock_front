@@ -484,7 +484,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     CircleAvatar(
@@ -566,8 +565,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,8 +576,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -591,7 +586,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      // ID do cliente
                       Row(
                         children: [
                           Icon(Icons.person, size: 12, color: Colors.grey[600]),
@@ -606,7 +600,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                           ),
                         ],
                       ),
-                      // Data de cadastro
                       if (cliente.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

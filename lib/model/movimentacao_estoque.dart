@@ -57,8 +57,6 @@ class MovimentacaoEstoque {
     };
   }
 
-  // Getter para compatibilidade com código existente
-  // Retorna a data da movimentação baseada no tipo
   DateTime? get dataMovimentacao {
     if (tipoMovimentacao == TipoMovimentacao.ENTRADA) {
       return dataEntrada;

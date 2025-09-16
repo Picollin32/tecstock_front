@@ -93,8 +93,6 @@ class OrdemServicoService {
     }
   }
 
-  /// Fecha uma ordem de serviço, executando toda a lógica de subtração de estoque
-  /// e registro de movimentações
   static Future<Map<String, dynamic>> fecharOrdemServico(int id) async {
     try {
       final response = await http.post(

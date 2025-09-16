@@ -408,7 +408,6 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -473,11 +472,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                     ),
                   ],
                 ),
-
-                // Espaçador para empurrar o rodapé para baixo
                 const Spacer(),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -488,7 +483,6 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                   ),
                   child: Column(
                     children: [
-                      // Data de cadastro
                       if (fabricante.createdAt != null)
                         Row(
                           children: [

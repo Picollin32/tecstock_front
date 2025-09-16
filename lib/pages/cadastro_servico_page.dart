@@ -423,7 +423,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -489,8 +488,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,8 +576,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -591,7 +586,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      // Preço médio
                       Row(
                         children: [
                           Icon(Icons.monetization_on, size: 12, color: successColor),
@@ -606,7 +600,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                           ),
                         ],
                       ),
-                      // Data de cadastro
                       if (servico.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

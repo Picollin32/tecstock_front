@@ -485,7 +485,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   }
 
   Widget _buildPecaAutocomplete() {
-    // Filtrar peças do fornecedor selecionado
     final pecasFornecedor =
         _fornecedorSelecionado != null ? _pecasDisponiveis.where((p) => p.fornecedor?.id == _fornecedorSelecionado!.id).toList() : <Peca>[];
 
@@ -519,11 +518,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               _precoUnitarioController.text = selection.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
             });
             _updateSubmitState();
-            // Fechar o teclado e perder o foco para fechar as opções
             FocusScope.of(context).unfocus();
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            // Sincronizar com o controller principal
             if (controller.text != _codigoPecaController.text) {
               controller.text = _codigoPecaController.text;
             }
@@ -534,7 +531,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               validator: (v) => v!.isEmpty ? 'Informe o código da peça' : null,
               onChanged: (value) {
                 _codigoPecaController.text = value;
-                // Buscar peça exata quando o texto corresponder a um código específico
+
                 final pecaExata = pecasFornecedor.where((p) => p.codigoFabricante.toLowerCase() == value.toLowerCase()).firstOrNull;
 
                 if (pecaExata != null && _pecaEncontrada?.id != pecaExata.id) {

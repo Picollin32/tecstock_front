@@ -459,7 +459,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -541,8 +540,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,8 +550,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -565,7 +560,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   ),
                   child: Column(
                     children: [
-                      // Margem de lucro destaque
                       Row(
                         children: [
                           Icon(Icons.trending_up, size: 12, color: margemColor),
@@ -580,7 +574,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                           ),
                         ],
                       ),
-                      // Data de cadastro
                       if (fornecedor.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

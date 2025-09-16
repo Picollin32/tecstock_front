@@ -210,7 +210,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
         _checklistsFiltrados = _checklists;
         _servicosDisponiveis = results[4] as List<Servico>;
-        // Ordena serviços alfabeticamente
         _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
         _servicosFiltrados = _servicosDisponiveis;
         _tiposPagamento = results[5] as List<TipoPagamento>;
@@ -298,7 +297,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       } else {
         _servicosSelecionados.add(servico);
       }
-      _resetarDescontos(); // Reset desconto ao adicionar/remover serviços
+      _resetarDescontos();
       _calcularPrecoTotal();
     });
   }
@@ -460,7 +459,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
             _codigoPecaController.clear();
           });
-          _resetarDescontos(); // Reset desconto ao atualizar quantidade da peça
+          _resetarDescontos();
           _calcularPrecoTotal();
           _showSuccessSnackBar('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
         } else {
@@ -474,7 +473,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             _pecasSelecionadas.add(pecaOS);
             _codigoPecaController.clear();
           });
-          _resetarDescontos(); // Reset desconto ao adicionar nova peça
+          _resetarDescontos();
           _calcularPrecoTotal();
           _showSuccessSnackBar('Peça adicionada: ${peca.nome} ($quantidade unid.)');
         }
@@ -490,7 +489,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     setState(() {
       _pecasSelecionadas.remove(pecaOS);
     });
-    _resetarDescontos(); // Reset desconto ao remover peça
+    _resetarDescontos();
     _calcularPrecoTotal();
     _showSuccessSnackBar('Peça removida: ${pecaOS.peca.nome}');
   }
@@ -1709,7 +1708,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           optionsBuilder: (TextEditingValue textEditingValue) {
             final baseList = _checklistsFiltrados.isNotEmpty ? _checklistsFiltrados : _checklists;
 
-            // Filtrar checklists fechados apenas se não estiver em modo de visualização
             final availableList = _isViewMode ? baseList : baseList.where((checklist) => checklist.status != 'FECHADO').toList();
 
             if (textEditingValue.text == '') return availableList;
@@ -1723,7 +1721,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           displayStringForOption: (Checklist checklist) =>
               'Checklist ${checklist.numeroChecklist}${checklist.createdAt != null ? ' - ${DateFormat('dd/MM/yyyy').format(checklist.createdAt!)}' : ''}',
           onSelected: (Checklist selection) {
-            // Verificar se o checklist não está fechado
             if (selection.status == 'FECHADO' && !_isViewMode) {
               _showErrorSnackBar('Este checklist está fechado e não pode ser usado em uma nova OS');
               return;
@@ -2229,7 +2226,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
           const SizedBox(height: 16),
-          // Campo de pesquisa de serviços
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -2605,7 +2601,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
-                                    _resetarDescontos(); // Reset desconto ao decrementar quantidade
+                                    _resetarDescontos();
                                     _calcularPrecoTotal();
                                   }
                                 },
@@ -2667,7 +2663,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                   pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                 });
-                                _resetarDescontos(); // Reset desconto ao alterar quantidade manualmente
+                                _resetarDescontos();
                                 _calcularPrecoTotal();
                               }
                             },
@@ -2687,7 +2683,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
-                                    _resetarDescontos(); // Reset desconto ao incrementar quantidade
+                                    _resetarDescontos();
                                     _calcularPrecoTotal();
                                   } else {
                                     _showErrorSnackBar(
@@ -4444,21 +4440,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
 
-          // Buscar mecânico na lista por ID para garantir consistência
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
           } else {
             _mecanicoSelecionado = null;
           }
 
-          // Buscar consultor na lista por ID para garantir consistência
           if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
             _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
           } else {
             _consultorSelecionado = null;
           }
 
-          // Consultor já vem como objeto completo
           _consultorSelecionado = osCompleta.consultor;
 
           if (osCompleta.checklistId != null) {
@@ -4601,21 +4594,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
 
-          // Buscar mecânico na lista por ID para garantir consistência
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
           } else {
             _mecanicoSelecionado = null;
           }
 
-          // Buscar consultor na lista por ID para garantir consistência
           if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
             _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
           } else {
             _consultorSelecionado = null;
           }
 
-          // Consultor já vem como objeto completo
           _consultorSelecionado = osCompleta.consultor;
 
           if (osCompleta.checklistId != null) {
@@ -4739,7 +4729,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               try {
                 final resultado = await OrdemServicoService.fecharOrdemServico(os.id!);
                 if (resultado['sucesso']) {
-                  // Se a OS foi fechada com sucesso e tem um checklist associado, fechar o checklist também
                   if (os.checklistId != null) {
                     final checklistFechado = await ChecklistService.fecharChecklist(os.checklistId!);
                     if (checklistFechado) {

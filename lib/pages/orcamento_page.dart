@@ -206,7 +206,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       setState(() {
         _recent = results[0] as List<Orcamento>;
         _servicosDisponiveis = results[1] as List<Servico>;
-        // Ordena serviços alfabeticamente
+
         _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
         _servicosFiltrados = _servicosDisponiveis;
         _tiposPagamento = results[2] as List<TipoPagamento>;
@@ -1707,8 +1707,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _precoTotalServicos = orcamento.precoTotalServicos ?? 0.0;
       _descontoServicos = orcamento.descontoServicos ?? 0.0;
       _descontoPecas = orcamento.descontoPecas ?? 0.0;
-
-      // Preencher os campos de desconto nos controllers
       _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
       _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
 
@@ -1716,14 +1714,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _tipoPagamentoSelecionado = orcamento.tipoPagamento;
       _numeroParcelas = orcamento.numeroParcelas;
 
-      // Buscar mecânico na lista por ID para garantir consistência
       if (orcamento.mecanico != null && orcamento.mecanico!.id != null) {
         _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
       } else {
         _mecanicoSelecionado = null;
       }
 
-      // Buscar consultor na lista por ID para garantir consistência
       if (orcamento.consultor != null && orcamento.consultor!.id != null) {
         _consultorSelecionado = _funcionarios.where((f) => f.id == orcamento.consultor!.id && f.nivelAcesso == 1).firstOrNull;
       } else {
@@ -1997,7 +1993,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
-          // Campo de pesquisa de serviços
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -2373,7 +2368,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
-                                    _resetarDescontos(); // Reset desconto ao decrementar quantidade
+                                    _resetarDescontos();
                                     _calcularPrecoTotal();
                                   }
                                 },
@@ -2435,7 +2430,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                   pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                   pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                 });
-                                _resetarDescontos(); // Reset desconto ao alterar quantidade manualmente
+                                _resetarDescontos();
                                 _calcularPrecoTotal();
                               }
                             },
@@ -2455,7 +2450,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
                                       pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
                                     });
-                                    _resetarDescontos(); // Reset desconto ao incrementar quantidade
+                                    _resetarDescontos();
                                     _calcularPrecoTotal();
                                   } else {
                                     _showErrorSnackBar(
@@ -3197,7 +3192,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       } else {
         _servicosSelecionados.add(servico);
       }
-      _resetarDescontos(); // Reset desconto ao adicionar/remover serviços
+      _resetarDescontos();
       _calcularPrecoTotal();
     });
   }
@@ -3248,7 +3243,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             pecaJaAdicionada.valorTotal = pecaJaAdicionada.valorUnitario! * quantidadeTotal;
             _codigoPecaController.clear();
           });
-          _resetarDescontos(); // Reset desconto ao atualizar quantidade da peça
+          _resetarDescontos();
           _calcularPrecoTotal();
           _showSuccessMessage('Quantidade da peça ${peca.nome} atualizada para $quantidadeTotal');
         } else {
@@ -3262,7 +3257,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             _pecasSelecionadas.add(pecaOS);
             _codigoPecaController.clear();
           });
-          _resetarDescontos(); // Reset desconto ao adicionar nova peça
+          _resetarDescontos();
           _calcularPrecoTotal();
           _showSuccessMessage('Peça adicionada: ${peca.nome} ($quantidade unid.)');
         }
@@ -3278,7 +3273,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     setState(() {
       _pecasSelecionadas.remove(pecaOS);
     });
-    _resetarDescontos(); // Reset desconto ao remover peça
+    _resetarDescontos();
     _calcularPrecoTotal();
     _showSuccessMessage('Peça removida: ${pecaOS.peca.nome}');
   }

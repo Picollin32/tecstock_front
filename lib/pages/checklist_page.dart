@@ -1694,7 +1694,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           _queixaPrincipalController.text = checklist.queixaPrincipal ?? '';
           _fuelLevel = (checklist.nivelCombustivel ?? 0) / 25.0;
 
-          // Carregar categoria do checklist ou buscar pela placa
           if (checklist.veiculoCategoria != null && checklist.veiculoCategoria!.isNotEmpty) {
             _categoriaSelecionada = checklist.veiculoCategoria;
           } else if (checklist.veiculoPlaca != null) {

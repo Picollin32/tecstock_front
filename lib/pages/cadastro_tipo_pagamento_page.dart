@@ -334,7 +334,6 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -399,11 +398,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                     ),
                   ],
                 ),
-
-                // Espaçador para empurrar o rodapé para baixo
                 const Spacer(),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -414,7 +409,6 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                   ),
                   child: Column(
                     children: [
-                      // Data de cadastro
                       if (tipoPagamento.createdAt != null)
                         Row(
                           children: [

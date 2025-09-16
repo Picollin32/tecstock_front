@@ -420,7 +420,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     CircleAvatar(
@@ -470,8 +469,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   ],
                 ),
                 const SizedBox(height: 12),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,8 +485,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -500,7 +495,6 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   ),
                   child: Column(
                     children: [
-                      // Data de cadastro
                       if (marca.createdAt != null)
                         Row(
                           children: [

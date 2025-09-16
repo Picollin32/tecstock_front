@@ -496,7 +496,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -578,8 +577,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   ],
                 ),
                 const SizedBox(height: 10),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -592,8 +589,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -604,7 +599,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      // Quilometragem destaque
                       Row(
                         children: [
                           Icon(Icons.speed, size: 12, color: warningColor),
@@ -619,7 +613,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                           ),
                         ],
                       ),
-                      // Data de cadastro
                       if (veiculo.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

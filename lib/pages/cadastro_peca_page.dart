@@ -96,12 +96,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     try {
       final listaPecas = await PecaService.listarPecas();
       setState(() {
-        // Ordenar por data de atualização (updatedAt) ou criação (createdAt) mais recente
         _pecas = listaPecas
           ..sort((a, b) {
             final dataA = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
             final dataB = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            return dataB.compareTo(dataA); // Mais recente primeiro
+            return dataB.compareTo(dataA);
           });
         _filtrarPecas();
       });
@@ -565,7 +564,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // Função de editar temporariamente desabilitada
             // _editarPeca(peca);
           },
           child: Padding(
@@ -573,7 +571,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Row(
                   children: [
                     Container(
@@ -630,7 +627,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                         }
                       },
                       itemBuilder: (context) => [
-                        // Botão de edição temporariamente oculto conforme solicitado
                         // const PopupMenuItem(
                         //   value: 'edit',
                         //   child: Row(
@@ -656,8 +652,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   ],
                 ),
                 const SizedBox(height: 8),
-
-                // Conteúdo principal do card - expandido para empurrar o rodapé para baixo
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,8 +669,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ],
                   ),
                 ),
-
-                // Rodapé do card - sempre no bottom
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -687,7 +679,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   ),
                   child: Column(
                     children: [
-                      // Data de cadastro
                       if (peca.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
@@ -706,7 +697,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             ],
                           ),
                         ),
-                      // Informações de estoque
                       Row(
                         children: [
                           Icon(Icons.inventory, size: 12, color: stockStatus['color']),
@@ -1130,7 +1120,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     child: IconButton(
                       onPressed: () async {
                         await EntradaEstoquePage.showModal(context);
-                        // Recarregar peças após entrada de estoque para refletir as movimentações recentes
+
                         await _carregarPecas();
                       },
                       icon: const Icon(Icons.add_box, color: Colors.white),

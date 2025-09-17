@@ -296,11 +296,13 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
     try {
       // Prepara os dados das peças para o novo endpoint
-      List<Map<String, dynamic>> pecasData = _pecasAdicionadas.map((pecaEntrada) => {
-        'codigoPeca': pecaEntrada.peca.codigoFabricante,
-        'quantidade': pecaEntrada.quantidade,
-        'precoUnitario': pecaEntrada.precoUnitario,
-      }).toList();
+      List<Map<String, dynamic>> pecasData = _pecasAdicionadas
+          .map((pecaEntrada) => {
+                'codigoPeca': pecaEntrada.peca.codigoFabricante,
+                'quantidade': pecaEntrada.quantidade,
+                'precoUnitario': pecaEntrada.precoUnitario,
+              })
+          .toList();
 
       // Chama o novo endpoint que registra múltiplas peças de uma vez
       final resultado = await MovimentacaoEstoqueService.registrarEntradasMultiplas(

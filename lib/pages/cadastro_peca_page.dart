@@ -687,7 +687,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ],
                   ),
                 ),
-                
+
                 // Aviso de peças em OS abertas
                 if (quantidadeEmOS > 0)
                   Container(
@@ -732,7 +732,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ],
                     ),
                   ),
-                
+
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

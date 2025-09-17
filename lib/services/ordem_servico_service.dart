@@ -144,12 +144,13 @@ class OrdemServicoService {
   static Future<List<OrdemServico>> buscarPorStatus(String status) async {
     final url = Uri.parse('$baseUrl/status/$status');
     print('🌐 Fazendo requisição para: $url');
-    
+
     try {
       final response = await http.get(url);
       print('📡 Status da resposta: ${response.statusCode}');
-      print('📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
-      
+      print(
+          '📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         print('📊 Dados decodificados: ${jsonList.length} ordens encontradas');
@@ -171,9 +172,9 @@ class OrdemServicoService {
     try {
       // Busca todas as ordens de serviço abertas
       final ordensAbertas = await buscarPorStatus('ABERTA');
-      
+
       double quantidadeTotal = 0;
-      
+
       for (final os in ordensAbertas) {
         for (final pecaOS in os.pecasUtilizadas) {
           if (pecaOS.peca.codigoFabricante == codigoPeca) {
@@ -181,7 +182,7 @@ class OrdemServicoService {
           }
         }
       }
-      
+
       return quantidadeTotal.round();
     } catch (e) {
       print('Erro ao buscar quantidade de peça em OS abertas: $e');
@@ -196,14 +197,14 @@ class OrdemServicoService {
       // Busca todas as ordens de serviço abertas
       final ordensAbertas = await buscarPorStatus('ABERTA');
       print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
-      
+
       Map<String, Map<String, dynamic>> pecasInfo = {};
-      
+
       for (final os in ordensAbertas) {
         print('📋 Processando OS ${os.numeroOS} com ${os.pecasUtilizadas.length} peças');
         for (final pecaOS in os.pecasUtilizadas) {
           final codigo = pecaOS.peca.codigoFabricante;
-          
+
           if (!pecasInfo.containsKey(codigo)) {
             pecasInfo[codigo] = {
               'nome': pecaOS.peca.nome,
@@ -211,15 +212,15 @@ class OrdemServicoService {
               'ordens': <String>[],
             };
           }
-          
+
           pecasInfo[codigo]!['quantidade'] = (pecasInfo[codigo]!['quantidade'] as num) + pecaOS.quantidade;
-          
+
           if (!pecasInfo[codigo]!['ordens'].contains(os.numeroOS)) {
             pecasInfo[codigo]!['ordens'].add(os.numeroOS);
           }
         }
       }
-      
+
       print('📦 Total de peças diferentes em OS: ${pecasInfo.length}');
       return pecasInfo;
     } catch (e) {

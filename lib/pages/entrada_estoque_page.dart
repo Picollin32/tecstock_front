@@ -4,6 +4,21 @@ import '../model/peca.dart';
 import '../services/fornecedor_service.dart';
 import '../services/peca_service.dart';
 import '../services/movimentacao_estoque_service.dart';
+import '../services/ordem_servico_service.dart';
+
+class PecaEntrada {
+  final Peca peca;
+  int quantidade;
+  double precoUnitario;
+
+  PecaEntrada({
+    required this.peca,
+    required this.quantidade,
+    required this.precoUnitario,
+  });
+
+  double get valorTotal => quantidade * precoUnitario;
+}
 
 class EntradaEstoquePage extends StatefulWidget {
   const EntradaEstoquePage({super.key});
@@ -17,7 +32,7 @@ class EntradaEstoquePage extends StatefulWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
+        initialChildSize: 0.95,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => Container(
@@ -43,7 +58,7 @@ class EntradaEstoquePage extends StatefulWidget {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'Entrada de Estoque',
+                        'Entrada de Estoque - Múltiplas Peças',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -108,19 +123,19 @@ class _EntradaEstoqueForm extends StatefulWidget {
 
 class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _codigoPecaController = TextEditingController();
-  final _quantidadeController = TextEditingController();
-  final _precoUnitarioController = TextEditingController();
   final _numeroNotaFiscalController = TextEditingController();
   final _observacoesController = TextEditingController();
+  final _searchController = TextEditingController();
 
   Fornecedor? _fornecedorSelecionado;
   List<Fornecedor> _fornecedores = [];
-  Peca? _pecaEncontrada;
   List<Peca> _pecasDisponiveis = [];
+  List<Peca> _pecasFiltradas = [];
+  List<PecaEntrada> _pecasAdicionadas = [];
+  Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
   bool _isLoading = false;
-  bool _isLoadingPeca = false;
+  bool _isLoadingPecas = false;
   bool _canSubmit = false;
 
   late AnimationController _fadeController;
@@ -129,15 +144,15 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   static const Color primaryColor = Color(0xFF6366F1);
   static const Color errorColor = Color(0xFFEF4444);
   static const Color successColor = Color(0xFF059669);
+  static const Color warningColor = Color(0xFFF59E0B);
 
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
-    _carregarFornecedores();
+    _carregarDados();
     _numeroNotaFiscalController.addListener(_updateSubmitState);
-    _quantidadeController.addListener(_updateSubmitState);
-    _precoUnitarioController.addListener(_updateSubmitState);
+    _searchController.addListener(_filtrarPecas);
   }
 
   void _initializeAnimations() {
@@ -153,39 +168,66 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   void dispose() {
     _fadeController.dispose();
     _numeroNotaFiscalController.removeListener(_updateSubmitState);
-    _quantidadeController.removeListener(_updateSubmitState);
-    _precoUnitarioController.removeListener(_updateSubmitState);
-    _codigoPecaController.dispose();
-    _quantidadeController.dispose();
-    _precoUnitarioController.dispose();
+    _searchController.removeListener(_filtrarPecas);
     _numeroNotaFiscalController.dispose();
     _observacoesController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _carregarFornecedores() async {
+  Future<void> _carregarDados() async {
+    setState(() => _isLoadingPecas = true);
     try {
       final results = await Future.wait([
         FornecedorService.listarFornecedores(),
         PecaService.listarPecas(),
+        OrdemServicoService.buscarPecasEmOSAbertas(),
       ]);
 
       setState(() {
         _fornecedores = results[0] as List<Fornecedor>;
         _pecasDisponiveis = results[1] as List<Peca>;
+        _pecasEmOS = results[2] as Map<String, Map<String, dynamic>>;
+        _filtrarPecas(); // Filtrar peças após carregamento
       });
     } catch (e) {
       _showError('Erro ao carregar dados');
+    } finally {
+      setState(() => _isLoadingPecas = false);
+    }
+  }
+
+  void _filtrarPecas() {
+    if (_fornecedorSelecionado == null) {
+      setState(() {
+        _pecasFiltradas = [];
+      });
+      return;
+    }
+
+    final query = _searchController.text.toLowerCase();
+    final pecasFornecedor = _pecasDisponiveis.where((p) => p.fornecedor?.id == _fornecedorSelecionado!.id).toList();
+
+    if (query.isEmpty) {
+      setState(() {
+        _pecasFiltradas = pecasFornecedor;
+      });
+    } else {
+      setState(() {
+        _pecasFiltradas = pecasFornecedor.where((peca) {
+          return peca.codigoFabricante.toLowerCase().contains(query) ||
+              peca.nome.toLowerCase().contains(query) ||
+              peca.fabricante.nome.toLowerCase().contains(query);
+        }).toList();
+      });
     }
   }
 
   void _updateSubmitState() {
-    final canSubmit = _pecaEncontrada != null &&
+    final canSubmit = _fornecedorSelecionado != null &&
         _numeroNotaFiscalController.text.trim().isNotEmpty &&
-        _quantidadeController.text.trim().isNotEmpty &&
-        _precoUnitarioController.text.trim().isNotEmpty &&
-        (int.tryParse(_quantidadeController.text) ?? 0) > 0 &&
-        (double.tryParse(_precoUnitarioController.text.replaceAll(',', '.')) ?? 0) > 0 &&
+        _pecasAdicionadas.isNotEmpty &&
+        _pecasAdicionadas.every((p) => p.quantidade > 0 && p.precoUnitario > 0) &&
         !_isLoading;
 
     if (_canSubmit != canSubmit) {
@@ -195,10 +237,55 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     }
   }
 
-  void _registrarEntrada() async {
+  void _adicionarPeca(Peca peca) {
+    // Verifica se a peça já foi adicionada
+    final jaAdicionada = _pecasAdicionadas.any((p) => p.peca.id == peca.id);
+    if (jaAdicionada) {
+      _showError('Esta peça já foi adicionada à lista');
+      return;
+    }
+
+    setState(() {
+      _pecasAdicionadas.add(PecaEntrada(
+        peca: peca,
+        quantidade: 1,
+        precoUnitario: peca.precoUnitario,
+      ));
+    });
+    _updateSubmitState();
+  }
+
+  void _removerPeca(int index) {
+    if (index >= 0 && index < _pecasAdicionadas.length) {
+      setState(() {
+        _pecasAdicionadas.removeAt(index);
+      });
+      _updateSubmitState();
+    }
+  }
+
+  void _atualizarQuantidade(int index, int novaQuantidade) {
+    if (index >= 0 && index < _pecasAdicionadas.length && novaQuantidade > 0) {
+      setState(() {
+        _pecasAdicionadas[index].quantidade = novaQuantidade;
+      });
+      _updateSubmitState();
+    }
+  }
+
+  void _atualizarPreco(int index, double novoPreco) {
+    if (index >= 0 && index < _pecasAdicionadas.length && novoPreco > 0) {
+      setState(() {
+        _pecasAdicionadas[index].precoUnitario = novoPreco;
+      });
+      _updateSubmitState();
+    }
+  }
+
+  void _registrarEntradas() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_pecaEncontrada == null) {
-      _showError('Peça não encontrada com o código informado');
+    if (_pecasAdicionadas.isEmpty) {
+      _showError('Adicione pelo menos uma peça à lista');
       return;
     }
 
@@ -208,38 +295,44 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     });
 
     try {
-      final resultado = await MovimentacaoEstoqueService.registrarEntrada(
-        codigoPeca: _codigoPecaController.text.trim(),
+      // Prepara os dados das peças para o novo endpoint
+      List<Map<String, dynamic>> pecasData = _pecasAdicionadas.map((pecaEntrada) => {
+        'codigoPeca': pecaEntrada.peca.codigoFabricante,
+        'quantidade': pecaEntrada.quantidade,
+        'precoUnitario': pecaEntrada.precoUnitario,
+      }).toList();
+
+      // Chama o novo endpoint que registra múltiplas peças de uma vez
+      final resultado = await MovimentacaoEstoqueService.registrarEntradasMultiplas(
         fornecedorId: _fornecedorSelecionado!.id!,
-        quantidade: int.parse(_quantidadeController.text),
-        precoUnitario: double.parse(_precoUnitarioController.text.replaceAll(',', '.')),
         numeroNotaFiscal: _numeroNotaFiscalController.text.trim(),
+        pecas: pecasData,
         observacoes: _observacoesController.text.trim().isEmpty ? null : _observacoesController.text.trim(),
       );
 
+      Navigator.of(context).pop();
+
+      // Mostra resultado baseado na resposta do servidor
       if (resultado['sucesso']) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(resultado['mensagem'])),
-              ],
-            ),
-            backgroundColor: successColor,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-        _limparFormulario();
+        final sucessos = resultado['sucessos'] ?? 0;
+        final falhas = resultado['falhas'] ?? 0;
+        final resultadosRaw = resultado['resultados'] ?? [];
+        final List<String> resultados = List<String>.from(resultadosRaw);
+
+        if (sucessos > 0 && falhas == 0) {
+          _showSuccessDialog('Todas as $sucessos peças foram registradas com sucesso!', resultados);
+        } else if (sucessos > 0 && falhas > 0) {
+          _showMixedResultDialog('$sucessos peças registradas, $falhas falharam', resultados);
+        } else {
+          _showErrorDialog('Nenhuma peça foi registrada com sucesso', resultados);
+        }
       } else {
-        _showVisibleError(resultado['mensagem']);
+        _showError(resultado['mensagem'] ?? 'Erro desconhecido');
       }
+
+      _limparFormulario();
     } catch (e) {
-      _showVisibleError("Erro inesperado ao registrar entrada: $e");
+      _showVisibleError("Erro inesperado: $e");
     } finally {
       setState(() => _isLoading = false);
       _updateSubmitState();
@@ -248,16 +341,120 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
   void _limparFormulario() {
     _formKey.currentState?.reset();
-    _codigoPecaController.clear();
-    _quantidadeController.clear();
-    _precoUnitarioController.clear();
     _numeroNotaFiscalController.clear();
     _observacoesController.clear();
     setState(() {
       _fornecedorSelecionado = null;
-      _pecaEncontrada = null;
+      _pecasAdicionadas.clear();
       _canSubmit = false;
     });
+  }
+
+  void _showSuccessDialog(String titulo, List<String> detalhes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: successColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: detalhes
+              .map((det) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(det, style: const TextStyle(fontSize: 14)),
+                  ))
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(foregroundColor: successColor),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMixedResultDialog(String titulo, List<String> detalhes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: warningColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: detalhes
+                .map((det) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(det,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: det.startsWith('✓') ? successColor : errorColor,
+                          )),
+                    ))
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(foregroundColor: warningColor),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String titulo, List<String> detalhes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.error, color: errorColor, size: 28),
+            const SizedBox(width: 12),
+            Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: detalhes
+                .map((det) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(det, style: const TextStyle(fontSize: 14)),
+                    ))
+                .toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(foregroundColor: errorColor),
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showVisibleError(String message) {
@@ -382,8 +579,17 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     );
   }
 
-  Widget _buildPecaInfo() {
-    if (_isLoadingPeca) {
+  Widget _buildPecaSelector() {
+    if (_isLoadingPecas) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_fornecedorSelecionado == null) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -391,89 +597,14 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.blue[200]!),
         ),
-        child: const Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('Buscando peça...'),
-          ],
-        ),
-      );
-    }
-
-    if (_pecaEncontrada != null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: successColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: successColor),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.check_circle, color: successColor, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Peça Encontrada',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Nome: ${_pecaEncontrada!.nome}'),
-            Text('Fabricante: ${_pecaEncontrada!.fabricante.nome}'),
-            Text('Estoque Atual: ${_pecaEncontrada!.quantidadeEstoque} unidades'),
-            Container(
-              margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Preço Atual: R\$ ${_pecaEncontrada!.precoUnitario.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Informe o novo preço abaixo. Se for diferente do atual, será atualizado automaticamente.',
-                    style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_codigoPecaController.text.trim().length >= 3 && _fornecedorSelecionado != null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: errorColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: errorColor),
-        ),
         child: Row(
           children: [
-            Icon(Icons.error_outline, color: errorColor, size: 20),
+            Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Peça não encontrada com este código para o fornecedor selecionado',
-                style: TextStyle(fontWeight: FontWeight.w500),
+                'Selecione um fornecedor para ver as peças disponíveis.',
+                style: TextStyle(fontSize: 14),
               ),
             ),
           ],
@@ -481,197 +612,374 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       );
     }
 
-    return const SizedBox.shrink();
-  }
+    if (_pecasFiltradas.isEmpty && _searchController.text.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange[200]!),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_outlined, color: Colors.orange[700], size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Nenhuma peça encontrada para este fornecedor.',
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildPecaAutocomplete() {
-    final pecasFornecedor =
-        _fornecedorSelecionado != null ? _pecasDisponiveis.where((p) => p.fornecedor?.id == _fornecedorSelecionado!.id).toList() : <Peca>[];
+    if (_pecasFiltradas.isEmpty && _searchController.text.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSearchField(),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.search_off, color: Colors.grey[600], size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Nenhuma peça encontrada com este termo de busca.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildSearchField(),
+        const SizedBox(height: 12),
         Text(
-          'Código da Peça',
+          'Peças Disponíveis (${_pecasFiltradas.length})',
           style: TextStyle(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             color: primaryColor,
             fontSize: 16,
           ),
         ),
-        const SizedBox(height: 8),
-        Autocomplete<Peca>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty || _fornecedorSelecionado == null) {
-              return const Iterable<Peca>.empty();
-            }
-            return pecasFornecedor.where((peca) {
-              final searchText = textEditingValue.text.toLowerCase();
-              return peca.codigoFabricante.toLowerCase().contains(searchText) || peca.nome.toLowerCase().contains(searchText);
-            });
-          },
-          displayStringForOption: (Peca peca) => '${peca.codigoFabricante} - ${peca.nome}',
-          onSelected: (Peca selection) {
-            setState(() {
-              _pecaEncontrada = selection;
-              _codigoPecaController.text = selection.codigoFabricante;
-              _precoUnitarioController.text = selection.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
-            });
-            _updateSubmitState();
-            FocusScope.of(context).unfocus();
-          },
-          fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            if (controller.text != _codigoPecaController.text) {
-              controller.text = _codigoPecaController.text;
-            }
+        const SizedBox(height: 12),
+        Container(
+          height: 300,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListView.builder(
+            itemCount: _pecasFiltradas.length,
+            itemBuilder: (context, index) {
+              final peca = _pecasFiltradas[index];
+              final jaAdicionada = _pecasAdicionadas.any((p) => p.peca.id == peca.id);
+              final quantidadeEmOS = _pecasEmOS[peca.codigoFabricante]?['quantidade'] ?? 0;
 
-            return TextFormField(
-              controller: controller,
-              focusNode: focusNode,
-              validator: (v) => v!.isEmpty ? 'Informe o código da peça' : null,
-              onChanged: (value) {
-                _codigoPecaController.text = value;
-
-                final pecaExata = pecasFornecedor.where((p) => p.codigoFabricante.toLowerCase() == value.toLowerCase()).firstOrNull;
-
-                if (pecaExata != null && _pecaEncontrada?.id != pecaExata.id) {
-                  setState(() {
-                    _pecaEncontrada = pecaExata;
-                    _precoUnitarioController.text = pecaExata.precoUnitario.toStringAsFixed(2).replaceAll('.', ',');
-                  });
-                } else if (pecaExata == null && _pecaEncontrada != null) {
-                  setState(() {
-                    _pecaEncontrada = null;
-                    _precoUnitarioController.clear();
-                  });
-                }
-                _updateSubmitState();
-              },
-              decoration: InputDecoration(
-                hintText: _fornecedorSelecionado != null ? 'Digite o código ou nome da peça...' : 'Selecione um fornecedor primeiro',
-                prefixIcon: Icon(Icons.qr_code, color: primaryColor),
-                suffixIcon: _pecaEncontrada != null
-                    ? Container(
-                        margin: const EdgeInsets.all(4),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _pecaEncontrada!.quantidadeEstoque <= 5
-                              ? Colors.red[50]
-                              : _pecaEncontrada!.quantidadeEstoque <= 10
-                                  ? Colors.orange[50]
-                                  : Colors.green[50],
-                          borderRadius: BorderRadius.circular(4),
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: jaAdicionada ? Colors.grey[100] : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: jaAdicionada ? Colors.grey[300]! : Colors.grey[200]!),
+                ),
+                child: ListTile(
+                  enabled: !jaAdicionada,
+                  leading: Container(
+                    width: 50,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: peca.quantidadeEstoque <= 5
+                          ? Colors.red[100]
+                          : peca.quantidadeEstoque <= 10
+                              ? Colors.orange[100]
+                              : Colors.green[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${peca.quantidadeEstoque}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: peca.quantidadeEstoque <= 5
+                              ? Colors.red[700]
+                              : peca.quantidadeEstoque <= 10
+                                  ? Colors.orange[700]
+                                  : Colors.green[700],
                         ),
-                        child: Text(
-                          'Estoque: ${_pecaEncontrada!.quantidadeEstoque}',
-                          style: TextStyle(
-                            color: _pecaEncontrada!.quantidadeEstoque <= 5
-                                ? Colors.red[700]
-                                : _pecaEncontrada!.quantidadeEstoque <= 10
-                                    ? Colors.orange[700]
-                                    : Colors.green[700],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    '${peca.codigoFabricante} - ${peca.nome}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: jaAdicionada ? Colors.grey[600] : Colors.black,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Fabricante: ${peca.fabricante.nome}'),
+                      Text(
+                        'Preço: R\$ ${peca.precoUnitario.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: primaryColor,
                         ),
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: errorColor),
-                ),
-                filled: true,
-                fillColor: _fornecedorSelecionado != null ? Colors.grey[50] : Colors.grey[100],
-                enabled: _fornecedorSelecionado != null,
-              ),
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            final optList = options.toList();
-            if (optList.isEmpty) return const SizedBox.shrink();
-
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 200),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: optList.length,
-                    itemBuilder: (context, index) {
-                      final peca = optList[index];
-                      return ListTile(
-                        dense: true,
-                        leading: Container(
-                          width: 40,
-                          height: 40,
+                      ),
+                      if (quantidadeEmOS > 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: peca.quantidadeEstoque <= 5
-                                ? Colors.red[100]
-                                : peca.quantidadeEstoque <= 10
-                                    ? Colors.orange[100]
-                                    : Colors.green[100],
-                            borderRadius: BorderRadius.circular(8),
+                            color: warningColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Center(
+                          child: Text(
+                            '⚠️ $quantidadeEmOS unid. em OS abertas',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: warningColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  trailing: jaAdicionada ? Icon(Icons.check, color: Colors.green[600]) : Icon(Icons.add, color: primaryColor),
+                  onTap: jaAdicionada ? null : () => _adicionarPeca(peca),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Pesquisar por código, nome ou fabricante...',
+          prefixIcon: Icon(Icons.search, color: primaryColor),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filtrarPecas();
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
+        onChanged: (value) => _filtrarPecas(),
+      ),
+    );
+  }
+
+  Widget _buildPecasAdicionadas() {
+    if (_pecasAdicionadas.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Text(
+              'Peças para Entrada (${_pecasAdicionadas.length})',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+                fontSize: 16,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Total: R\$ ${_pecasAdicionadas.fold(0.0, (sum, p) => sum + p.valorTotal).toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: successColor,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _pecasAdicionadas.length,
+            itemBuilder: (context, index) {
+              final pecaEntrada = _pecasAdicionadas[index];
+              return Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              '${peca.quantidadeEstoque}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: peca.quantidadeEstoque <= 5
-                                    ? Colors.red[700]
-                                    : peca.quantidadeEstoque <= 10
-                                        ? Colors.orange[700]
-                                        : Colors.green[700],
+                              '${pecaEntrada.peca.codigoFabricante} - ${pecaEntrada.peca.nome}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
                               ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          '${peca.codigoFabricante} - ${peca.nome}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Fabricante: ${peca.fabricante.nome}',
-                              style: const TextStyle(fontSize: 12),
+                          IconButton(
+                            onPressed: () => _removerPeca(index),
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            iconSize: 20,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Quantidade:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed:
+                                          pecaEntrada.quantidade > 1 ? () => _atualizarQuantidade(index, pecaEntrada.quantidade - 1) : null,
+                                      icon: const Icon(Icons.remove),
+                                      iconSize: 16,
+                                    ),
+                                    Container(
+                                      width: 60,
+                                      child: Text(
+                                        '${pecaEntrada.quantidade}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _atualizarQuantidade(index, pecaEntrada.quantidade + 1),
+                                      icon: const Icon(Icons.add),
+                                      iconSize: 16,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Preço Unit.:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                TextFormField(
+                                  initialValue: pecaEntrada.precoUnitario.toStringAsFixed(2).replaceAll('.', ','),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: const TextStyle(fontSize: 14),
+                                  onChanged: (value) {
+                                    final preco = double.tryParse(value.replaceAll(',', '.'));
+                                    if (preco != null && preco > 0) {
+                                      _atualizarPreco(index, preco);
+                                    }
+                                  },
+                                  decoration: InputDecoration(
+                                    prefixText: 'R\$ ',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: successColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Total:', style: TextStyle(fontWeight: FontWeight.w600)),
                             Text(
-                              'Preço: R\$ ${peca.precoUnitario.toStringAsFixed(2)}',
+                              'R\$ ${pecaEntrada.valorTotal.toStringAsFixed(2)}',
                               style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: primaryColor,
+                                fontWeight: FontWeight.bold,
+                                color: successColor,
+                                fontSize: 16,
                               ),
                             ),
                           ],
                         ),
-                        onTap: () => onSelected(peca),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
@@ -699,7 +1007,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
-                      'Selecione primeiro o fornecedor, depois digite o código da peça para buscar automaticamente.',
+                      'Selecione o fornecedor e adicione múltiplas peças para entrada em estoque.',
                       style: TextStyle(fontSize: 14),
                     ),
                   ),
@@ -724,76 +1032,23 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               onChanged: (value) {
                 setState(() {
                   _fornecedorSelecionado = value;
-                  _pecaEncontrada = null;
-                  _codigoPecaController.clear();
-                  _precoUnitarioController.clear();
+                  _pecasAdicionadas.clear(); // Limpa peças ao mudar fornecedor
+                  _searchController.clear(); // Limpa busca ao mudar fornecedor
                 });
+                _filtrarPecas(); // Filtra peças do novo fornecedor
                 _updateSubmitState();
               },
               validator: (value) => value == null ? 'Selecione um fornecedor' : null,
             ),
-            const SizedBox(height: 16),
-            _buildPecaAutocomplete(),
-            const SizedBox(height: 16),
-            _buildPecaInfo(),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _precoUnitarioController,
-              label: 'Preço Unitário (Custo)',
-              icon: Icons.attach_money,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Informe o preço unitário';
-                }
-                if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
-                  return 'Digite apenas números e vírgula/ponto';
-                }
-                final preco = double.tryParse(value.replaceAll(',', '.'));
-                if (preco == null || preco <= 0) {
-                  return 'Preço deve ser maior que zero';
-                }
-                return null;
-              },
-              onChanged: (value) {
-                String newValue = value.replaceAll(RegExp(r'[^\d,.]'), '');
-                if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
-                  newValue = newValue.replaceFirst(RegExp(',.*'), ',');
-                }
-                if (newValue.indexOf('.') != newValue.lastIndexOf('.')) {
-                  newValue = newValue.replaceFirst(RegExp('..*'), '.');
-                }
-                if (newValue != value) {
-                  _precoUnitarioController.value = TextEditingValue(
-                    text: newValue,
-                    selection: TextSelection.collapsed(offset: newValue.length),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            _buildPecaSelector(),
+            _buildPecasAdicionadas(),
+            const SizedBox(height: 24),
             _buildTextField(
               controller: _numeroNotaFiscalController,
               label: 'Número da Nota Fiscal',
               icon: Icons.receipt,
               validator: (v) => v!.isEmpty ? 'Informe o número da nota fiscal' : null,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _quantidadeController,
-              label: 'Quantidade de Entrada',
-              icon: Icons.add_box,
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Informe a quantidade';
-                }
-                final quantidade = int.tryParse(value);
-                if (quantidade == null || quantidade <= 0) {
-                  return 'Quantidade deve ser maior que zero';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
             _buildTextField(
@@ -807,7 +1062,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _canSubmit ? _registrarEntrada : null,
+                onPressed: _canSubmit ? _registrarEntradas : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: successColor,
                   foregroundColor: Colors.white,
@@ -825,9 +1080,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'Registrar Entrada',
-                        style: TextStyle(
+                    : Text(
+                        'Registrar Entradas (${_pecasAdicionadas.length})',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

@@ -6,6 +6,7 @@ import '../model/peca.dart';
 import '../services/fabricante_service.dart';
 import '../services/fornecedor_service.dart';
 import '../services/peca_service.dart';
+import '../services/ordem_servico_service.dart';
 import 'entrada_estoque_page.dart';
 
 class CadastroPecaPage extends StatefulWidget {
@@ -32,6 +33,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   List<Peca> _pecas = [];
   List<Peca> _pecasFiltradas = [];
   Peca? _pecaEmEdicao;
+  Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
   bool _isLoading = false;
   bool _isLoadingPecas = true;
@@ -84,6 +86,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       await Future.wait([
         _carregarPecas(),
         _carregarFornecedoresEFabricantes(),
+        _carregarPecasEmOS(),
       ]);
     } catch (e) {
       _showError('Erro ao carregar dados');
@@ -121,6 +124,19 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       });
     } catch (e) {
       _showError('Erro ao carregar fornecedores e fabricantes');
+    }
+  }
+
+  Future<void> _carregarPecasEmOS() async {
+    try {
+      final pecasEmOS = await OrdemServicoService.buscarPecasEmOSAbertas();
+      print('Peças carregadas em OS: ${pecasEmOS.length} peças encontradas');
+      setState(() {
+        _pecasEmOS = pecasEmOS;
+      });
+    } catch (e) {
+      print('Erro ao carregar peças em OS: $e');
+      // Não mostra erro para o usuário pois é funcionalidade adicional
     }
   }
 
@@ -546,6 +562,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   Widget _buildPartCard(Peca peca) {
     final stockStatus = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
+    final quantidadeEmOS = _pecasEmOS[peca.codigoFabricante]?['quantidade'] ?? 0;
+    final ordensComPeca = _pecasEmOS[peca.codigoFabricante]?['ordens'] as List<String>? ?? [];
 
     return Container(
       decoration: BoxDecoration(
@@ -669,6 +687,52 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ],
                   ),
                 ),
+                
+                // Aviso de peças em OS abertas
+                if (quantidadeEmOS > 0)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: warningColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: warningColor.withOpacity(0.3), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.warning_amber, size: 14, color: warningColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '$quantidadeEmOS unid. em OS abertas',
+                                style: TextStyle(
+                                  color: warningColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (ordensComPeca.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'OS: ${ordensComPeca.take(3).join(', ')}${ordensComPeca.length > 3 ? '...' : ''}',
+                              style: TextStyle(
+                                color: warningColor.withOpacity(0.8),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

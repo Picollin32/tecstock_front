@@ -69,6 +69,38 @@ class MovimentacaoEstoqueService {
     }
   }
 
+  static Future<Map<String, dynamic>> registrarEntradasMultiplas({
+    required int fornecedorId,
+    required String numeroNotaFiscal,
+    required List<Map<String, dynamic>> pecas,
+    String? observacoes,
+  }) async {
+    try {
+      final body = {
+        'fornecedorId': fornecedorId,
+        'numeroNotaFiscal': numeroNotaFiscal,
+        'pecas': pecas,
+        if (observacoes != null && observacoes.isNotEmpty) 'observacoes': observacoes,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/entrada-multipla'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        return responseData;
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao registrar entradas'};
+      }
+    } catch (e) {
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
   static Future<List<MovimentacaoEstoque>> listarTodas() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/listar'));

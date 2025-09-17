@@ -142,16 +142,89 @@ class OrdemServicoService {
   }
 
   static Future<List<OrdemServico>> buscarPorStatus(String status) async {
+    final url = Uri.parse('$baseUrl/status/$status');
+    print('🌐 Fazendo requisição para: $url');
+    
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar-por-status/$status'));
+      final response = await http.get(url);
+      print('📡 Status da resposta: ${response.statusCode}');
+      print('📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+      
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((e) => OrdemServico.fromJson(e)).toList();
+        print('📊 Dados decodificados: ${jsonList.length} ordens encontradas');
+        List<OrdemServico> ordens = jsonList.map((e) => OrdemServico.fromJson(e)).toList();
+        print('✅ Ordens convertidas com sucesso');
+        return ordens;
+      } else {
+        print('❌ Erro HTTP: ${response.statusCode}');
+        return [];
       }
-      return [];
     } catch (e) {
-      print('Erro ao buscar ordens de serviço por status: $e');
+      print('❌ Erro na requisição: $e');
       return [];
+    }
+  }
+
+  /// Busca a quantidade total de uma peça específica que está sendo utilizada em ordens de serviço abertas
+  static Future<int> buscarQuantidadePecaEmOSAbertas(String codigoPeca) async {
+    try {
+      // Busca todas as ordens de serviço abertas
+      final ordensAbertas = await buscarPorStatus('ABERTA');
+      
+      double quantidadeTotal = 0;
+      
+      for (final os in ordensAbertas) {
+        for (final pecaOS in os.pecasUtilizadas) {
+          if (pecaOS.peca.codigoFabricante == codigoPeca) {
+            quantidadeTotal += pecaOS.quantidade;
+          }
+        }
+      }
+      
+      return quantidadeTotal.round();
+    } catch (e) {
+      print('Erro ao buscar quantidade de peça em OS abertas: $e');
+      return 0;
+    }
+  }
+
+  /// Busca informações detalhadas sobre peças em ordens de serviço abertas
+  static Future<Map<String, Map<String, dynamic>>> buscarPecasEmOSAbertas() async {
+    try {
+      print('🔍 Buscando peças em OS abertas...');
+      // Busca todas as ordens de serviço abertas
+      final ordensAbertas = await buscarPorStatus('ABERTA');
+      print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
+      
+      Map<String, Map<String, dynamic>> pecasInfo = {};
+      
+      for (final os in ordensAbertas) {
+        print('📋 Processando OS ${os.numeroOS} com ${os.pecasUtilizadas.length} peças');
+        for (final pecaOS in os.pecasUtilizadas) {
+          final codigo = pecaOS.peca.codigoFabricante;
+          
+          if (!pecasInfo.containsKey(codigo)) {
+            pecasInfo[codigo] = {
+              'nome': pecaOS.peca.nome,
+              'quantidade': 0,
+              'ordens': <String>[],
+            };
+          }
+          
+          pecasInfo[codigo]!['quantidade'] = (pecasInfo[codigo]!['quantidade'] as num) + pecaOS.quantidade;
+          
+          if (!pecasInfo[codigo]!['ordens'].contains(os.numeroOS)) {
+            pecasInfo[codigo]!['ordens'].add(os.numeroOS);
+          }
+        }
+      }
+      
+      print('📦 Total de peças diferentes em OS: ${pecasInfo.length}');
+      return pecasInfo;
+    } catch (e) {
+      print('❌ Erro ao buscar peças em OS abertas: $e');
+      return {};
     }
   }
 }

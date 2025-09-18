@@ -683,7 +683,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             : "Não informado",
                       ),
                       _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
-                      _buildInfoRow(Icons.sell, 'Venda: R\$ ${peca.precoFinal.toStringAsFixed(2)}', isPrice: true, isFinalPrice: true),
                     ],
                   ),
                 ),

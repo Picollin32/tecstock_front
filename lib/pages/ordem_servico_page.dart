@@ -942,28 +942,37 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
             ),
             const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: statusColor.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(statusIcon, size: 12, color: statusColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    _getStatusDisplayText(os.status),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
+            Builder(
+              builder: (context) {
+                final bool isClosed = _isOSEncerrada(os.status);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isClosed ? Colors.red.withOpacity(0.1) : statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isClosed ? Colors.red.withOpacity(0.3) : statusColor.withOpacity(0.3)),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isClosed ? Icons.lock : statusIcon,
+                        size: 12,
+                        color: isClosed ? Colors.red[700] : statusColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
+                        style: TextStyle(
+                          color: isClosed ? Colors.red[700] : statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -1099,7 +1108,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
             ),
             const SizedBox(width: 8),
-            if (os.status != 'ENCERRADA')
+            if (!_isOSEncerrada(os.status))
               Container(
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
@@ -1115,8 +1124,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   tooltip: 'Editar OS',
                 ),
               ),
-            if (os.status != 'ENCERRADA') const SizedBox(width: 8),
-            if (os.status == 'ENCERRADA')
+            if (!_isOSEncerrada(os.status)) const SizedBox(width: 8),
+            if (_isOSEncerrada(os.status))
               Container(
                 decoration: BoxDecoration(
                   color: Colors.purple.shade50,
@@ -4406,7 +4415,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _editOS(OrdemServico os) async {
-    if (os.status == 'ENCERRADA') {
+    if (_isOSEncerrada(os.status)) {
       _showErrorSnackBar('Não é possível editar uma OS encerrada');
       return;
     }
@@ -4740,7 +4749,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
                   await _loadData();
                   _showSuccessSnackBar(
-                      'OS fechada com sucesso! Estoque atualizado e movimentações registradas.${os.checklistId != null ? ' Checklist associado foi fechado.' : ''}');
+                      'OS encerrada com sucesso! Estoque atualizado e movimentações registradas.${os.checklistId != null ? ' Checklist associado foi encerrado.' : ''}');
                 } else {
                   _showErrorSnackBar('Erro ao fechar OS: ${resultado['mensagem']}');
                 }
@@ -4806,5 +4815,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       default:
         return status;
     }
+  }
+
+  bool _isOSEncerrada(String? status) {
+    if (status == null) return false;
+    final s = status.toUpperCase().trim();
+    return s == 'ENCERRADA';
   }
 }

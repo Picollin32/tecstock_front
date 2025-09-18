@@ -194,7 +194,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         await _carregarServicos();
         _showSuccessSnackBar('Serviço excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir serviço');
+        ErrorUtils.showVisibleError(context, 'Erro ao excluir serviço, ele está vinculado a algum checklist ou OS');
       }
     } catch (e) {
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir serviço');

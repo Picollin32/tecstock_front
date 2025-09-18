@@ -102,7 +102,7 @@ class OrdemServicoService {
 
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
-        return {'sucesso': true, 'mensagem': 'Ordem de serviço fechada com sucesso', 'ordemServico': OrdemServico.fromJson(jsonData)};
+        return {'sucesso': true, 'mensagem': 'Ordem de serviço encerrada com sucesso', 'ordemServico': OrdemServico.fromJson(jsonData)};
       } else {
         final errorData = jsonDecode(utf8.decode(response.bodyBytes));
         return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao fechar ordem de serviço'};

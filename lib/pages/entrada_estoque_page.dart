@@ -132,6 +132,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   List<Peca> _pecasDisponiveis = [];
   List<Peca> _pecasFiltradas = [];
   List<PecaEntrada> _pecasAdicionadas = [];
+  // Controllers para quantidade e preço por peça indexada por código do fabricante
+  final Map<String, TextEditingController> _quantidadeControllers = {};
   Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
   bool _isLoading = false;
@@ -172,6 +174,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _numeroNotaFiscalController.dispose();
     _observacoesController.dispose();
     _searchController.dispose();
+    // dispose quantity controllers
+    for (var c in _quantidadeControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -251,15 +257,27 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
         quantidade: 1,
         precoUnitario: peca.precoUnitario,
       ));
+      // cria controller para permitir edição manual da quantidade
+      _quantidadeControllers[peca.codigoFabricante] = TextEditingController(text: '1');
     });
     _updateSubmitState();
   }
 
   void _removerPeca(int index) {
     if (index >= 0 && index < _pecasAdicionadas.length) {
+      final codigo = _pecasAdicionadas[index].peca.codigoFabricante;
+      // remove o controller do mapa e guarde para dispose posterior
+      final removedController = _quantidadeControllers.remove(codigo);
       setState(() {
         _pecasAdicionadas.removeAt(index);
       });
+      if (removedController != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            removedController.dispose();
+          } catch (_) {}
+        });
+      }
       _updateSubmitState();
     }
   }
@@ -271,6 +289,21 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       });
       _updateSubmitState();
     }
+  }
+
+  // Atualiza quantidade no modelo e no controller (usado pelos botões + / -)
+  void _setQuantidadeAndController(int index, int novaQuantidade) {
+    if (index < 0 || index >= _pecasAdicionadas.length || novaQuantidade <= 0) return;
+    final codigo = _pecasAdicionadas[index].peca.codigoFabricante;
+    setState(() {
+      _pecasAdicionadas[index].quantidade = novaQuantidade;
+      final c = _quantidadeControllers[codigo];
+      if (c != null) {
+        c.text = novaQuantidade.toString();
+        c.selection = TextSelection.collapsed(offset: c.text.length);
+      }
+    });
+    _updateSubmitState();
   }
 
   void _atualizarPreco(int index, double novoPreco) {
@@ -345,11 +378,23 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _formKey.currentState?.reset();
     _numeroNotaFiscalController.clear();
     _observacoesController.clear();
+    final controllersToDispose = _quantidadeControllers.values.toList();
     setState(() {
       _fornecedorSelecionado = null;
+      // limpa lista de peças e controllers de quantidade
       _pecasAdicionadas.clear();
+      _quantidadeControllers.clear();
       _canSubmit = false;
     });
+    if (controllersToDispose.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (var c in controllersToDispose) {
+          try {
+            c.dispose();
+          } catch (_) {}
+        }
+      });
+    }
   }
 
   void _showSuccessDialog(String titulo, List<String> detalhes) {
@@ -672,6 +717,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       children: [
         _buildSearchField(),
         const SizedBox(height: 12),
+        // ...existing code...
         Text(
           'Peças Disponíveis (${_pecasFiltradas.length})',
           style: TextStyle(
@@ -901,21 +947,34 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                                 Row(
                                   children: [
                                     IconButton(
-                                      onPressed:
-                                          pecaEntrada.quantidade > 1 ? () => _atualizarQuantidade(index, pecaEntrada.quantidade - 1) : null,
+                                      onPressed: pecaEntrada.quantidade > 1
+                                          ? () => _setQuantidadeAndController(index, pecaEntrada.quantidade - 1)
+                                          : null,
                                       icon: const Icon(Icons.remove),
                                       iconSize: 16,
                                     ),
                                     Container(
-                                      width: 60,
-                                      child: Text(
-                                        '${pecaEntrada.quantidade}',
+                                      width: 80,
+                                      child: TextFormField(
+                                        controller: _quantidadeControllers[pecaEntrada.peca.codigoFabricante] ??=
+                                            TextEditingController(text: pecaEntrada.quantidade.toString()),
+                                        keyboardType: TextInputType.number,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        onChanged: (value) {
+                                          final v = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                                          if (v > 0) {
+                                            _atualizarQuantidade(index, v);
+                                          } else {
+                                            // evita valor zero ou vazio — mantem 1 como mínimo temporariamente
+                                            // não chama setState para não duplicar alterações
+                                          }
+                                        },
                                       ),
                                     ),
                                     IconButton(
-                                      onPressed: () => _atualizarQuantidade(index, pecaEntrada.quantidade + 1),
+                                      onPressed: () => _setQuantidadeAndController(index, pecaEntrada.quantidade + 1),
                                       icon: const Icon(Icons.add),
                                       iconSize: 16,
                                     ),
@@ -1032,11 +1091,24 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                     .toList();
               })(),
               onChanged: (value) {
+                // copia controllers para disposal posterior (fora do setState)
+                final controllersToDispose = _quantidadeControllers.values.toList();
                 setState(() {
                   _fornecedorSelecionado = value;
-                  _pecasAdicionadas.clear(); // Limpa peças ao mudar fornecedor
+                  // limpa peças ao mudar fornecedor
+                  _pecasAdicionadas.clear();
+                  _quantidadeControllers.clear();
                   _searchController.clear(); // Limpa busca ao mudar fornecedor
                 });
+                if (controllersToDispose.isNotEmpty) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    for (var c in controllersToDispose) {
+                      try {
+                        c.dispose();
+                      } catch (_) {}
+                    }
+                  });
+                }
                 _filtrarPecas(); // Filtra peças do novo fornecedor
                 _updateSubmitState();
               },
@@ -1045,7 +1117,23 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             const SizedBox(height: 24),
             _buildPecaSelector(),
             _buildPecasAdicionadas(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            // Aviso: se o valor declarado for diferente do valor unitário
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.yellow[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.yellow[200]!),
+              ),
+              child: const Text(
+                'Se o valor declarado for diferente do valor unitário, o valor será ajustado',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 12),
             _buildTextField(
               controller: _numeroNotaFiscalController,
               label: 'Número da Nota Fiscal',

@@ -6,6 +6,8 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/funcionario_service.dart';
+import '../services/cliente_service.dart';
+import 'package:TecStock/model/cliente.dart';
 import '../utils/error_utils.dart';
 
 class CadastroFuncionarioPage extends StatefulWidget {
@@ -144,6 +146,24 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     setState(() => _isLoading = true);
 
     try {
+      final cpfLimpo = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
+      final clientes = await ClienteService.listarClientes();
+      Cliente? existenteCliente;
+      for (final c in clientes) {
+        if (c.cpf == cpfLimpo) {
+          existenteCliente = c;
+          break;
+        }
+      }
+
+      if (existenteCliente != null) {
+        if (!(_funcionarioEmEdicao != null && _funcionarioEmEdicao!.cpf == cpfLimpo)) {
+          ErrorUtils.showVisibleError(context, 'CPF já cadastrado como Cliente');
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
       final dataNascimentoFormatada = DateFormat('dd/MM/yyyy').parse(_dataNascimentoController.text);
 
       final funcionario = Funcionario(

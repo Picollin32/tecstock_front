@@ -71,7 +71,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   List<dynamic> _clientes = [];
   List<dynamic> _funcionarios = [];
-  List<dynamic> _pessoasTodasClientesFuncionarios = [];
   List<dynamic> _veiculos = [];
   List<Checklist> _checklists = [];
   List<Checklist> _checklistsFiltrados = [];
@@ -223,7 +222,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         });
         _recent = ordensServico.take(5).toList();
         _recentFiltrados = _recent;
-        _pessoasTodasClientesFuncionarios = [..._clientes, ..._funcionarios];
 
         for (var c in _clientes) {
           _clienteByCpf[c.cpf] = c;
@@ -1506,8 +1504,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
-    final options = _pessoasTodasClientesFuncionarios.map((c) => c.cpf).whereType<String>().toList()
-      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final options = _clienteByCpf.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1526,13 +1523,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             return options.where((cpf) => cpf.toLowerCase().contains(textEditingValue.text.toLowerCase()));
           },
           onSelected: (String selection) {
-            final c = _clienteByCpf[selection];
-            if (c != null) {
+            final pessoa = _clienteByCpf[selection];
+            if (pessoa != null) {
+              final telefone = (pessoa.telefone ?? '').toString();
               setState(() {
-                _clienteNomeController.text = c.nome;
-                _clienteCpfController.text = c.cpf;
-                _clienteTelefoneController.text = _maskTelefone.maskText(c.telefone);
-                _clienteEmailController.text = c.email;
+                _clienteNomeController.text = pessoa.nome ?? '';
+                _clienteCpfController.text = pessoa.cpf ?? '';
+                _clienteTelefoneController.text = telefone.isNotEmpty ? _maskTelefone.maskText(telefone) : '';
+                _clienteEmailController.text = pessoa.email ?? '';
               });
               _filtrarChecklists();
             }

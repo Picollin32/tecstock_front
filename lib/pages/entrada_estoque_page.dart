@@ -132,7 +132,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   List<Peca> _pecasDisponiveis = [];
   List<Peca> _pecasFiltradas = [];
   List<PecaEntrada> _pecasAdicionadas = [];
-  // Controllers para quantidade e preço por peça indexada por código do fabricante
   final Map<String, TextEditingController> _quantidadeControllers = {};
   Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
@@ -1091,14 +1090,12 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                     .toList();
               })(),
               onChanged: (value) {
-                // copia controllers para disposal posterior (fora do setState)
                 final controllersToDispose = _quantidadeControllers.values.toList();
                 setState(() {
                   _fornecedorSelecionado = value;
-                  // limpa peças ao mudar fornecedor
                   _pecasAdicionadas.clear();
                   _quantidadeControllers.clear();
-                  _searchController.clear(); // Limpa busca ao mudar fornecedor
+                  _searchController.clear();
                 });
                 if (controllersToDispose.isNotEmpty) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1109,7 +1106,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                     }
                   });
                 }
-                _filtrarPecas(); // Filtra peças do novo fornecedor
+                _filtrarPecas();
                 _updateSubmitState();
               },
               validator: (value) => value == null ? 'Selecione um fornecedor' : null,
@@ -1118,7 +1115,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             _buildPecaSelector(),
             _buildPecasAdicionadas(),
             const SizedBox(height: 12),
-            // Aviso: se o valor declarado for diferente do valor unitário
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),

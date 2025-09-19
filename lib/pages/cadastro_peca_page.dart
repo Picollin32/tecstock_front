@@ -136,7 +136,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       });
     } catch (e) {
       print('Erro ao carregar peças em OS: $e');
-      // Não mostra erro para o usuário pois é funcionalidade adicional
     }
   }
 
@@ -686,8 +685,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ],
                   ),
                 ),
-
-                // Aviso de peças em OS abertas
                 if (quantidadeEmOS > 0)
                   Container(
                     width: double.infinity,
@@ -731,7 +728,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ],
                     ),
                   ),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

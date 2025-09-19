@@ -167,10 +167,8 @@ class OrdemServicoService {
     }
   }
 
-  /// Busca a quantidade total de uma peça específica que está sendo utilizada em ordens de serviço abertas
   static Future<int> buscarQuantidadePecaEmOSAbertas(String codigoPeca) async {
     try {
-      // Busca todas as ordens de serviço abertas
       final ordensAbertas = await buscarPorStatus('ABERTA');
 
       double quantidadeTotal = 0;
@@ -190,11 +188,9 @@ class OrdemServicoService {
     }
   }
 
-  /// Busca informações detalhadas sobre peças em ordens de serviço abertas
   static Future<Map<String, Map<String, dynamic>>> buscarPecasEmOSAbertas() async {
     try {
       print('🔍 Buscando peças em OS abertas...');
-      // Busca todas as ordens de serviço abertas
       final ordensAbertas = await buscarPorStatus('ABERTA');
       print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
 

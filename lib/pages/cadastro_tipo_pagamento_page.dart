@@ -76,8 +76,10 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     setState(() => _isLoadingTipos = true);
     try {
       final lista = await TipoPagamentoService.listarTiposPagamento();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _tiposPagamento = lista.reversed.toList();
+        _tiposPagamento = lista;
         _filtrarTiposPagamento();
       });
     } catch (e) {

@@ -79,8 +79,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     setState(() => _isLoadingServicos = true);
     try {
       final lista = await ServicoService.listarServicos();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _servicos = lista.reversed.toList();
+        _servicos = lista;
         _filtrarServicos();
       });
     } catch (e) {
@@ -586,20 +588,6 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.monetization_on, size: 12, color: successColor),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Preço médio: R\$ ${((precoPasseio + precoCaminhonete) / 2).toStringAsFixed(2).replaceAll('.', ',')}',
-                            style: TextStyle(
-                              color: successColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
                       if (servico.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

@@ -73,8 +73,10 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     setState(() => _isLoadingFabricantes = true);
     try {
       final lista = await FabricanteService.listarFabricantes();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _fabricantes = lista.reversed.toList();
+        _fabricantes = lista;
         _filtrarFabricantes();
       });
     } catch (e) {

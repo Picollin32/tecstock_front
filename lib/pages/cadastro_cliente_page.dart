@@ -96,8 +96,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     setState(() => _isLoadingClientes = true);
     try {
       final lista = await ClienteService.listarClientes();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _clientes = lista.reversed.toList();
+        _clientes = lista;
         _filtrarClientes();
       });
     } catch (e) {
@@ -606,20 +608,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.person, size: 12, color: Colors.grey[600]),
-                          const SizedBox(width: 6),
-                          Text(
-                            'ID: ${cliente.id}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
                       if (cliente.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -690,6 +678,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             icon: Icons.badge,
             keyboardType: TextInputType.number,
             inputFormatters: [_maskCpf],
+            readOnly: _clienteEmEdicao != null,
             validator: (cpf) {
               if (cpf == null || cpf.isEmpty) {
                 return 'Por favor, insira um CPF';
@@ -803,7 +792,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: primaryColor),
-        suffixIcon: readOnly ? Icon(Icons.calendar_today, color: primaryColor) : null,
+        suffixIcon: (readOnly && onTap != null) ? Icon(Icons.calendar_today, color: primaryColor) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),

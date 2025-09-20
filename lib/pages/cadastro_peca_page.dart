@@ -101,8 +101,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       setState(() {
         _pecas = listaPecas
           ..sort((a, b) {
-            final dataA = a.updatedAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final dataB = b.updatedAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final DateTime dataA = a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final DateTime dataB = b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
             return dataB.compareTo(dataA);
           });
         _filtrarPecas();
@@ -119,6 +119,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       listaFabricantes.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
       setState(() {
+        listaFornecedores.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
         _fornecedores = listaFornecedores;
         _fabricantes = listaFabricantes;
       });
@@ -1311,7 +1312,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               const SizedBox(height: 24),
               if (_searchController.text.isEmpty && _filtroEstoque == 'todos' && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
                 Text(
-                  'Movimentações Recentes',
+                  'Últimas Peças Cadastradas',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

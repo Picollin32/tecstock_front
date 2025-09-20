@@ -54,7 +54,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   static const Color primaryColor = Color(0xFF2196F3);
   static const Color errorColor = Color(0xFFE53E3E);
   static const Color successColor = Color(0xFF38A169);
-  static const Color warningColor = Color(0xFFF59E0B);
   static const Color shadowColor = Color(0x1A000000);
 
   @override
@@ -109,8 +108,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     setState(() => _isLoadingVeiculos = true);
     try {
       final lista = await VeiculoService.listarVeiculos();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _veiculos = lista.reversed.toList();
+        _veiculos = lista;
         _filtrarVeiculos();
       });
     } catch (e) {
@@ -599,20 +600,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.speed, size: 12, color: warningColor),
-                          const SizedBox(width: 6),
-                          Text(
-                            'KM: ${veiculo.quilometragem.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              color: warningColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
                       if (veiculo.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),

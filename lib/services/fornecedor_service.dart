@@ -44,7 +44,9 @@ class FornecedorService {
       final response = await http.get(Uri.parse(baseUrl));
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((json) => Fornecedor.fromJson(json)).toList();
+        final lista = jsonList.map((json) => Fornecedor.fromJson(json)).toList();
+        lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+        return lista;
       }
       return [];
     } catch (e) {

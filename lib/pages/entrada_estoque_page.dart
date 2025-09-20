@@ -173,7 +173,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _numeroNotaFiscalController.dispose();
     _observacoesController.dispose();
     _searchController.dispose();
-    // dispose quantity controllers
     for (var c in _quantidadeControllers.values) {
       c.dispose();
     }
@@ -193,7 +192,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
         _fornecedores = results[0] as List<Fornecedor>;
         _pecasDisponiveis = results[1] as List<Peca>;
         _pecasEmOS = results[2] as Map<String, Map<String, dynamic>>;
-        _filtrarPecas(); // Filtrar peças após carregamento
+        _filtrarPecas();
       });
     } catch (e) {
       _showError('Erro ao carregar dados');
@@ -243,7 +242,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   }
 
   void _adicionarPeca(Peca peca) {
-    // Verifica se a peça já foi adicionada
     final jaAdicionada = _pecasAdicionadas.any((p) => p.peca.id == peca.id);
     if (jaAdicionada) {
       _showError('Esta peça já foi adicionada à lista');
@@ -256,7 +254,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
         quantidade: 1,
         precoUnitario: peca.precoUnitario,
       ));
-      // cria controller para permitir edição manual da quantidade
       _quantidadeControllers[peca.codigoFabricante] = TextEditingController(text: '1');
     });
     _updateSubmitState();
@@ -265,7 +262,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   void _removerPeca(int index) {
     if (index >= 0 && index < _pecasAdicionadas.length) {
       final codigo = _pecasAdicionadas[index].peca.codigoFabricante;
-      // remove o controller do mapa e guarde para dispose posterior
       final removedController = _quantidadeControllers.remove(codigo);
       setState(() {
         _pecasAdicionadas.removeAt(index);
@@ -290,7 +286,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     }
   }
 
-  // Atualiza quantidade no modelo e no controller (usado pelos botões + / -)
   void _setQuantidadeAndController(int index, int novaQuantidade) {
     if (index < 0 || index >= _pecasAdicionadas.length || novaQuantidade <= 0) return;
     final codigo = _pecasAdicionadas[index].peca.codigoFabricante;
@@ -327,7 +322,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     });
 
     try {
-      // Prepara os dados das peças para o novo endpoint
       List<Map<String, dynamic>> pecasData = _pecasAdicionadas
           .map((pecaEntrada) => {
                 'codigoPeca': pecaEntrada.peca.codigoFabricante,
@@ -336,7 +330,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               })
           .toList();
 
-      // Chama o novo endpoint que registra múltiplas peças de uma vez
       final resultado = await MovimentacaoEstoqueService.registrarEntradasMultiplas(
         fornecedorId: _fornecedorSelecionado!.id!,
         numeroNotaFiscal: _numeroNotaFiscalController.text.trim(),
@@ -346,7 +339,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
       Navigator.of(context).pop();
 
-      // Mostra resultado baseado na resposta do servidor
       if (resultado['sucesso']) {
         final sucessos = resultado['sucessos'] ?? 0;
         final falhas = resultado['falhas'] ?? 0;
@@ -380,7 +372,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     final controllersToDispose = _quantidadeControllers.values.toList();
     setState(() {
       _fornecedorSelecionado = null;
-      // limpa lista de peças e controllers de quantidade
       _pecasAdicionadas.clear();
       _quantidadeControllers.clear();
       _canSubmit = false;
@@ -716,7 +707,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       children: [
         _buildSearchField(),
         const SizedBox(height: 12),
-        // ...existing code...
         Text(
           'Peças Disponíveis (${_pecasFiltradas.length})',
           style: TextStyle(
@@ -965,10 +955,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                                           final v = int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
                                           if (v > 0) {
                                             _atualizarQuantidade(index, v);
-                                          } else {
-                                            // evita valor zero ou vazio — mantem 1 como mínimo temporariamente
-                                            // não chama setState para não duplicar alterações
-                                          }
+                                          } else {}
                                         },
                                       ),
                                     ),

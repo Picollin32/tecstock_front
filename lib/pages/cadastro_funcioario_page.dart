@@ -102,8 +102,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     setState(() => _isLoadingFuncionarios = true);
     try {
       final lista = await Funcionarioservice.listarFuncionarios();
+      lista.sort((a, b) =>
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _funcionarios = lista.reversed.toList();
+        _funcionarios = lista;
         _filtrarFuncionarios();
       });
     } catch (e) {
@@ -608,20 +610,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(nivelInfo['icon'], size: 12, color: nivelInfo['color']),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Nível: ${nivelInfo['label']}',
-                            style: TextStyle(
-                              color: nivelInfo['color'],
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
                       if (funcionario.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -692,6 +680,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             icon: Icons.badge,
             keyboardType: TextInputType.number,
             inputFormatters: [_maskCpf],
+            readOnly: _funcionarioEmEdicao != null,
             validator: (cpf) {
               if (cpf == null || cpf.isEmpty) {
                 return 'Por favor, insira um CPF';
@@ -825,7 +814,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: primaryColor),
-        suffixIcon: readOnly ? Icon(Icons.calendar_today, color: primaryColor) : null,
+        suffixIcon: (readOnly && onTap != null) ? Icon(Icons.calendar_today, color: primaryColor) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),

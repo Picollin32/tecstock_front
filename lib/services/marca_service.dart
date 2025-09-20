@@ -40,7 +40,22 @@ class MarcaService {
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         final listas = jsonList.map((e) => Marca.fromJson(e)).toList();
-        listas.sort((a, b) => a.marca.toLowerCase().compareTo(b.marca.toLowerCase()));
+
+        listas.sort((a, b) {
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) {
+            return bDate.compareTo(aDate);
+          } else if (aDate != null) {
+            return -1;
+          } else if (bDate != null) {
+            return 1;
+          }
+
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        });
         return listas;
       }
       return [];

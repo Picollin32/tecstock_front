@@ -96,8 +96,14 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() => _isLoadingFornecedores = true);
     try {
       final lista = await FornecedorService.listarFornecedores();
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
       setState(() {
-        _fornecedores = lista.reversed.toList();
+        _fornecedores = lista.toList();
         _filtrarFornecedores();
       });
     } catch (e) {
@@ -407,8 +413,21 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        if (constraints.maxWidth >= 1100) {
+          crossAxisCount = 3;
+        } else if (constraints.maxWidth >= 700) {
           crossAxisCount = 2;
+        } else {
+          crossAxisCount = 1;
+        }
+
+        double childAspectRatio;
+        if (crossAxisCount == 1) {
+          childAspectRatio = 3.2;
+        } else if (crossAxisCount == 2) {
+          childAspectRatio = 2.2;
+        } else {
+          childAspectRatio = 1.4;
         }
 
         return GridView.builder(
@@ -416,9 +435,9 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: _fornecedoresFiltrados.length,
           itemBuilder: (context, index) => _buildSupplierCard(_fornecedoresFiltrados[index]),
@@ -455,22 +474,19 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarFornecedor(fornecedor),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: primaryColor.withOpacity(0.1),
                       child: Icon(
                         Icons.store,
                         color: primaryColor,
-                        size: 24,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -482,7 +498,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                             fornecedor.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -498,7 +514,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                               'Margem: ${margem.toStringAsFixed(0)}%',
                               style: TextStyle(
                                 color: margemColor,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -539,7 +555,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,7 +568,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 ),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(8),
@@ -560,20 +576,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.trending_up, size: 12, color: margemColor),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Margem de Lucro: ${margem.toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              color: margemColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
                       if (fornecedor.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -644,6 +646,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             icon: Icons.badge,
             keyboardType: TextInputType.number,
             inputFormatters: [_maskCnpj],
+            readOnly: _fornecedorEmEdicao != null,
             validator: (v) {
               if (v == null || v.isEmpty) return 'Informe o CNPJ';
               if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
@@ -750,17 +753,22 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
     String? suffixText,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       validator: validator,
+      readOnly: readOnly,
+      onTap: onTap,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,
         suffixText: suffixText,
         prefixIcon: Icon(icon, color: primaryColor),
+        suffixIcon: (readOnly && onTap != null) ? Icon(Icons.calendar_today, color: primaryColor) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),

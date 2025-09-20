@@ -5,6 +5,7 @@ class MovimentacaoEstoque {
   String codigoPeca;
   Fornecedor fornecedor;
   int quantidade;
+  double? precoFinal;
   double? precoUnitario;
   String numeroNotaFiscal;
   TipoMovimentacao tipoMovimentacao;
@@ -18,6 +19,7 @@ class MovimentacaoEstoque {
     required this.fornecedor,
     required this.quantidade,
     this.precoUnitario,
+    this.precoFinal,
     required this.numeroNotaFiscal,
     required this.tipoMovimentacao,
     this.dataEntrada,
@@ -32,6 +34,7 @@ class MovimentacaoEstoque {
       fornecedor: Fornecedor.fromJson(json['fornecedor']),
       quantidade: json['quantidade'],
       precoUnitario: json['precoUnitario'] != null ? (json['precoUnitario'] as num).toDouble() : null,
+      precoFinal: json['precoFinal'] != null ? (json['precoFinal'] as num).toDouble() : null,
       numeroNotaFiscal: json['numeroNotaFiscal'],
       tipoMovimentacao: TipoMovimentacao.values.firstWhere(
         (e) => e.toString().split('.').last == json['tipoMovimentacao'],
@@ -49,6 +52,7 @@ class MovimentacaoEstoque {
       'fornecedor': fornecedor.toJson(),
       'quantidade': quantidade,
       'precoUnitario': precoUnitario,
+      'precoFinal': precoFinal,
       'numeroNotaFiscal': numeroNotaFiscal,
       'tipoMovimentacao': tipoMovimentacao.toString().split('.').last,
       'dataEntrada': dataEntrada?.toIso8601String(),

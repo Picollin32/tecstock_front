@@ -131,7 +131,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   List<Fornecedor> _fornecedores = [];
   List<Peca> _pecasDisponiveis = [];
   List<Peca> _pecasFiltradas = [];
-  List<PecaEntrada> _pecasAdicionadas = [];
+  final List<PecaEntrada> _pecasAdicionadas = [];
   final Map<String, TextEditingController> _quantidadeControllers = {};
   Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
@@ -942,7 +942,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                                       icon: const Icon(Icons.remove),
                                       iconSize: 16,
                                     ),
-                                    Container(
+                                    SizedBox(
                                       width: 80,
                                       child: TextFormField(
                                         controller: _quantidadeControllers[pecaEntrada.peca.codigoFabricante] ??=

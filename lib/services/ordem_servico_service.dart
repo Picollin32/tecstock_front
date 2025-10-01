@@ -149,7 +149,7 @@ class OrdemServicoService {
       final response = await http.get(url);
       print('📡 Status da resposta: ${response.statusCode}');
       print(
-          '📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+          '📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? "${response.body.substring(0, 200)}..." : response.body}');
 
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));

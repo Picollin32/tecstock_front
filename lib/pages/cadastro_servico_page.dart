@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/servico.dart';
 import '../services/servico_service.dart';
+import '../services/ordem_servico_service.dart';
 import '../utils/error_utils.dart';
 
 class CadastroServicoPage extends StatefulWidget {
@@ -21,9 +22,11 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   List<Servico> _servicos = [];
   List<Servico> _servicosFiltrados = [];
   Servico? _servicoEmEdicao;
+  Map<int, Map<String, dynamic>> _servicosEmOS = {};
 
   bool _isLoading = false;
   bool _isLoadingServicos = true;
+  String _filtroServicos = 'todos'; // 'todos', 'pendentes'
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -31,6 +34,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   static const Color primaryColor = Color(0xFF8B5CF6);
   static const Color errorColor = Color(0xFFDC2626);
   static const Color successColor = Color(0xFF16A34A);
+  static const Color warningColor = Color(0xFFF59E0B);
   static const Color shadowColor = Color(0x1A000000);
 
   @override
@@ -38,8 +42,50 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     super.initState();
     _initializeAnimations();
     _limparFormulario();
-    _carregarServicos();
+    _carregarDados();
     _searchController.addListener(_filtrarServicos);
+  }
+
+  Future<void> _carregarDados() async {
+    setState(() => _isLoadingServicos = true);
+    try {
+      await Future.wait([
+        _carregarServicos(),
+        _carregarServicosEmOS(),
+      ]);
+    } catch (e) {
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar dados');
+    } finally {
+      setState(() => _isLoadingServicos = false);
+    }
+  }
+
+  Future<void> _carregarServicosEmOS() async {
+    try {
+      print('🔄 Iniciando carregamento de serviços em OS...');
+      final servicosEmOS = await OrdemServicoService.buscarServicosEmOSAbertas();
+      print('📊 Serviços carregados em OS: ${servicosEmOS.length} serviços encontrados');
+
+      if (servicosEmOS.isEmpty) {
+        print('⚠️ ATENÇÃO: Nenhum serviço encontrado em OSs abertas!');
+        print('   Possíveis motivos:');
+        print('   1. Não há OSs com status ABERTA no sistema');
+        print('   2. As OSs abertas não têm serviços adicionados');
+        print('   3. Problema na deserialização do JSON');
+      } else {
+        print('✅ Mapeamento de serviços em OS:');
+        servicosEmOS.forEach((id, info) {
+          print('   Serviço ID $id (${info['nome']}): ${info['quantidade']} OSs → ${info['ordens']}');
+        });
+      }
+
+      setState(() {
+        _servicosEmOS = servicosEmOS;
+      });
+    } catch (e, stackTrace) {
+      print('❌ Erro ao carregar serviços em OS: $e');
+      print('Stack trace: $stackTrace');
+    }
   }
 
   void _initializeAnimations() {
@@ -65,10 +111,18 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   void _filtrarServicos() {
     final query = _searchController.text.toLowerCase();
     setState(() {
+      List<Servico> servicosBase = _servicos;
+
+      // Aplicar filtro de status primeiro
+      if (_filtroServicos == 'pendentes') {
+        servicosBase = servicosBase.where((s) => s.unidadesUsadasEmOS != null && s.unidadesUsadasEmOS! > 0).toList();
+      }
+
+      // Aplicar filtro de busca
       if (query.isEmpty) {
-        _servicosFiltrados = _servicos.take(6).toList();
+        _servicosFiltrados = servicosBase.take(6).toList();
       } else {
-        _servicosFiltrados = _servicos.where((servico) {
+        _servicosFiltrados = servicosBase.where((servico) {
           return servico.nome.toLowerCase().contains(query);
         }).toList();
       }
@@ -293,6 +347,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         ),
       ),
     );
+  }
+
+  int _contarServicosPendentes() {
+    return _servicos.where((s) => s.unidadesUsadasEmOS != null && s.unidadesUsadasEmOS! > 0).length;
   }
 
   Widget _buildSearchBar() {
@@ -578,6 +636,50 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     ],
                   ),
                 ),
+                if (servico.unidadesUsadasEmOS != null && servico.unidadesUsadasEmOS! > 0) ...[
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: warningColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: warningColor.withOpacity(0.3), width: 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.pending_actions, size: 14, color: warningColor),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${servico.unidadesUsadasEmOS} OS${servico.unidadesUsadasEmOS! > 1 ? 's' : ''} não encerrada${servico.unidadesUsadasEmOS! > 1 ? 's' : ''}',
+                                style: TextStyle(
+                                  color: warningColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_servicosEmOS.containsKey(servico.id) && (_servicosEmOS[servico.id]!['ordens'] as List<String>).isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'OS: ${(_servicosEmOS[servico.id]!['ordens'] as List<String>).take(3).join(', ')}${(_servicosEmOS[servico.id]!['ordens'] as List<String>).length > 3 ? '...' : ''}',
+                              style: TextStyle(
+                                color: warningColor.withOpacity(0.8),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -777,7 +879,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
               Row(
                 children: [
                   Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Container(
                     decoration: BoxDecoration(
                       color: primaryColor,
@@ -798,12 +900,72 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                       icon: const Icon(Icons.add, color: Colors.white),
                       iconSize: 28,
                       padding: const EdgeInsets.all(12),
+                      tooltip: 'Novo Serviço',
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _filtroServicos == 'pendentes' ? warningColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_filtroServicos == 'pendentes' ? warningColor : Colors.grey).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _filtroServicos = _filtroServicos == 'pendentes' ? 'todos' : 'pendentes';
+                            });
+                            _filtrarServicos();
+                          },
+                          icon: Icon(
+                            Icons.pending_actions,
+                            color: _filtroServicos == 'pendentes' ? Colors.white : Colors.grey[600],
+                          ),
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          tooltip: _filtroServicos == 'pendentes' ? 'Mostrar todos os serviços' : 'Filtrar serviços pendentes em OSs',
+                        ),
+                      ),
+                      if (_contarServicosPendentes() > 0 && _filtroServicos != 'pendentes')
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: warningColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              '${_contarServicosPendentes()}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingServicos && _servicosFiltrados.isNotEmpty)
+              if (_searchController.text.isEmpty && _filtroServicos == 'todos' && !_isLoadingServicos && _servicosFiltrados.isNotEmpty)
                 Text(
                   'Últimos Serviços Cadastrados',
                   style: TextStyle(
@@ -811,6 +973,21 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[800],
                   ),
+                ),
+              if (_filtroServicos == 'pendentes' && _searchController.text.isEmpty && !_isLoadingServicos)
+                Row(
+                  children: [
+                    Icon(Icons.pending_actions, color: warningColor, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Serviços Pendentes em OSs (${_servicosFiltrados.length})',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: warningColor,
+                      ),
+                    ),
+                  ],
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingServicos)
                 Text(

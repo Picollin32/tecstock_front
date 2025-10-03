@@ -224,4 +224,59 @@ class OrdemServicoService {
       return {};
     }
   }
+
+  static Future<Map<int, Map<String, dynamic>>> buscarServicosEmOSAbertas() async {
+    try {
+      print('🔍 Buscando serviços em OS abertas...');
+      final ordensAbertas = await buscarPorStatus('ABERTA');
+      print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
+
+      Map<int, Map<String, dynamic>> servicosInfo = {};
+
+      for (final os in ordensAbertas) {
+        print('📋 OS ${os.numeroOS}: ${os.servicosRealizados.length} serviços');
+
+        if (os.servicosRealizados.isEmpty) {
+          print('⚠️ OS ${os.numeroOS} não tem serviços realizados');
+          continue;
+        }
+
+        for (final servico in os.servicosRealizados) {
+          if (servico.id == null) {
+            print('⚠️ Serviço sem ID na OS ${os.numeroOS}: ${servico.nome}');
+            continue;
+          }
+
+          final servicoId = servico.id!;
+
+          if (!servicosInfo.containsKey(servicoId)) {
+            servicosInfo[servicoId] = {
+              'nome': servico.nome,
+              'quantidade': 0,
+              'ordens': <String>[],
+            };
+          }
+
+          servicosInfo[servicoId]!['quantidade'] = (servicosInfo[servicoId]!['quantidade'] as num) + 1;
+
+          if (!servicosInfo[servicoId]!['ordens'].contains(os.numeroOS)) {
+            servicosInfo[servicoId]!['ordens'].add(os.numeroOS);
+          }
+
+          print('✅ Serviço ${servico.nome} (ID: $servicoId) adicionado à OS ${os.numeroOS}');
+        }
+      }
+
+      print('🔧 Total de serviços diferentes em OS: ${servicosInfo.length}');
+      servicosInfo.forEach((id, info) {
+        print('   - Serviço ID $id: ${info['nome']} em ${info['quantidade']} OS(s): ${info['ordens']}');
+      });
+
+      return servicosInfo;
+    } catch (e, stackTrace) {
+      print('❌ Erro ao buscar serviços em OS abertas: $e');
+      print('Stack trace: $stackTrace');
+      return {};
+    }
+  }
 }

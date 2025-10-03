@@ -4803,13 +4803,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   String _getStatusDisplayText(String status) {
     switch (status) {
       case 'ABERTA':
-        return 'Aberta';
+        return 'ABERTA';
       case 'EM_ANDAMENTO':
-        return 'Em Andamento';
+        return 'EM ANDAMENTO';
       case 'CONCLUIDA':
-        return 'Concluída';
+        return 'CONCLUÍDA';
       case 'ENCERRADA':
-        return 'Encerrada';
+        return 'ENCERRADA';
       default:
         return status;
     }

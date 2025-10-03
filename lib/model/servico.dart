@@ -3,6 +3,7 @@ class Servico {
   String nome;
   double? precoPasseio;
   double? precoCaminhonete;
+  int? unidadesUsadasEmOS;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -11,6 +12,7 @@ class Servico {
     required this.nome,
     this.precoPasseio,
     this.precoCaminhonete,
+    this.unidadesUsadasEmOS,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +29,7 @@ class Servico {
       nome: json['nome'] ?? '',
       precoPasseio: parseDouble(json['precoPasseio']),
       precoCaminhonete: parseDouble(json['precoCaminhonete']),
+      unidadesUsadasEmOS: json['unidadesUsadasEmOS'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -38,6 +41,7 @@ class Servico {
       'nome': nome,
       'precoPasseio': precoPasseio,
       'precoCaminhonete': precoCaminhonete,
+      'unidadesUsadasEmOS': unidadesUsadasEmOS,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };

@@ -278,7 +278,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                           border: InputBorder.none,
                           prefixIcon: Icon(Icons.calendar_today),
                         ),
-                        items: List.generate(26, (index) => 2025 + index)
+                        items: List.generate(76, (index) => 2025 + index)
                             .map((year) => DropdownMenuItem(
                                   value: year,
                                   child: Text(year.toString()),

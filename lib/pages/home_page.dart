@@ -9,6 +9,7 @@ import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
 import 'package:TecStock/pages/ordem_servico_page.dart';
 import 'package:TecStock/pages/orcamento_page.dart';
+import 'package:TecStock/pages/relatorios_page.dart';
 import 'package:TecStock/services/agendamento_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
 import 'package:TecStock/services/veiculo_service.dart';
@@ -22,6 +23,8 @@ import 'package:TecStock/services/peca_service.dart';
 import 'package:TecStock/services/tipo_pagamento_service.dart';
 import 'package:TecStock/services/ordem_servico_service.dart';
 import 'package:TecStock/services/orcamento_service.dart';
+import 'package:TecStock/services/movimentacao_estoque_service.dart';
+import 'package:TecStock/model/movimentacao_estoque.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -124,7 +127,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     {
       'group': 'Relatórios',
       'items': [
-        {'title': 'Relatórios', 'icon': Icons.analytics},
+        {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
       ],
     },
   ];
@@ -193,6 +196,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'tiposPagamento': TipoPagamentoService.listarTiposPagamento(),
         'ordens': OrdemServicoService.listarOrdensServico(),
         'orcamentos': OrcamentoService.listarOrcamentos(),
+        'movimentacoes': MovimentacaoEstoqueService.listarTodas(),
       };
 
       final results = await Future.wait(futures.values.map((f) => f.catchError((e) => e)).toList());
@@ -222,6 +226,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final tiposPagamento = safeList('tiposPagamento') as List<dynamic>;
       final ordens = safeList('ordens') as List<dynamic>;
       final orcamentos = safeList('orcamentos') as List<dynamic>;
+      final movimentacoes = safeList('movimentacoes') as List<dynamic>;
 
       int agendamentosHoje = 0;
       for (final agendamento in agendamentos) {
@@ -239,6 +244,90 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         };
         _recentActivities = [];
 
+        // Criar um mapa de checklists fechados hoje por ID
+        final Map<int, dynamic> checklistsFechadosMap = {};
+        if (checklists.isNotEmpty) {
+          final todayClosedChecklists =
+              checklists.where((checklist) => checklist.status == 'FECHADO' && _isToday(checklist.updatedAt)).toList();
+
+          for (final checklist in todayClosedChecklists) {
+            if (checklist.id != null) {
+              checklistsFechadosMap[checklist.id!] = checklist;
+            }
+          }
+        }
+
+        // Processar ordens de serviço encerradas hoje
+        if (ordens.isNotEmpty) {
+          print('Total de OSs: ${ordens.length}');
+          for (var os in ordens) {
+            print('OS ${os.numeroOS}: status="${os.status}", dataEncerramento=${os.dataHoraEncerramento}');
+          }
+
+          final todayClosedOS = ordens.where((os) {
+            final isEncerrada = os.status?.toUpperCase() == 'ENCERRADA';
+            final hasDate = os.dataHoraEncerramento != null;
+            final isToday = hasDate && _isToday(os.dataHoraEncerramento);
+            print('OS ${os.numeroOS}: isEncerrada=$isEncerrada, hasDate=$hasDate, isToday=$isToday');
+            return isEncerrada && hasDate && isToday;
+          }).toList();
+
+          print('OSs encerradas hoje: ${todayClosedOS.length}');
+
+          for (final os in todayClosedOS) {
+            // Verificar se a OS tem um checklist associado que foi fechado hoje
+            final checklistRelacionado = os.checklistId != null ? checklistsFechadosMap[os.checklistId] : null;
+
+            if (checklistRelacionado != null) {
+              // Criar uma atividade combinada OS + Checklist
+              _recentActivities.add({
+                'title': 'OS encerrada e Checklist fechado',
+                'subtitle':
+                    'OS #${os.numeroOS} + Checklist #${checklistRelacionado.numeroChecklist} - Cliente: ${os.clienteNome} - Veículo: ${os.veiculoPlaca}',
+                'icon': Icons.check_circle,
+                'color': const Color(0xFF10B981),
+                'dateTime': os.dataHoraEncerramento ?? DateTime.now(),
+                'type': 'os_checklist_encerrado',
+                'isEdit': false,
+                'tag': 'CONCLUÍDO',
+                'tagColor': const Color(0xFF10B981),
+              });
+
+              // Remover o checklist do mapa para não adicionar duplicado
+              checklistsFechadosMap.remove(os.checklistId);
+            } else {
+              // Adicionar apenas a OS encerrada (sem checklist ou checklist não fechado hoje)
+              _recentActivities.add({
+                'title': 'Ordem de Serviço encerrada',
+                'subtitle': 'OS #${os.numeroOS} - Cliente: ${os.clienteNome} - Veículo: ${os.veiculoPlaca}',
+                'icon': Icons.check_circle,
+                'color': const Color(0xFF10B981),
+                'dateTime': os.dataHoraEncerramento ?? DateTime.now(),
+                'type': 'os_encerrada',
+                'isEdit': false,
+                'tag': 'ENCERRADA',
+                'tagColor': const Color(0xFF10B981),
+              });
+            }
+          }
+        }
+
+        // Adicionar checklists fechados hoje que não estão associados a OSs encerradas hoje
+        for (final checklist in checklistsFechadosMap.values) {
+          _recentActivities.add({
+            'title': 'Checklist fechado',
+            'subtitle': 'Checklist #${checklist.numeroChecklist} - Veículo: ${checklist.veiculoPlaca ?? 'N/A'}',
+            'icon': Icons.check_circle,
+            'color': const Color(0xFF10B981),
+            'dateTime': checklist.updatedAt ?? DateTime.now(),
+            'type': 'checklist_fechado',
+            'isEdit': false,
+            'tag': 'FECHADO',
+            'tagColor': const Color(0xFF10B981),
+          });
+        }
+
+        // Processar checklists cadastrados hoje (status ABERTO)
         if (checklists.isNotEmpty) {
           final todayChecklists = checklists.where((checklist) => _isToday(checklist.createdAt)).toList();
           final sortedChecklists = List.from(todayChecklists)
@@ -246,8 +335,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
           for (final checklist in sortedChecklists) {
             _recentActivities.add({
-              'title': 'Checklist realizado',
-              'subtitle': 'Veículo: ${checklist.veiculoNome ?? 'N/A'} - Placa: ${checklist.veiculoPlaca ?? 'N/A'}',
+              'title': 'Checklist cadastrado',
+              'subtitle':
+                  'Checklist #${checklist.numeroChecklist} - Veículo: ${checklist.veiculoNome ?? 'N/A'} - Placa: ${checklist.veiculoPlaca ?? 'N/A'}',
               'icon': Icons.checklist,
               'color': const Color(0xFF2196F3),
               'dateTime': checklist.createdAt ?? DateTime.now(),
@@ -319,6 +409,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFF7C3AED),
         );
 
+        // Processar serviços com verificação de OSs
+        final todayOrdens = ordens.where((os) => _isToday(os.createdAt) || _isToday(os.updatedAt)).toList();
+        final hasOSToday = todayOrdens.isNotEmpty;
+
         _addActivityFromEntity<dynamic>(
           entities: servicos.cast<dynamic>(),
           getName: (servico) => servico.nome,
@@ -328,6 +422,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           entityType: 'serviço',
           createIcon: Icons.build,
           createColor: const Color(0xFF8B5CF6),
+          shouldShowEdited: (servico) {
+            // Só mostra como editado se NÃO houver OS criada/atualizada hoje
+            // (pois serviços são atualizados quando são usados em OSs)
+            return !hasOSToday;
+          },
         );
 
         _addActivityFromEntity<dynamic>(
@@ -352,16 +451,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFF0EA5E9),
         );
 
-        _addActivityFromEntity<dynamic>(
-          entities: pecas.cast<dynamic>(),
-          getName: (peca) => peca.nome,
-          getSubtitle: (peca) => '${peca.nome} - Código: ${peca.codigoFabricante ?? 'N/A'}',
-          getCreatedAt: (peca) => peca.createdAt,
-          getUpdatedAt: (peca) => peca.updatedAt,
-          entityType: 'peça',
-          createIcon: Icons.settings,
-          createColor: const Color(0xFFEF4444),
-        );
+        // Processar peças - só aparecem se criadas, editadas (sem movimentação) ou movimentadas
+        final todayMovimentacoes = movimentacoes.where((mov) => _isToday(mov.dataMovimentacao)).toList();
+        final pecasComMovimentacaoHoje = todayMovimentacoes.map((mov) => mov.codigoPeca).toSet();
+
+        // Peças criadas hoje (sempre aparecem)
+        final pecasCriadasHoje = pecas.where((peca) => _isToday(peca.createdAt)).toList();
+        for (final peca in pecasCriadasHoje) {
+          _recentActivities.add({
+            'title': 'Peça cadastrada',
+            'subtitle': '${peca.nome} - Código: ${peca.codigoFabricante ?? 'N/A'}',
+            'icon': Icons.settings,
+            'color': const Color(0xFFEF4444),
+            'dateTime': peca.createdAt ?? DateTime.now(),
+            'type': 'peça',
+            'isEdit': false,
+          });
+        }
+
+        // Peças editadas hoje (só aparecem se NÃO tiverem movimentação hoje)
+        final pecasEditadasHoje = pecas.where((peca) {
+          final updated = peca.updatedAt;
+          final created = peca.createdAt;
+          final wasUpdatedToday = _isToday(updated) && created != null && !_isToday(created);
+          final temMovimentacao = pecasComMovimentacaoHoje.contains(peca.codigoFabricante);
+          return wasUpdatedToday && !temMovimentacao;
+        }).toList();
+
+        for (final peca in pecasEditadasHoje) {
+          _recentActivities.add({
+            'title': 'Peça atualizada',
+            'subtitle': '${peca.nome} - Código: ${peca.codigoFabricante ?? 'N/A'}',
+            'icon': Icons.edit,
+            'color': Colors.orange,
+            'dateTime': peca.updatedAt ?? DateTime.now(),
+            'type': 'peça',
+            'isEdit': true,
+          });
+        }
 
         _addActivityFromEntity<dynamic>(
           entities: tiposPagamento.cast<dynamic>(),
@@ -395,6 +522,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createIcon: Icons.request_quote,
           createColor: const Color(0xFF6366F1),
         );
+
+        // Processar movimentações de estoque
+        if (movimentacoes.isNotEmpty) {
+          final todayMovimentacoes = movimentacoes.where((mov) => _isToday(mov.dataMovimentacao)).toList();
+
+          for (final mov in todayMovimentacoes) {
+            final isEntrada = mov.tipoMovimentacao == TipoMovimentacao.ENTRADA;
+
+            // Para ENTRADA: mostra Qtd e OS
+            // Para SAÍDA: mostra apenas Peça e Observações
+            String subtitle;
+            if (isEntrada) {
+              subtitle = 'Peça: ${mov.codigoPeca} - Qtd: ${mov.quantidade} - OS: ${mov.numeroNotaFiscal}';
+            } else {
+              final obs = mov.observacoes != null && mov.observacoes!.isNotEmpty ? mov.observacoes : 'Sem observações';
+              subtitle = 'Peça: ${mov.codigoPeca} - ${obs}';
+            }
+
+            _recentActivities.add({
+              'title': isEntrada ? 'Entrada de estoque' : 'Saída de estoque',
+              'subtitle': subtitle,
+              'icon': isEntrada ? Icons.arrow_downward : Icons.arrow_upward,
+              'color': isEntrada ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+              'dateTime': mov.dataMovimentacao ?? DateTime.now(),
+              'type': 'movimentacao',
+              'isEdit': false,
+              'tag': isEntrada ? 'ENTRADA' : 'SAÍDA',
+              'tagColor': isEntrada ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+            });
+          }
+        }
 
         _recentActivities.sort((a, b) {
           final dateTimeA = a['dateTime'] as DateTime;
@@ -466,6 +624,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required String entityType,
     required IconData createIcon,
     required Color createColor,
+    bool skipEdited = false,
+    bool Function(T)? shouldShowEdited,
   }) {
     final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
     for (final entity in todayCreated) {
@@ -480,22 +640,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
     }
 
-    final todayEdited = entities.where((entity) {
-      final updated = getUpdatedAt(entity);
-      final created = getCreatedAt(entity);
-      return _isToday(updated) && created != null && !_isToday(created);
-    }).toList();
+    // Pular adição de "atualizado" se skipEdited for true
+    if (!skipEdited) {
+      final todayEdited = entities.where((entity) {
+        final updated = getUpdatedAt(entity);
+        final created = getCreatedAt(entity);
+        final wasUpdatedToday = _isToday(updated) && created != null && !_isToday(created);
 
-    for (final entity in todayEdited) {
-      _recentActivities.add({
-        'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} atualizado',
-        'subtitle': getSubtitle(entity),
-        'icon': Icons.edit,
-        'color': Colors.orange,
-        'dateTime': getUpdatedAt(entity) ?? DateTime.now(),
-        'type': entityType,
-        'isEdit': true,
-      });
+        // Se shouldShowEdited foi fornecido, usá-lo para filtrar
+        if (wasUpdatedToday && shouldShowEdited != null) {
+          return shouldShowEdited(entity);
+        }
+
+        return wasUpdatedToday;
+      }).toList();
+
+      for (final entity in todayEdited) {
+        _recentActivities.add({
+          'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} atualizado',
+          'subtitle': getSubtitle(entity),
+          'icon': Icons.edit,
+          'color': Colors.orange,
+          'dateTime': getUpdatedAt(entity) ?? DateTime.now(),
+          'type': entityType,
+          'isEdit': true,
+        });
+      }
     }
   }
 
@@ -985,6 +1155,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             currentPageActivities[i]['color'],
                             _getFormattedTime(currentPageActivities[i]['dateTime']),
                             currentPageActivities[i]['isEdit'] ?? false,
+                            currentPageActivities[i]['tag'],
+                            currentPageActivities[i]['tagColor'],
                           ),
                           if (i < currentPageActivities.length - 1) const Divider(height: 24),
                         ],
@@ -1060,7 +1232,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildActivityItem(String title, String subtitle, IconData icon, Color color, String time, [bool isEdit = false]) {
+  Widget _buildActivityItem(String title, String subtitle, IconData icon, Color color, String time,
+      [bool isEdit = false, String? tag, Color? tagColor]) {
     return Row(
       children: [
         Container(
@@ -1102,6 +1275,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (tag != null && tagColor != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: tagColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        tag,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: tagColor,
                         ),
                       ),
                     ),

@@ -37,7 +37,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   bool _isLoading = false;
   bool _isLoadingPecas = true;
-  String _filtroEstoque = 'todos';
+  String _filtroEstoque = 'todos'; // 'todos', 'critico', 'sem_estoque', 'em_uso'
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -153,6 +153,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
       if (_filtroEstoque != 'todos') {
         pecasFiltradas = pecasFiltradas.where((peca) {
+          if (_filtroEstoque == 'em_uso') {
+            return peca.unidadesUsadasEmOS != null && peca.unidadesUsadasEmOS! > 0;
+          }
           final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
           return status['status'] == _filtroEstoque;
         }).toList();
@@ -828,6 +831,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     }).length;
   }
 
+  int _contarPecasEmUso() {
+    return _pecas.where((peca) => peca.unidadesUsadasEmOS != null && peca.unidadesUsadasEmOS! > 0).length;
+  }
+
   Widget _buildInfoRow(IconData icon, String text, {bool isPrice = false, bool isFinalPrice = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -1296,6 +1303,65 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             ),
                             child: Text(
                               '${_contarPecasSemEstoque()}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _filtroEstoque == 'em_uso' ? primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_filtroEstoque == 'em_uso' ? primaryColor : Colors.grey).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _filtroEstoque = _filtroEstoque == 'em_uso' ? 'todos' : 'em_uso';
+                            });
+                            _filtrarPecas();
+                          },
+                          icon: Icon(
+                            Icons.pending_actions,
+                            color: _filtroEstoque == 'em_uso' ? Colors.white : Colors.grey[600],
+                          ),
+                          iconSize: 24,
+                          padding: const EdgeInsets.all(12),
+                          tooltip: _filtroEstoque == 'em_uso' ? 'Mostrar todas as peças' : 'Filtrar peças em uso em OSs',
+                        ),
+                      ),
+                      if (_contarPecasEmUso() > 0 && _filtroEstoque != 'em_uso')
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              '${_contarPecasEmUso()}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,

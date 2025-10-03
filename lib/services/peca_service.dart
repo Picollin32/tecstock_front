@@ -20,6 +20,32 @@ class PecaService {
     }
   }
 
+  static Future<List<Peca>> listarPecasEmUso() async {
+    String baseUrl = 'http://localhost:8081/api/pecas/em-uso';
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      if (response.statusCode == 200) {
+        final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.map((e) => Peca.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Erro ao listar peças em uso: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> atualizarUnidadesUsadas() async {
+    String baseUrl = 'http://localhost:8081/api/pecas/atualizar-unidades-usadas';
+    try {
+      final response = await http.post(Uri.parse(baseUrl));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Erro ao atualizar unidades usadas: $e');
+      return false;
+    }
+  }
+
   static Future<Peca?> buscarPecaPorCodigo(String codigo) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/buscarPorCodigo/$codigo'));

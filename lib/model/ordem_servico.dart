@@ -8,6 +8,7 @@ class OrdemServico {
   String numeroOS;
 
   DateTime dataHora;
+  DateTime? dataHoraEncerramento;
 
   String clienteNome;
   String clienteCpf;
@@ -43,6 +44,7 @@ class OrdemServico {
     this.id,
     required this.numeroOS,
     required this.dataHora,
+    this.dataHoraEncerramento,
     required this.clienteNome,
     required this.clienteCpf,
     this.clienteTelefone,
@@ -79,6 +81,7 @@ class OrdemServico {
       id: json['id'],
       numeroOS: json['numeroOS']?.toString() ?? '',
       dataHora: json['dataHora'] != null ? DateTime.parse(json['dataHora']) : DateTime.now(),
+      dataHoraEncerramento: json['dataHoraEncerramento'] != null ? DateTime.parse(json['dataHoraEncerramento']) : null,
       clienteNome: json['clienteNome'] ?? '',
       clienteCpf: json['clienteCpf'] ?? '',
       clienteTelefone: json['clienteTelefone'],
@@ -119,6 +122,7 @@ class OrdemServico {
     if (id != null) map['id'] = id;
     map['numeroOS'] = numeroOS;
     map['dataHora'] = dataHora.toIso8601String();
+    if (dataHoraEncerramento != null) map['dataHoraEncerramento'] = dataHoraEncerramento!.toIso8601String();
     map['clienteNome'] = clienteNome;
     map['clienteCpf'] = clienteCpf;
     if (clienteTelefone != null) map['clienteTelefone'] = clienteTelefone;

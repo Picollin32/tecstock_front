@@ -49,6 +49,32 @@ class ServicoService {
     }
   }
 
+  static Future<List<Servico>> listarServicosPendentes() async {
+    String baseUrl = 'http://localhost:8081/api/servicos/pendentes';
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      if (response.statusCode == 200) {
+        final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.map((e) => Servico.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Erro ao listar serviços pendentes: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> atualizarUnidadesUsadas() async {
+    String baseUrl = 'http://localhost:8081/api/servicos/atualizar-unidades-usadas';
+    try {
+      final response = await http.post(Uri.parse(baseUrl));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Erro ao atualizar unidades usadas: $e');
+      return false;
+    }
+  }
+
   static Future<bool> excluirServico(int id) async {
     String baseUrl = 'http://localhost:8081/api/servicos/deletar/$id';
 

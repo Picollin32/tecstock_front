@@ -120,7 +120,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       context: context,
       initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
       firstDate: DateTime(1940),
-      lastDate: DateTime.now(),
+      lastDate: DateTime(2100, 12, 31),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(

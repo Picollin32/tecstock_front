@@ -84,13 +84,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
+  int? _prazoFiadoDias;
   Funcionario? _mecanicoSelecionado;
   Funcionario? _consultorSelecionado;
 
   final TextEditingController _codigoPecaController = TextEditingController();
   final TextEditingController _servicoSearchController = TextEditingController();
 
-  late TextEditingController _pecaSearchController;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
@@ -146,7 +146,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _fadeController.forward();
     _slideController.forward();
-    _pecaSearchController = TextEditingController();
   }
 
   @override
@@ -175,7 +174,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _servicoSearchController.dispose();
     _descontoServicosController.dispose();
     _descontoPecasController.dispose();
-    _pecaSearchController.dispose();
     super.dispose();
   }
 
@@ -519,6 +517,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _tipoPagamentoSelecionado = null;
       _garantiaMeses = 3;
       _numeroParcelas = null;
+      _prazoFiadoDias = null;
       _mecanicoSelecionado = null;
       _consultorSelecionado = null;
       _precoTotal = 0.0;
@@ -885,7 +884,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     IconData statusIcon = Icons.schedule;
 
     switch (os.status) {
-      case 'ABERTA':
+      case 'Aberta':
         statusColor = Colors.blue;
         statusIcon = Icons.schedule;
         break;
@@ -897,7 +896,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
         break;
-      case 'ENCERRADA':
+      case 'Encerrada':
         statusColor = Colors.grey;
         statusIcon = Icons.lock;
         break;
@@ -1923,11 +1922,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             setState(() {
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
-              _pecaSearchController.clear();
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            _pecaSearchController = controller;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -1984,7 +1981,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       } else {
                         _buscarPecaPorCodigo(value);
                       }
-                      _pecaSearchController.clear();
+                      controller.clear();
                     },
             );
           },
@@ -3072,7 +3069,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _numeroParcelas,
+                    value: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3100,7 +3097,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         ? null
                         : (value) {
                             setState(() {
-                              _numeroParcelas = value;
+                              _prazoFiadoDias = value != null ? value * 30 : null;
                             });
                           },
                   ),
@@ -3580,6 +3577,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: _numeroParcelas,
+        prazoFiadoDias: _prazoFiadoDias,
         mecanico: _mecanicoSelecionado,
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
@@ -3588,6 +3586,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       print('Tentando ${_editingOSId != null ? "atualizar" : "salvar"} OS...');
       print('Serviços selecionados: ${_servicosSelecionados.length}');
       print('Peças selecionadas: ${_pecasSelecionadas.length}');
+      print('Tipo de Pagamento: ${_tipoPagamentoSelecionado?.nome} (código: ${_tipoPagamentoSelecionado?.codigo})');
+      print('Prazo Fiado Dias: $_prazoFiadoDias');
+      print('Número Parcelas: $_numeroParcelas');
 
       bool sucesso;
       if (_editingOSId != null) {
@@ -4446,6 +4447,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
+          _prazoFiadoDias = osCompleta.prazoFiadoDias;
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
@@ -4600,6 +4602,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
+          _prazoFiadoDias = osCompleta.prazoFiadoDias;
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
@@ -4802,13 +4805,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   String _getStatusDisplayText(String status) {
     switch (status) {
-      case 'ABERTA':
+      case 'Aberta':
         return 'ABERTA';
       case 'EM_ANDAMENTO':
         return 'EM ANDAMENTO';
       case 'CONCLUIDA':
         return 'CONCLUÍDA';
-      case 'ENCERRADA':
+      case 'Encerrada':
         return 'ENCERRADA';
       default:
         return status;
@@ -4817,7 +4820,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   bool _isOSEncerrada(String? status) {
     if (status == null) return false;
-    final s = status.toUpperCase().trim();
-    return s == 'ENCERRADA';
+    return status.trim() == 'Encerrada';
   }
 }

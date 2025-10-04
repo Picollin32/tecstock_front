@@ -33,6 +33,7 @@ class OrdemServico {
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
+  int? prazoFiadoDias;
   Funcionario? mecanico;
   Funcionario? consultor;
   String status;
@@ -68,9 +69,10 @@ class OrdemServico {
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
+    this.prazoFiadoDias,
     this.mecanico,
     this.consultor,
-    this.status = 'ABERTA',
+    this.status = 'Aberta',
     this.observacoes,
     this.createdAt,
     this.updatedAt,
@@ -107,9 +109,10 @@ class OrdemServico {
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
+      prazoFiadoDias: json['prazoFiadoDias'],
       mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
-      status: json['status'] ?? 'ABERTA',
+      status: json['status'] ?? 'Aberta',
       observacoes: json['observacoes'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
@@ -146,6 +149,7 @@ class OrdemServico {
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
+    if (prazoFiadoDias != null) map['prazoFiadoDias'] = prazoFiadoDias;
     if (mecanico != null) map['mecanico'] = mecanico!.toJson();
     if (consultor != null) map['consultor'] = consultor!.toJson();
     map['status'] = status;

@@ -1,5 +1,3 @@
-import 'fornecedor_peca.dart';
-
 class Fornecedor {
   int? id;
   String nome;
@@ -7,7 +5,6 @@ class Fornecedor {
   String telefone;
   String email;
   double? margemLucro;
-  List<FornecedorPeca>? pecasComDesconto;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -18,7 +15,6 @@ class Fornecedor {
     required this.telefone,
     required this.email,
     this.margemLucro,
-    this.pecasComDesconto,
     this.createdAt,
     this.updatedAt,
   });

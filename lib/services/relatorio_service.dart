@@ -7,20 +7,20 @@ import '../utils/api_config.dart';
 class RelatorioService {
   final String baseUrl = ApiConfig.baseUrl;
 
-  Future<RelatorioVendas> getRelatorioVendas(DateTime dataInicio, DateTime dataFim) async {
+  Future<RelatorioAgendamentos> getRelatorioAgendamentos(DateTime dataInicio, DateTime dataFim) async {
     try {
       final inicio = DateFormat('yyyy-MM-dd').format(dataInicio);
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/vendas?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/relatorios/agendamentos?dataInicio=$inicio&dataFim=$fim'),
         headers: {'Content-Type': 'application/json'},
       );
 
       if (response.statusCode == 200) {
-        return RelatorioVendas.fromJson(json.decode(response.body));
+        return RelatorioAgendamentos.fromJson(json.decode(response.body));
       } else {
-        throw Exception('Erro ao buscar relatório de vendas: ${response.body}');
+        throw Exception('Erro ao buscar relatório de agendamentos: ${response.body}');
       }
     } catch (e) {
       throw Exception('Erro ao conectar com o servidor: $e');

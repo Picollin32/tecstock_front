@@ -259,20 +259,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         // Processar ordens de serviço encerradas hoje
         if (ordens.isNotEmpty) {
-          print('Total de OSs: ${ordens.length}');
-          for (var os in ordens) {
-            print('OS ${os.numeroOS}: status="${os.status}", dataEncerramento=${os.dataHoraEncerramento}');
-          }
+          // Removidos prints de debug: Total de OSs e detalhes por OS
 
           final todayClosedOS = ordens.where((os) {
-            final isEncerrada = os.status?.toUpperCase() == 'ENCERRADA';
+            final isEncerrada = os.status?.trim() == 'Encerrada';
             final hasDate = os.dataHoraEncerramento != null;
             final isToday = hasDate && _isToday(os.dataHoraEncerramento);
-            print('OS ${os.numeroOS}: isEncerrada=$isEncerrada, hasDate=$hasDate, isToday=$isToday');
+            // Removido print de debug por OS
             return isEncerrada && hasDate && isToday;
           }).toList();
 
-          print('OSs encerradas hoje: ${todayClosedOS.length}');
+          // Removido print final de debug: quantidade de OSs encerradas hoje
 
           for (final os in todayClosedOS) {
             // Verificar se a OS tem um checklist associado que foi fechado hoje
@@ -530,14 +527,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           for (final mov in todayMovimentacoes) {
             final isEntrada = mov.tipoMovimentacao == TipoMovimentacao.ENTRADA;
 
-            // Para ENTRADA: mostra Qtd e OS
-            // Para SAÍDA: mostra apenas Peça e Observações
+            // Ajuste de rótulos:
+            // - Para ENTRADA: exibir NF (nota fiscal) em vez de OS
+            // - Para SAÍDA: exibir apenas peça e observações (se houver)
             String subtitle;
             if (isEntrada) {
-              subtitle = 'Peça: ${mov.codigoPeca} - Qtd: ${mov.quantidade} - OS: ${mov.numeroNotaFiscal}';
+              // Usar 'NF' para número da nota fiscal
+              subtitle = 'Peça: ${mov.codigoPeca} - Qtd: ${mov.quantidade} - NF: ${mov.numeroNotaFiscal}';
             } else {
               final obs = mov.observacoes != null && mov.observacoes!.isNotEmpty ? mov.observacoes : 'Sem observações';
-              subtitle = 'Peça: ${mov.codigoPeca} - ${obs}';
+              // Caso exista alguma referência a OS nas observações, manter.
+              subtitle = 'Peça: ${mov.codigoPeca} - $obs';
             }
 
             _recentActivities.add({

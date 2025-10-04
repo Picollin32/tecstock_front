@@ -1,40 +1,63 @@
-class RelatorioVendas {
+class RelatorioAgendamentos {
   final DateTime dataInicio;
   final DateTime dataFim;
-  final int totalOrcamentos;
-  final int orcamentosAprovados;
-  final int orcamentosRecusados;
-  final int orcamentosPendentes;
-  final double valorTotalOrcamentos;
-  final double valorTotalAprovado;
-  final double ticketMedio;
-  final double taxaConversao;
+  final int totalAgendamentos;
+  final int agendamentosPorMecanico;
+  final List<AgendamentoPorDia> agendamentosPorDia;
+  final List<AgendamentoPorMecanico> agendamentosPorMecanicoLista;
 
-  RelatorioVendas({
+  RelatorioAgendamentos({
     required this.dataInicio,
     required this.dataFim,
-    required this.totalOrcamentos,
-    required this.orcamentosAprovados,
-    required this.orcamentosRecusados,
-    required this.orcamentosPendentes,
-    required this.valorTotalOrcamentos,
-    required this.valorTotalAprovado,
-    required this.ticketMedio,
-    required this.taxaConversao,
+    required this.totalAgendamentos,
+    required this.agendamentosPorMecanico,
+    required this.agendamentosPorDia,
+    required this.agendamentosPorMecanicoLista,
   });
 
-  factory RelatorioVendas.fromJson(Map<String, dynamic> json) {
-    return RelatorioVendas(
+  factory RelatorioAgendamentos.fromJson(Map<String, dynamic> json) {
+    return RelatorioAgendamentos(
       dataInicio: DateTime.parse(json['dataInicio']),
       dataFim: DateTime.parse(json['dataFim']),
-      totalOrcamentos: json['totalOrcamentos'] ?? 0,
-      orcamentosAprovados: json['orcamentosAprovados'] ?? 0,
-      orcamentosRecusados: json['orcamentosRecusados'] ?? 0,
-      orcamentosPendentes: json['orcamentosPendentes'] ?? 0,
-      valorTotalOrcamentos: (json['valorTotalOrcamentos'] ?? 0).toDouble(),
-      valorTotalAprovado: (json['valorTotalAprovado'] ?? 0).toDouble(),
-      ticketMedio: (json['ticketMedio'] ?? 0).toDouble(),
-      taxaConversao: (json['taxaConversao'] ?? 0).toDouble(),
+      totalAgendamentos: json['totalAgendamentos'] ?? 0,
+      agendamentosPorMecanico: json['agendamentosPorMecanico'] ?? 0,
+      agendamentosPorDia: (json['agendamentosPorDia'] as List?)?.map((e) => AgendamentoPorDia.fromJson(e)).toList() ?? [],
+      agendamentosPorMecanicoLista:
+          (json['agendamentosPorMecanicoLista'] as List?)?.map((e) => AgendamentoPorMecanico.fromJson(e)).toList() ?? [],
+    );
+  }
+}
+
+class AgendamentoPorDia {
+  final String data;
+  final int quantidade;
+
+  AgendamentoPorDia({
+    required this.data,
+    required this.quantidade,
+  });
+
+  factory AgendamentoPorDia.fromJson(Map<String, dynamic> json) {
+    return AgendamentoPorDia(
+      data: json['data'] ?? '',
+      quantidade: json['quantidade'] ?? 0,
+    );
+  }
+}
+
+class AgendamentoPorMecanico {
+  final String nomeMecanico;
+  final int quantidade;
+
+  AgendamentoPorMecanico({
+    required this.nomeMecanico,
+    required this.quantidade,
+  });
+
+  factory AgendamentoPorMecanico.fromJson(Map<String, dynamic> json) {
+    return AgendamentoPorMecanico(
+      nomeMecanico: json['nomeMecanico'] ?? '',
+      quantidade: json['quantidade'] ?? 0,
     );
   }
 }

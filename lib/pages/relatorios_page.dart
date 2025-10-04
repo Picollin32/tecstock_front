@@ -7,7 +7,7 @@ import '../model/funcionario.dart';
 import '../services/relatorio_service.dart';
 
 class RelatoriosPage extends StatefulWidget {
-  const RelatoriosPage({Key? key}) : super(key: key);
+  const RelatoriosPage({super.key});
 
   @override
   State<RelatoriosPage> createState() => _RelatoriosPageState();
@@ -20,7 +20,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   DateTime? _dataInicio;
   DateTime? _dataFim;
-  String _tipoRelatorio = 'vendas';
+  String _tipoRelatorio = 'agendamentos';
   bool _isLoading = false;
 
   dynamic _relatorioAtual;
@@ -126,8 +126,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     try {
       dynamic relatorio;
       switch (_tipoRelatorio) {
-        case 'vendas':
-          relatorio = await _relatorioService.getRelatorioVendas(_dataInicio!, _dataFim!);
+        case 'agendamentos':
+          relatorio = await _relatorioService.getRelatorioAgendamentos(_dataInicio!, _dataFim!);
           break;
         case 'servicos':
           relatorio = await _relatorioService.getRelatorioServicos(_dataInicio!, _dataFim!);
@@ -318,12 +318,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ),
               items: const [
                 DropdownMenuItem(
-                  value: 'vendas',
+                  value: 'agendamentos',
                   child: Row(
                     children: [
-                      Icon(Icons.shopping_cart, size: 20),
+                      Icon(Icons.calendar_month, size: 20),
                       SizedBox(width: 12),
-                      Text('Relatório de Vendas'),
+                      Text('Relatório de Agendamentos'),
                     ],
                   ),
                 ),
@@ -627,8 +627,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   Widget _buildRelatorioContent() {
     switch (_tipoRelatorio) {
-      case 'vendas':
-        return _buildRelatorioVendas(_relatorioAtual as RelatorioVendas);
+      case 'agendamentos':
+        return _buildRelatorioAgendamentos(_relatorioAtual as RelatorioAgendamentos);
       case 'servicos':
         return _buildRelatorioServicos(_relatorioAtual as RelatorioServicos);
       case 'estoque':
@@ -646,7 +646,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     }
   }
 
-  Widget _buildRelatorioVendas(RelatorioVendas relatorio) {
+  Widget _buildRelatorioAgendamentos(RelatorioAgendamentos relatorio) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -655,7 +655,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.purple.shade400, Colors.purple.shade600],
+              colors: [Colors.blue.shade400, Colors.blue.shade600],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -669,12 +669,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.shopping_cart, color: Colors.white, size: 32),
+                child: const Icon(Icons.calendar_month, color: Colors.white, size: 32),
               ),
               const SizedBox(width: 16),
               const Expanded(
                 child: Text(
-                  'Relatório de Vendas',
+                  'Relatório de Agendamentos',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -687,24 +687,104 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         ),
         const SizedBox(height: 24),
 
-        // Seção de Orçamentos
-        _buildSectionHeader('Orçamentos', Icons.description, Colors.purple),
+        // Seção de Resumo
+        _buildSectionHeader('Resumo Geral', Icons.assessment, Colors.blue),
         const SizedBox(height: 12),
-        _buildMetricCard('Total de Orçamentos', relatorio.totalOrcamentos.toString(), Icons.description, color: Colors.purple),
-        _buildMetricCard('Orçamentos Aprovados', relatorio.orcamentosAprovados.toString(), Icons.check_circle, color: Colors.green),
-        _buildMetricCard('Orçamentos Recusados', relatorio.orcamentosRecusados.toString(), Icons.cancel, color: Colors.red),
-        _buildMetricCard('Orçamentos Pendentes', relatorio.orcamentosPendentes.toString(), Icons.pending, color: Colors.orange),
+        _buildMetricCard('Total de Agendamentos', relatorio.totalAgendamentos.toString(), Icons.event, color: Colors.blue),
+        _buildMetricCard('Mecânicos Ativos', relatorio.agendamentosPorMecanico.toString(), Icons.person, color: Colors.green),
 
         const SizedBox(height: 24),
 
-        // Seção Financeira
-        _buildSectionHeader('Valores', Icons.monetization_on, Colors.green),
-        const SizedBox(height: 12),
-        _buildMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalOrcamentos.toStringAsFixed(2)}', Icons.attach_money, color: Colors.blue),
-        _buildMetricCard('Valor Aprovado', 'R\$ ${relatorio.valorTotalAprovado.toStringAsFixed(2)}', Icons.monetization_on,
-            color: Colors.green),
-        _buildMetricCard('Ticket Médio', 'R\$ ${relatorio.ticketMedio.toStringAsFixed(2)}', Icons.analytics, color: Colors.indigo),
-        _buildMetricCard('Taxa de Conversão', '${relatorio.taxaConversao.toStringAsFixed(1)}%', Icons.trending_up, color: Colors.teal),
+        // Seção de Agendamentos por Dia
+        if (relatorio.agendamentosPorDia.isNotEmpty) ...[
+          _buildSectionHeader('Agendamentos por Dia', Icons.calendar_today, Colors.purple),
+          const SizedBox(height: 12),
+          ...relatorio.agendamentosPorDia.map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, color: Colors.purple.shade700, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        DateFormat('dd/MM/yyyy').format(DateTime.parse(item.data)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade700,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${item.quantidade} agendamento${item.quantidade != 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 24),
+        ],
+
+        // Seção de Agendamentos por Mecânico
+        if (relatorio.agendamentosPorMecanicoLista.isNotEmpty) ...[
+          _buildSectionHeader('Agendamentos por Mecânico', Icons.person, Colors.orange),
+          const SizedBox(height: 12),
+          ...relatorio.agendamentosPorMecanicoLista.map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.person, color: Colors.orange.shade700, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.nomeMecanico,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade700,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${item.quantidade} agendamento${item.quantidade != 1 ? 's' : ''}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
       ],
     );
   }

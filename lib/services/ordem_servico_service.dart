@@ -169,7 +169,7 @@ class OrdemServicoService {
 
   static Future<int> buscarQuantidadePecaEmOSAbertas(String codigoPeca) async {
     try {
-      final ordensAbertas = await buscarPorStatus('ABERTA');
+      final ordensAbertas = await buscarPorStatus('Aberta');
 
       double quantidadeTotal = 0;
 
@@ -191,7 +191,7 @@ class OrdemServicoService {
   static Future<Map<String, Map<String, dynamic>>> buscarPecasEmOSAbertas() async {
     try {
       print('🔍 Buscando peças em OS abertas...');
-      final ordensAbertas = await buscarPorStatus('ABERTA');
+      final ordensAbertas = await buscarPorStatus('Aberta');
       print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
 
       Map<String, Map<String, dynamic>> pecasInfo = {};
@@ -228,7 +228,7 @@ class OrdemServicoService {
   static Future<Map<int, Map<String, dynamic>>> buscarServicosEmOSAbertas() async {
     try {
       print('🔍 Buscando serviços em OS abertas...');
-      final ordensAbertas = await buscarPorStatus('ABERTA');
+      final ordensAbertas = await buscarPorStatus('Aberta');
       print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
 
       Map<int, Map<String, dynamic>> servicosInfo = {};

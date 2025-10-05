@@ -121,6 +121,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
 
+  pw.MemoryImage? _cachedLogoImage;
+
   bool _showForm = false;
   bool _isViewMode = false;
   List<Checklist> _recent = [];
@@ -281,6 +283,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Future<void> _printChecklist() async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -288,7 +294,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => [
-          _buildPdfHeader(),
+          _buildPdfHeader(logoImage: _cachedLogoImage),
           pw.SizedBox(height: 16),
           _buildPdfClientVehicleData(),
           pw.SizedBox(height: 12),
@@ -324,7 +330,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => _buildSignaturePage(),
+        build: (pw.Context context) => _buildSignaturePage(logoImage: _cachedLogoImage),
       ),
     );
 
@@ -550,7 +556,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
-  pw.Widget _buildPdfHeader() {
+  pw.Widget _buildPdfHeader({pw.MemoryImage? logoImage}) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
@@ -563,6 +569,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       padding: const pw.EdgeInsets.all(16),
       child: pw.Row(
         children: [
+          if (logoImage != null) ...[
+            pw.Image(logoImage, width: 60, height: 60, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 16),
+          ],
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -643,10 +653,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
-  pw.Widget _buildSignaturePage() {
+  pw.Widget _buildSignaturePage({pw.MemoryImage? logoImage}) {
     return pw.Column(
       children: [
-        _buildPdfHeader(),
+        _buildPdfHeader(logoImage: logoImage),
         pw.SizedBox(height: 24),
         pw.Container(
           decoration: pw.BoxDecoration(
@@ -1213,23 +1223,23 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: c.status == 'FECHADO' ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                          color: c.status == 'Fechado' ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: c.status == 'FECHADO' ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                          border: Border.all(color: c.status == 'Fechado' ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              c.status == 'FECHADO' ? Icons.lock : Icons.lock_open,
+                              c.status == 'Fechado' ? Icons.lock : Icons.lock_open,
                               size: 12,
-                              color: c.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                              color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              c.status == 'FECHADO' ? 'Fechado' : 'Aberto',
+                              c.status == 'Fechado' ? 'Fechado' : 'Aberto',
                               style: TextStyle(
-                                color: c.status == 'FECHADO' ? Colors.red[700] : Colors.green[700],
+                                color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1329,7 +1339,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (c.status != 'FECHADO')
+                      if (c.status != 'Fechado')
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.orange.shade50,
@@ -1372,7 +1382,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                           ),
                         ),
                       const SizedBox(width: 8),
-                      if (c.status != 'FECHADO')
+                      if (c.status != 'Fechado')
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,

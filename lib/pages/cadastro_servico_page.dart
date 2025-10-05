@@ -26,7 +26,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
 
   bool _isLoading = false;
   bool _isLoadingServicos = true;
-  String _filtroServicos = 'todos'; // 'todos', 'pendentes'
+  String _filtroServicos = 'todos';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -113,12 +113,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     setState(() {
       List<Servico> servicosBase = _servicos;
 
-      // Aplicar filtro de status primeiro
       if (_filtroServicos == 'pendentes') {
         servicosBase = servicosBase.where((s) => s.unidadesUsadasEmOS != null && s.unidadesUsadasEmOS! > 0).toList();
       }
 
-      // Aplicar filtro de busca
       if (query.isEmpty) {
         _servicosFiltrados = servicosBase.take(6).toList();
       } else {

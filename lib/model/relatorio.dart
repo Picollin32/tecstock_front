@@ -88,19 +88,13 @@ class ItemServico {
 class RelatorioServicos {
   final DateTime dataInicio;
   final DateTime dataFim;
-
-  // Seção: Serviços Realizados
-  final double valorServicosRealizados; // valor - desconto em serviços
+  final double valorServicosRealizados;
   final int totalServicosRealizados;
   final List<ItemServico> servicosMaisRealizados;
-
-  // Seção: Ordem de Serviço
   final int totalOrdensServico;
   final int ordensFinalizadas;
   final int ordensEmAndamento;
   final int ordensCanceladas;
-
-  // Campos adicionais
   final double descontoServicos;
   final double valorMedioPorOrdem;
   final double tempoMedioExecucao;

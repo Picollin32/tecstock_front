@@ -244,7 +244,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         };
         _recentActivities = [];
 
-        // Criar um mapa de checklists fechados hoje por ID
         final Map<int, dynamic> checklistsFechadosMap = {};
         if (checklists.isNotEmpty) {
           final todayClosedChecklists =
@@ -257,26 +256,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
-        // Processar ordens de serviço encerradas hoje
         if (ordens.isNotEmpty) {
-          // Removidos prints de debug: Total de OSs e detalhes por OS
-
           final todayClosedOS = ordens.where((os) {
             final isEncerrada = os.status?.trim() == 'Encerrada';
             final hasDate = os.dataHoraEncerramento != null;
             final isToday = hasDate && _isToday(os.dataHoraEncerramento);
-            // Removido print de debug por OS
             return isEncerrada && hasDate && isToday;
           }).toList();
 
-          // Removido print final de debug: quantidade de OSs encerradas hoje
-
           for (final os in todayClosedOS) {
-            // Verificar se a OS tem um checklist associado que foi fechado hoje
             final checklistRelacionado = os.checklistId != null ? checklistsFechadosMap[os.checklistId] : null;
 
             if (checklistRelacionado != null) {
-              // Criar uma atividade combinada OS + Checklist
               _recentActivities.add({
                 'title': 'OS encerrada e Checklist fechado',
                 'subtitle':
@@ -290,10 +281,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 'tagColor': const Color(0xFF10B981),
               });
 
-              // Remover o checklist do mapa para não adicionar duplicado
               checklistsFechadosMap.remove(os.checklistId);
             } else {
-              // Adicionar apenas a OS encerrada (sem checklist ou checklist não fechado hoje)
               _recentActivities.add({
                 'title': 'Ordem de Serviço encerrada',
                 'subtitle': 'OS #${os.numeroOS} - Cliente: ${os.clienteNome} - Veículo: ${os.veiculoPlaca}',
@@ -309,7 +298,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
-        // Adicionar checklists fechados hoje que não estão associados a OSs encerradas hoje
         for (final checklist in checklistsFechadosMap.values) {
           _recentActivities.add({
             'title': 'Checklist fechado',
@@ -324,7 +312,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
         }
 
-        // Processar checklists cadastrados hoje (status ABERTO)
         if (checklists.isNotEmpty) {
           final todayChecklists = checklists.where((checklist) => _isToday(checklist.createdAt)).toList();
           final sortedChecklists = List.from(todayChecklists)
@@ -406,7 +393,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFF7C3AED),
         );
 
-        // Processar serviços com verificação de OSs
         final todayOrdens = ordens.where((os) => _isToday(os.createdAt) || _isToday(os.updatedAt)).toList();
         final hasOSToday = todayOrdens.isNotEmpty;
 
@@ -420,8 +406,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createIcon: Icons.build,
           createColor: const Color(0xFF8B5CF6),
           shouldShowEdited: (servico) {
-            // Só mostra como editado se NÃO houver OS criada/atualizada hoje
-            // (pois serviços são atualizados quando são usados em OSs)
             return !hasOSToday;
           },
         );
@@ -448,11 +432,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFF0EA5E9),
         );
 
-        // Processar peças - só aparecem se criadas, editadas (sem movimentação) ou movimentadas
         final todayMovimentacoes = movimentacoes.where((mov) => _isToday(mov.dataMovimentacao)).toList();
         final pecasComMovimentacaoHoje = todayMovimentacoes.map((mov) => mov.codigoPeca).toSet();
 
-        // Peças criadas hoje (sempre aparecem)
         final pecasCriadasHoje = pecas.where((peca) => _isToday(peca.createdAt)).toList();
         for (final peca in pecasCriadasHoje) {
           _recentActivities.add({
@@ -466,7 +448,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
         }
 
-        // Peças editadas hoje (só aparecem se NÃO tiverem movimentação hoje)
         final pecasEditadasHoje = pecas.where((peca) {
           final updated = peca.updatedAt;
           final created = peca.createdAt;
@@ -520,23 +501,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           createColor: const Color(0xFF6366F1),
         );
 
-        // Processar movimentações de estoque
         if (movimentacoes.isNotEmpty) {
           final todayMovimentacoes = movimentacoes.where((mov) => _isToday(mov.dataMovimentacao)).toList();
 
           for (final mov in todayMovimentacoes) {
             final isEntrada = mov.tipoMovimentacao == TipoMovimentacao.ENTRADA;
 
-            // Ajuste de rótulos:
-            // - Para ENTRADA: exibir NF (nota fiscal) em vez de OS
-            // - Para SAÍDA: exibir apenas peça e observações (se houver)
             String subtitle;
             if (isEntrada) {
-              // Usar 'NF' para número da nota fiscal
               subtitle = 'Peça: ${mov.codigoPeca} - Qtd: ${mov.quantidade} - NF: ${mov.numeroNotaFiscal}';
             } else {
               final obs = mov.observacoes != null && mov.observacoes!.isNotEmpty ? mov.observacoes : 'Sem observações';
-              // Caso exista alguma referência a OS nas observações, manter.
+
               subtitle = 'Peça: ${mov.codigoPeca} - $obs';
             }
 
@@ -640,14 +616,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
     }
 
-    // Pular adição de "atualizado" se skipEdited for true
     if (!skipEdited) {
       final todayEdited = entities.where((entity) {
         final updated = getUpdatedAt(entity);
         final created = getCreatedAt(entity);
         final wasUpdatedToday = _isToday(updated) && created != null && !_isToday(created);
 
-        // Se shouldShowEdited foi fornecido, usá-lo para filtrar
         if (wasUpdatedToday && shouldShowEdited != null) {
           return shouldShowEdited(entity);
         }
@@ -749,15 +723,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.car_repair,
-                  color: Colors.white,
-                  size: 32,
+                child: Image.asset(
+                  'assets/images/TecStock_icone.png',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1514,10 +1489,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(
-                              Icons.car_repair,
-                              color: Colors.white,
-                              size: 32,
+                            child: Image.asset(
+                              'assets/images/TecStock_icone.png',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(height: 12),

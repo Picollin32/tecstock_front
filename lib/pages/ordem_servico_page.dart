@@ -94,6 +94,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
+
+  pw.MemoryImage? _cachedLogoImage;
+
   bool _showForm = false;
   List<OrdemServico> _recent = [];
   List<OrdemServico> _recentFiltrados = [];
@@ -3617,6 +3620,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   void _printOS(OrdemServico? os) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -3625,7 +3632,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => pw.Column(
           children: [
-            _buildPdfHeader(os),
+            _buildPdfHeader(os, logoImage: _cachedLogoImage),
             pw.SizedBox(height: 16),
             _buildPdfClientVehicleData(os),
             pw.SizedBox(height: 12),
@@ -3659,14 +3666,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => _buildSignaturePage(os),
+        build: (pw.Context context) => _buildSignaturePage(os, logoImage: _cachedLogoImage),
       ),
     );
 
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 
-  pw.Widget _buildPdfHeader(OrdemServico? os) {
+  pw.Widget _buildPdfHeader(OrdemServico? os, {pw.MemoryImage? logoImage}) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
@@ -3679,6 +3686,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       padding: const pw.EdgeInsets.all(16),
       child: pw.Row(
         children: [
+          if (logoImage != null) ...[
+            pw.Image(logoImage, width: 60, height: 60, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 16),
+          ],
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -4180,10 +4191,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
-  pw.Widget _buildSignaturePage(OrdemServico? os) {
+  pw.Widget _buildSignaturePage(OrdemServico? os, {pw.MemoryImage? logoImage}) {
     return pw.Column(
       children: [
-        _buildPdfHeader(os),
+        _buildPdfHeader(os, logoImage: logoImage),
         pw.SizedBox(height: 24),
         pw.Container(
           decoration: pw.BoxDecoration(

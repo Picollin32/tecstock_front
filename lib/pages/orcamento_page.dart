@@ -94,6 +94,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
+
+  pw.MemoryImage? _cachedLogoImage;
+
   bool _showForm = false;
   List<Orcamento> _recent = [];
   List<Orcamento> _recentFiltrados = [];
@@ -1028,6 +1031,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Future<void> _generateOrcamentoPdf(Orcamento? orcamento) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
     final doc = pw.Document();
 
     doc.addPage(
@@ -1036,7 +1043,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => pw.Column(
           children: [
-            _buildPdfHeaderOrcamento(orcamento),
+            _buildPdfHeaderOrcamento(orcamento, logoImage: _cachedLogoImage),
             pw.SizedBox(height: 16),
             _buildPdfClientVehicleDataOrcamento(orcamento),
             pw.SizedBox(height: 12),
@@ -1069,7 +1076,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 
-  pw.Widget _buildPdfHeaderOrcamento(Orcamento? orcamento) {
+  pw.Widget _buildPdfHeaderOrcamento(Orcamento? orcamento, {pw.MemoryImage? logoImage}) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         gradient: pw.LinearGradient(
@@ -1082,6 +1089,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       padding: const pw.EdgeInsets.all(16),
       child: pw.Row(
         children: [
+          if (logoImage != null) ...[
+            pw.Image(logoImage, width: 60, height: 60, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 16),
+          ],
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,

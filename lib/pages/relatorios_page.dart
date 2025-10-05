@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../model/relatorio.dart';
 import '../model/funcionario.dart';
 import '../services/relatorio_service.dart';
@@ -22,10 +26,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   DateTime? _dataFim;
   String _tipoRelatorio = 'agendamentos';
   bool _isLoading = false;
+  bool _isGeneratingPdf = false;
 
   dynamic _relatorioAtual;
 
-  // Para relatório de comissão
+  pw.MemoryImage? _cachedLogoImage;
+
   List<Funcionario> _funcionarios = [];
   int? _mecanicoSelecionadoId;
   bool _isLoadingFuncionarios = false;
@@ -33,12 +39,22 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   @override
   void initState() {
     super.initState();
-    // Definir período padrão: último mês
+
     _dataFim = DateTime.now();
     _dataInicio = DateTime(_dataFim!.year, _dataFim!.month - 1, _dataFim!.day);
     _dataInicioController.text = DateFormat('dd/MM/yyyy').format(_dataInicio!);
     _dataFimController.text = DateFormat('dd/MM/yyyy').format(_dataFim!);
     _carregarFuncionarios();
+    _preloadLogo();
+  }
+
+  Future<void> _preloadLogo() async {
+    try {
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
+      _cachedLogoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    } catch (e) {
+      print('Erro ao pré-carregar logo: $e');
+    }
   }
 
   Future<void> _carregarFuncionarios() async {
@@ -46,11 +62,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       _isLoadingFuncionarios = true;
     });
     try {
-      // Buscar apenas mecânicos (nivelAcesso == 2)
       final response = await http.get(Uri.parse('http://localhost:8081/api/funcionarios/listarMecanicos'));
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         final mecanicos = jsonList.map((e) => Funcionario.fromJson(e)).toList();
+
+        mecanicos.sort((a, b) => a.nome.compareTo(b.nome));
         setState(() {
           _funcionarios = mecanicos;
           _isLoadingFuncionarios = false;
@@ -170,10 +187,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header moderno
             _buildModernHeader(context),
-
-            // Conteúdo
             Expanded(
               child: _relatorioAtual == null ? _buildFormSection(context) : _buildResultSection(context),
             ),
@@ -239,50 +253,106 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             ),
           ),
           if (_relatorioAtual != null)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+            Row(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    setState(() {
-                      _relatorioAtual = null;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_back,
-                          color: Colors.blue.shade600,
-                          size: 20,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_isGeneratingPdf)
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade600),
+                                ),
+                              )
+                            else
+                              Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.orange.shade600,
+                                size: 20,
+                              ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isGeneratingPdf ? 'Gerando PDF...' : 'Imprimir PDF',
+                              style: TextStyle(
+                                color: Colors.orange.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Nova Consulta',
-                          style: TextStyle(
-                            color: Colors.blue.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        setState(() {
+                          _relatorioAtual = null;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back,
+                              color: Colors.blue.shade600,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Nova Consulta',
+                              style: TextStyle(
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
@@ -295,7 +365,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Tipo de relatório
           _buildModernCard(
             context,
             title: 'Tipo de Relatório',
@@ -398,8 +467,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Seleção de Mecânico (apenas para relatório de comissão)
           if (_tipoRelatorio == 'comissao')
             _buildModernCard(
               context,
@@ -444,8 +511,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ),
             ),
           if (_tipoRelatorio == 'comissao') const SizedBox(height: 16),
-
-          // Período
           _buildModernCard(
             context,
             title: 'Período',
@@ -502,8 +567,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Botão gerar
           Container(
             height: 56,
             decoration: BoxDecoration(
@@ -625,6 +688,858 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  void _imprimirRelatorio() {
+    if (_relatorioAtual == null) return;
+
+    setState(() {
+      _isGeneratingPdf = true;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        switch (_tipoRelatorio) {
+          case 'agendamentos':
+            await _printRelatorioAgendamentos(_relatorioAtual as RelatorioAgendamentos);
+            break;
+          case 'servicos':
+            await _printRelatorioServicos(_relatorioAtual as RelatorioServicos);
+            break;
+          case 'estoque':
+            await _printRelatorioEstoque(_relatorioAtual as RelatorioEstoque);
+            break;
+          case 'financeiro':
+            await _printRelatorioFinanceiro(_relatorioAtual as RelatorioFinanceiro);
+            break;
+          case 'comissao':
+            await _printRelatorioComissao(_relatorioAtual as RelatorioComissao);
+            break;
+          case 'garantias':
+            await _printRelatorioGarantias(_relatorioAtual as RelatorioGarantias);
+            break;
+          case 'fiado':
+            await _printRelatorioFiado(_relatorioAtual as RelatorioFiado);
+            break;
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao gerar PDF: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isGeneratingPdf = false;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _printRelatorioAgendamentos(RelatorioAgendamentos relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Agendamentos', Icons.calendar_month, PdfColors.blue600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo Geral'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Agendamentos', relatorio.totalAgendamentos.toString()),
+          _buildPdfMetricCard('Mecânicos Ativos', relatorio.agendamentosPorMecanico.toString()),
+          pw.SizedBox(height: 16),
+          if (relatorio.agendamentosPorDia.isNotEmpty) ...[
+            _buildPdfSectionTitle('Agendamentos por Dia'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Data', 'Quantidade'],
+              rows: relatorio.agendamentosPorDia
+                  .map((item) => [
+                        DateFormat('dd/MM/yyyy').format(DateTime.parse(item.data)),
+                        '${item.quantidade} agendamento${item.quantidade != 1 ? 's' : ''}',
+                      ])
+                  .toList(),
+            ),
+            pw.SizedBox(height: 16),
+          ],
+          if (relatorio.agendamentosPorMecanicoLista.isNotEmpty) ...[
+            _buildPdfSectionTitle('Agendamentos por Mecânico'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Mecânico', 'Quantidade'],
+              rows: relatorio.agendamentosPorMecanicoLista
+                  .map((item) => [
+                        item.nomeMecanico,
+                        '${item.quantidade} agendamento${item.quantidade != 1 ? 's' : ''}',
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioServicos(RelatorioServicos relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Serviços', Icons.build, PdfColors.indigo600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Serviços Realizados'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Valor dos Serviços Realizados', 'R\$ ${relatorio.valorServicosRealizados.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Descontos em Serviços', 'R\$ ${relatorio.descontoServicos.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Total de Serviços Realizados', relatorio.totalServicosRealizados.toString()),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Ordens de Serviço'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Ordens de Serviço', relatorio.totalOrdensServico.toString()),
+          _buildPdfMetricCard('Ordens Finalizadas (Encerradas)', relatorio.ordensFinalizadas.toString()),
+          _buildPdfMetricCard('Ordens em Andamento (Abertas)', relatorio.ordensEmAndamento.toString()),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Métricas Adicionais'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Valor Médio por Ordem', 'R\$ ${relatorio.valorMedioPorOrdem.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Tempo Médio de Execução', '${relatorio.tempoMedioExecucao.toStringAsFixed(1)} dias'),
+          pw.SizedBox(height: 16),
+          if (relatorio.servicosMaisRealizados.isNotEmpty) ...[
+            _buildPdfSectionTitle('Serviços Mais Realizados'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Serviço', 'Quantidade', 'Valor Total'],
+              rows: relatorio.servicosMaisRealizados
+                  .map((item) => [
+                        item.nomeServico,
+                        '${item.quantidade}x',
+                        'R\$ ${item.valorTotal.toStringAsFixed(2)}',
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioEstoque(RelatorioEstoque relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Estoque', Icons.inventory, PdfColors.purple600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Movimentações'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Movimentações', relatorio.totalMovimentacoes.toString()),
+          _buildPdfMetricCard('Entradas', relatorio.totalEntradas.toString()),
+          _buildPdfMetricCard('Saídas', relatorio.totalSaidas.toString()),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Valores'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Valor Total do Estoque', 'R\$ ${relatorio.valorTotalEstoque.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor das Entradas', 'R\$ ${relatorio.valorEntradas.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor das Saídas', 'R\$ ${relatorio.valorSaidas.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          if (relatorio.pecasMaisMovimentadas.isNotEmpty) ...[
+            _buildPdfSectionTitle('Peças Mais Movimentadas'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Peça', 'Quantidade', 'Valor'],
+              rows: relatorio.pecasMaisMovimentadas
+                  .map((item) => [
+                        item.nomePeca,
+                        item.quantidade.toString(),
+                        'R\$ ${item.valor.toStringAsFixed(2)}',
+                      ])
+                  .toList(),
+            ),
+            pw.SizedBox(height: 15),
+          ],
+          if (relatorio.pecasEstoqueBaixo.isNotEmpty) ...[
+            _buildPdfSectionTitle('Peças com Estoque Baixo'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Peça', 'Quantidade', 'Valor'],
+              rows: relatorio.pecasEstoqueBaixo
+                  .map((item) => [
+                        item.nomePeca,
+                        item.quantidade.toString(),
+                        'R\$ ${item.valor.toStringAsFixed(2)}',
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioFinanceiro(RelatorioFinanceiro relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório Financeiro', Icons.attach_money, PdfColors.green600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Receitas'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Receita de Peças', 'R\$ ${relatorio.receitaPecas.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Receita de Serviços', 'R\$ ${relatorio.receitaServicos.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Receita Total', 'R\$ ${relatorio.receitaTotal.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Despesas e Descontos'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Despesas com Estoque', 'R\$ ${relatorio.despesasEstoque.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Descontos em Peças', 'R\$ ${relatorio.descontosPecas.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Descontos em Serviços', 'R\$ ${relatorio.descontosServicos.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Total de Descontos', 'R\$ ${relatorio.descontosTotal.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resultado'),
+          pw.SizedBox(height: 10),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(15),
+            decoration: pw.BoxDecoration(
+              color: relatorio.lucroEstimado >= 0 ? PdfColors.green50 : PdfColors.red50,
+              border: pw.Border.all(color: relatorio.lucroEstimado >= 0 ? PdfColors.green : PdfColors.red, width: 2),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  relatorio.lucroEstimado >= 0 ? 'Lucro' : 'Prejuízo',
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  'R\$ ${relatorio.lucroEstimado.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: relatorio.lucroEstimado >= 0 ? PdfColors.green : PdfColors.red,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Ticket Médio', 'R\$ ${relatorio.ticketMedio.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 15),
+          if (relatorio.receitaPorTipoPagamento.isNotEmpty) ...[
+            _buildPdfSectionTitle('Receita por Tipo de Pagamento'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Tipo de Pagamento', 'Transações', 'Valor'],
+              rows: relatorio.receitaPorTipoPagamento.entries
+                  .map((entry) => [
+                        entry.key,
+                        '${relatorio.quantidadePorTipoPagamento[entry.key] ?? 0}x',
+                        'R\$ ${entry.value.toStringAsFixed(2)}',
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioComissao(RelatorioComissao relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Comissão', Icons.account_balance_wallet, PdfColors.cyan600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          _buildPdfInfoRow('Mecânico', relatorio.mecanicoNome),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              gradient: pw.LinearGradient(
+                colors: [PdfColors.green50, PdfColors.green100],
+                begin: pw.Alignment.topLeft,
+                end: pw.Alignment.bottomRight,
+              ),
+              border: pw.Border.all(color: PdfColors.green600, width: 3),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+              boxShadow: [
+                pw.BoxShadow(
+                  color: PdfColors.grey300,
+                  blurRadius: 6,
+                  offset: const PdfPoint(0, 3),
+                ),
+              ],
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text(
+                  'COMISSÃO TOTAL',
+                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.green900),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  'R\$ ${relatorio.valorComissao.toStringAsFixed(2)}',
+                  style: pw.TextStyle(fontSize: 32, fontWeight: pw.FontWeight.bold, color: PdfColors.green700),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Métricas'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Ordens de Serviço', relatorio.totalOrdensServico.toString()),
+          _buildPdfMetricCard('Serviços Realizados', relatorio.totalServicosRealizados.toString()),
+          _buildPdfMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalServicos.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Descontos', 'R\$ ${relatorio.descontoServicos.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Serviços Mais Realizados'),
+          pw.SizedBox(height: 10),
+          _buildPdfTable(
+            headers: ['Serviço', 'Quantidade', 'Valor Total'],
+            rows: _agregarServicosComissao(relatorio)
+                .map((item) => [
+                      item['nome'].toString(),
+                      '${item['quantidade']}x',
+                      'R\$ ${(item['valorTotal'] as double).toStringAsFixed(2)}',
+                    ])
+                .toList(),
+          ),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Ordens de Serviço Realizadas'),
+          pw.SizedBox(height: 10),
+          ...relatorio.ordensServico.map((os) => pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 10),
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey50,
+                  border: pw.Border.all(color: PdfColors.cyan200, width: 1.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('OS #${os.numeroOS}',
+                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.cyan900)),
+                        pw.Text('R\$ ${os.valorServicos.toStringAsFixed(2)}',
+                            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.green700)),
+                      ],
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text('Cliente: ${os.clienteNome}', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Veículo: ${os.veiculoNome} - ${os.veiculoPlaca}', style: const pw.TextStyle(fontSize: 10)),
+                    if (os.dataHoraEncerramento != null)
+                      pw.Text('Encerrada: ${DateFormat('dd/MM/yyyy HH:mm').format(os.dataHoraEncerramento!)}',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                    pw.SizedBox(height: 6),
+                    pw.Text('Serviços (${os.servicosRealizados.length}):',
+                        style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    ...os.servicosRealizados.map((servico) => pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 10, top: 2),
+                          child: pw.Text('- ${servico.nomeServico} - R\$ ${servico.valor.toStringAsFixed(2)}',
+                              style: const pw.TextStyle(fontSize: 8)),
+                        )),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioGarantias(RelatorioGarantias relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Garantias', Icons.verified_user, PdfColors.teal600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Garantias', relatorio.totalGarantias.toString()),
+          _buildPdfMetricCard('Em Aberto', relatorio.garantiasEmAberto.toString()),
+          _buildPdfMetricCard('Encerradas', relatorio.garantiasEncerradas.toString()),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Garantias no Período'),
+          pw.SizedBox(height: 10),
+          if (relatorio.garantias.isEmpty)
+            pw.Center(
+              child: pw.Text('Nenhuma garantia encontrada no período selecionado', style: const pw.TextStyle(fontSize: 11)),
+            )
+          else
+            ...relatorio.garantias.map((garantia) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: garantia.emAberto ? PdfColors.green50 : PdfColors.red50,
+                    border: pw.Border.all(color: garantia.emAberto ? PdfColors.green : PdfColors.red, width: 1.5),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('OS #${garantia.numeroOS}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(garantia.statusDescricao,
+                              style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: garantia.emAberto ? PdfColors.green : PdfColors.red)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Cliente: ${garantia.clienteNome} - CPF: ${garantia.clienteCpf}', style: const pw.TextStyle(fontSize: 10)),
+                      if (garantia.clienteTelefone != null && garantia.clienteTelefone!.isNotEmpty)
+                        pw.Text('Telefone: ${garantia.clienteTelefone}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text('Veículo: ${garantia.veiculoNome} - ${garantia.veiculoPlaca}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                          'Valor: R\$ ${garantia.valorTotal.toStringAsFixed(2)} | Garantia: ${garantia.garantiaMeses} ${garantia.garantiaMeses == 1 ? 'mês' : 'meses'}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Encerramento: ${DateFormat('dd/MM/yyyy').format(garantia.dataEncerramento)}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text(
+                          'Período: ${DateFormat('dd/MM/yyyy').format(garantia.dataInicioGarantia)} - ${DateFormat('dd/MM/yyyy').format(garantia.dataFimGarantia)}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      if (garantia.mecanicoNome != null && garantia.mecanicoNome!.isNotEmpty)
+                        pw.Text('Mecânico: ${garantia.mecanicoNome}', style: const pw.TextStyle(fontSize: 9)),
+                    ],
+                  ),
+                )),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioFiado(RelatorioFiado relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Fiado', Icons.credit_card, PdfColors.orange600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Fiados', relatorio.totalFiados.toString()),
+          _buildPdfMetricCard('No Prazo', relatorio.fiadosNoPrazo.toString()),
+          _buildPdfMetricCard('Vencidos', relatorio.fiadosVencidos.toString()),
+          _buildPdfMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalFiado.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor No Prazo', 'R\$ ${relatorio.valorNoPrazo.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor Vencido', 'R\$ ${relatorio.valorVencido.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Fiados no Período'),
+          pw.SizedBox(height: 10),
+          if (relatorio.fiados.isEmpty)
+            pw.Center(
+              child: pw.Text('Nenhum fiado encontrado no período selecionado', style: const pw.TextStyle(fontSize: 11)),
+            )
+          else
+            ...relatorio.fiados.map((fiado) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: fiado.noPrazo ? PdfColors.green50 : PdfColors.red50,
+                    border: pw.Border.all(color: fiado.noPrazo ? PdfColors.green : PdfColors.red, width: 1.5),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text('OS #${fiado.numeroOS}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                          pw.Text(fiado.statusDescricao,
+                              style: pw.TextStyle(
+                                  fontSize: 10, fontWeight: pw.FontWeight.bold, color: fiado.noPrazo ? PdfColors.green : PdfColors.red)),
+                        ],
+                      ),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Cliente: ${fiado.clienteNome} - CPF: ${fiado.clienteCpf}', style: const pw.TextStyle(fontSize: 10)),
+                      if (fiado.clienteTelefone != null && fiado.clienteTelefone!.isNotEmpty)
+                        pw.Text('Telefone: ${fiado.clienteTelefone}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text('Veículo: ${fiado.veiculoNome} - ${fiado.veiculoPlaca}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                          'Valor: R\$ ${fiado.valorTotal.toStringAsFixed(2)} | Prazo: ${fiado.prazoFiadoDias} ${fiado.prazoFiadoDias == 1 ? 'dia' : 'dias'}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      if (fiado.tipoPagamentoNome != null && fiado.tipoPagamentoNome!.isNotEmpty)
+                        pw.Text('Tipo Pagamento: ${fiado.tipoPagamentoNome}', style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Encerramento OS: ${DateFormat('dd/MM/yyyy').format(fiado.dataEncerramento)}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      pw.Text('Vencimento: ${DateFormat('dd/MM/yyyy').format(fiado.dataVencimentoFiado)}',
+                          style: const pw.TextStyle(fontSize: 9)),
+                      if (fiado.mecanicoNome != null && fiado.mecanicoNome!.isNotEmpty)
+                        pw.Text('Mecânico: ${fiado.mecanicoNome}', style: const pw.TextStyle(fontSize: 9)),
+                    ],
+                  ),
+                )),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  pw.Widget _buildPdfHeader(String title, IconData icon, PdfColor color, {pw.MemoryImage? logoImage}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        gradient: pw.LinearGradient(
+          colors: [color, _darkenColor(color)],
+          begin: pw.Alignment.topLeft,
+          end: pw.Alignment.bottomRight,
+        ),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+        boxShadow: [
+          pw.BoxShadow(
+            color: PdfColors.grey400,
+            blurRadius: 4,
+            offset: const PdfPoint(0, 2),
+          ),
+        ],
+      ),
+      child: pw.Row(
+        children: [
+          if (logoImage != null) ...[
+            pw.Image(logoImage, width: 60, height: 60, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 16),
+          ],
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.white,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                pw.Row(
+                  children: [
+                    pw.Text(
+                      'Data: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.white),
+                    ),
+                    pw.SizedBox(width: 20),
+                    pw.Text(
+                      'Hora: ${DateFormat('HH:mm').format(DateTime.now())}',
+                      style: pw.TextStyle(fontSize: 10, color: PdfColors.white),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.white,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Text(
+              'TecStock',
+              style: pw.TextStyle(
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PdfColor _darkenColor(PdfColor color) {
+    return PdfColor(color.red * 0.8, color.green * 0.8, color.blue * 0.8);
+  }
+
+  pw.Widget _buildPdfInfoRow(String label, String value) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const pw.EdgeInsets.only(bottom: 4),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.blue50,
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        border: pw.Border.all(color: PdfColors.blue200),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 100,
+            child: pw.Text(
+              '$label:',
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.blue900,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfSectionTitle(String title) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 4,
+            height: 20,
+            decoration: pw.BoxDecoration(
+              color: PdfColors.blue600,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(2)),
+            ),
+          ),
+          pw.SizedBox(width: 10),
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfMetricCard(String label, String value) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 6),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey50,
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Expanded(
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey800,
+              ),
+            ),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.blue900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfTable({required List<String> headers, required List<List<String>> rows}) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(8),
+                topRight: pw.Radius.circular(8),
+              ),
+            ),
+            child: pw.Row(
+              children: headers
+                  .map((header) => pw.Expanded(
+                        child: pw.Padding(
+                          padding: const pw.EdgeInsets.all(10),
+                          child: pw.Text(
+                            header,
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.blue900,
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          ...rows.asMap().entries.map((entry) {
+            final index = entry.key;
+            final row = entry.value;
+            return pw.Container(
+              decoration: pw.BoxDecoration(
+                color: index % 2 == 0 ? PdfColors.white : PdfColors.grey50,
+                border: pw.Border(
+                  top: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                ),
+              ),
+              child: pw.Row(
+                children: row
+                    .map((cell) => pw.Expanded(
+                          child: pw.Padding(
+                            padding: const pw.EdgeInsets.all(10),
+                            child: pw.Text(
+                              cell,
+                              style: const pw.TextStyle(fontSize: 9),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _agregarServicosComissao(RelatorioComissao relatorio) {
+    Map<int, Map<String, dynamic>> servicosAgregados = {};
+
+    for (var os in relatorio.ordensServico) {
+      for (var servico in os.servicosRealizados) {
+        if (servicosAgregados.containsKey(servico.idServico)) {
+          servicosAgregados[servico.idServico]!['quantidade'] += 1;
+          servicosAgregados[servico.idServico]!['valorTotal'] += servico.valor - servico.valorDesconto;
+        } else {
+          servicosAgregados[servico.idServico] = {
+            'nome': servico.nomeServico,
+            'quantidade': 1,
+            'valorTotal': servico.valor - servico.valorDesconto,
+          };
+        }
+      }
+    }
+
+    var servicosOrdenados = servicosAgregados.values.toList()..sort((a, b) => b['quantidade'].compareTo(a['quantidade']));
+
+    return servicosOrdenados;
+  }
+
   Widget _buildRelatorioContent() {
     switch (_tipoRelatorio) {
       case 'agendamentos':
@@ -650,7 +1565,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -686,16 +1600,11 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Seção de Resumo
         _buildSectionHeader('Resumo Geral', Icons.assessment, Colors.blue),
         const SizedBox(height: 12),
         _buildMetricCard('Total de Agendamentos', relatorio.totalAgendamentos.toString(), Icons.event, color: Colors.blue),
         _buildMetricCard('Mecânicos Ativos', relatorio.agendamentosPorMecanico.toString(), Icons.person, color: Colors.green),
-
         const SizedBox(height: 24),
-
-        // Seção de Agendamentos por Dia
         if (relatorio.agendamentosPorDia.isNotEmpty) ...[
           _buildSectionHeader('Agendamentos por Dia', Icons.calendar_today, Colors.purple),
           const SizedBox(height: 12),
@@ -740,8 +1649,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               )),
           const SizedBox(height: 24),
         ],
-
-        // Seção de Agendamentos por Mecânico
         if (relatorio.agendamentosPorMecanicoLista.isNotEmpty) ...[
           _buildSectionHeader('Agendamentos por Mecânico', Icons.person, Colors.orange),
           const SizedBox(height: 12),
@@ -793,7 +1700,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -829,8 +1735,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Serviços Realizados
         _buildSectionHeader('Serviços Realizados', Icons.construction, Colors.indigo),
         const SizedBox(height: 12),
         _buildMetricCard(
@@ -851,10 +1755,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           Icons.done_all,
           color: Colors.indigo,
         ),
-
         const SizedBox(height: 24),
-
-        // Serviços Mais Realizados
         if (relatorio.servicosMaisRealizados.isNotEmpty) ...[
           _buildSectionHeader('Serviços Mais Realizados', Icons.star, Colors.amber),
           const SizedBox(height: 12),
@@ -903,18 +1804,13 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               )),
           const SizedBox(height: 24),
         ],
-
-        // Ordem de Serviço
         _buildSectionHeader('Ordens de Serviço', Icons.assignment, Colors.deepPurple),
         const SizedBox(height: 12),
         _buildMetricCard('Total de Ordens de Serviço', relatorio.totalOrdensServico.toString(), Icons.assignment, color: Colors.deepPurple),
         _buildMetricCard('Ordens Finalizadas (Encerradas)', relatorio.ordensFinalizadas.toString(), Icons.check_circle,
             color: Colors.green),
         _buildMetricCard('Ordens em Andamento (Abertas)', relatorio.ordensEmAndamento.toString(), Icons.pending, color: Colors.orange),
-
         const SizedBox(height: 24),
-
-        // Métricas Adicionais
         _buildSectionHeader('Métricas Adicionais', Icons.analytics, Colors.blue),
         const SizedBox(height: 12),
         _buildMetricCard('Valor Médio por Ordem', 'R\$ ${relatorio.valorMedioPorOrdem.toStringAsFixed(2)}', Icons.analytics,
@@ -929,7 +1825,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -965,17 +1860,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Movimentações
         _buildSectionHeader('Movimentações', Icons.swap_horiz, Colors.teal),
         const SizedBox(height: 12),
         _buildMetricCard('Total de Movimentações', relatorio.totalMovimentacoes.toString(), Icons.swap_horiz, color: Colors.teal),
         _buildMetricCard('Entradas', relatorio.totalEntradas.toString(), Icons.arrow_circle_down, color: Colors.green),
         _buildMetricCard('Saídas', relatorio.totalSaidas.toString(), Icons.arrow_circle_up, color: Colors.red),
-
         const SizedBox(height: 24),
-
-        // Valores
         _buildSectionHeader('Valores', Icons.attach_money, Colors.blue),
         const SizedBox(height: 12),
         _buildMetricCard('Valor Total do Estoque', 'R\$ ${relatorio.valorTotalEstoque.toStringAsFixed(2)}', Icons.inventory_2,
@@ -984,10 +1874,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             color: Colors.green),
         _buildMetricCard('Valor das Saídas', 'R\$ ${relatorio.valorSaidas.toStringAsFixed(2)}', Icons.remove_circle_outline,
             color: Colors.red),
-
         const SizedBox(height: 24),
-
-        // Peças Mais Movimentadas
         if (relatorio.pecasMaisMovimentadas.isNotEmpty) ...[
           _buildSectionHeader('Peças Mais Movimentadas', Icons.star, Colors.amber),
           const SizedBox(height: 12),
@@ -1036,8 +1923,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               )),
           const SizedBox(height: 24),
         ],
-
-        // Peças com Estoque Baixo
         if (relatorio.pecasEstoqueBaixo.isNotEmpty) ...[
           _buildSectionHeader('Peças com Estoque Baixo', Icons.warning, Colors.red),
           const SizedBox(height: 12),
@@ -1093,7 +1978,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -1129,8 +2013,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Receitas
         _buildSectionHeader('Receitas', Icons.trending_up, Colors.green),
         const SizedBox(height: 12),
         _buildMetricCard('Receita de Peças', 'R\$ ${relatorio.receitaPecas.toStringAsFixed(2)}', Icons.inventory_2, color: Colors.green),
@@ -1138,10 +2020,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             color: Colors.green),
         _buildMetricCard('Receita Total', 'R\$ ${relatorio.receitaTotal.toStringAsFixed(2)}', Icons.monetization_on,
             color: Colors.green.shade700),
-
         const SizedBox(height: 24),
-
-        // Despesas e Descontos
         _buildSectionHeader('Despesas e Descontos', Icons.trending_down, Colors.red),
         const SizedBox(height: 12),
         _buildMetricCard('Despesas com Estoque', 'R\$ ${relatorio.despesasEstoque.toStringAsFixed(2)}', Icons.shopping_cart,
@@ -1151,10 +2030,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             color: Colors.orange),
         _buildMetricCard('Total de Descontos', 'R\$ ${relatorio.descontosTotal.toStringAsFixed(2)}', Icons.remove_circle,
             color: Colors.deepOrange),
-
         const SizedBox(height: 24),
-
-        // Resultado
         _buildSectionHeader('Resultado', Icons.assessment, Colors.indigo),
         const SizedBox(height: 12),
         Container(
@@ -1211,10 +2087,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         ),
         const SizedBox(height: 12),
         _buildMetricCard('Ticket Médio', 'R\$ ${relatorio.ticketMedio.toStringAsFixed(2)}', Icons.analytics, color: Colors.indigo),
-
         const SizedBox(height: 24),
-
-        // Receita por Tipo de Pagamento
         if (relatorio.receitaPorTipoPagamento.isNotEmpty) ...[
           _buildSectionHeader('Receita por Tipo de Pagamento', Icons.payment, Colors.blue),
           const SizedBox(height: 12),
@@ -1351,7 +2224,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -1406,8 +2278,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Card de Comissão em Destaque
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
@@ -1469,8 +2339,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Cards de Métricas
         Row(
           children: [
             Expanded(
@@ -1515,8 +2383,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ],
         ),
         const SizedBox(height: 32),
-
-        // Seção de Serviços Mais Realizados
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1539,10 +2405,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // Lista de Serviços Agregados
         ...(() {
-          // Agregar todos os serviços de todas as OSs
           Map<int, Map<String, dynamic>> servicosAgregados = {};
 
           for (var os in relatorio.ordensServico) {
@@ -1560,7 +2423,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             }
           }
 
-          // Ordenar por quantidade (mais realizados primeiro)
           var servicosOrdenados = servicosAgregados.entries.toList()
             ..sort((a, b) => b.value['quantidade'].compareTo(a.value['quantidade']));
 
@@ -1612,10 +2474,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             );
           }).toList();
         })(),
-
         const SizedBox(height: 32),
-
-        // Seção de Ordens de Serviço
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1638,8 +2497,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // Lista de Ordens de Serviço
         ...relatorio.ordensServico.asMap().entries.map((entry) {
           final index = entry.key;
           final os = entry.value;
@@ -1894,7 +2751,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -1930,8 +2786,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Estatísticas gerais
         _buildSectionHeader('Resumo', Icons.assessment, Colors.teal),
         const SizedBox(height: 12),
         Row(
@@ -1963,8 +2817,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           Colors.red,
         ),
         const SizedBox(height: 32),
-
-        // Lista de Garantias
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1987,8 +2839,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // Cards de Garantia
         if (relatorio.garantias.isEmpty)
           Center(
             child: Padding(
@@ -2009,9 +2859,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ),
             ),
           ),
-
         ...relatorio.garantias.map((garantia) {
-          // Cor baseada no status
           final Color statusColor = garantia.emAberto ? Colors.green : Colors.red;
           final Color backgroundColor = garantia.emAberto ? Colors.green.shade50 : Colors.red.shade50;
           final Color borderColor = garantia.emAberto ? Colors.green.shade200 : Colors.red.shade200;
@@ -2033,7 +2881,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -2119,13 +2966,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ],
                   ),
                 ),
-
-                // Informações detalhadas
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // Cliente
                       _buildInfoRow(
                         Icons.person,
                         'Cliente',
@@ -2145,10 +2989,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           garantia.clienteTelefone!,
                           statusColor,
                         ),
-
                       const Divider(height: 24),
-
-                      // Veículo
                       _buildInfoRow(
                         Icons.directions_car,
                         'Veículo',
@@ -2162,10 +3003,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           garantia.veiculoMarca!,
                           statusColor,
                         ),
-
                       const Divider(height: 24),
-
-                      // Datas
                       _buildInfoRow(
                         Icons.event_available,
                         'Encerramento',
@@ -2184,10 +3022,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         DateFormat('dd/MM/yyyy').format(garantia.dataFimGarantia),
                         statusColor,
                       ),
-
                       const Divider(height: 24),
-
-                      // Responsáveis
                       if (garantia.mecanicoNome != null && garantia.mecanicoNome!.isNotEmpty)
                         _buildInfoRow(
                           Icons.build,
@@ -2253,7 +3088,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Cabeçalho do relatório
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -2289,8 +3123,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Estatísticas gerais
         _buildSectionHeader('Resumo', Icons.assessment, Colors.orange),
         const SizedBox(height: 12),
         Row(
@@ -2359,8 +3191,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ],
         ),
         const SizedBox(height: 32),
-
-        // Lista de Fiados
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -2383,8 +3213,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 16),
-
-        // Cards de Fiado
         if (relatorio.fiados.isEmpty)
           Center(
             child: Padding(
@@ -2405,9 +3233,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ),
             ),
           ),
-
         ...relatorio.fiados.map((fiado) {
-          // Cor baseada no status
           final Color statusColor = fiado.noPrazo ? Colors.green : Colors.red;
           final Color backgroundColor = fiado.noPrazo ? Colors.green.shade50 : Colors.red.shade50;
           final Color borderColor = fiado.noPrazo ? Colors.green.shade200 : Colors.red.shade200;
@@ -2429,7 +3255,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cabeçalho do card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -2515,13 +3340,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ],
                   ),
                 ),
-
-                // Informações detalhadas
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // Cliente
                       _buildInfoRow(
                         Icons.person,
                         'Cliente',
@@ -2541,10 +3363,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           fiado.clienteTelefone!,
                           statusColor,
                         ),
-
                       const Divider(height: 24),
-
-                      // Veículo
                       _buildInfoRow(
                         Icons.directions_car,
                         'Veículo',
@@ -2558,10 +3377,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           fiado.veiculoMarca!,
                           statusColor,
                         ),
-
                       const Divider(height: 24),
-
-                      // Datas
                       _buildInfoRow(
                         Icons.event_available,
                         'Encerramento OS',
@@ -2580,10 +3396,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         DateFormat('dd/MM/yyyy').format(fiado.dataVencimentoFiado),
                         statusColor,
                       ),
-
                       const Divider(height: 24),
-
-                      // Pagamento
                       if (fiado.tipoPagamentoNome != null && fiado.tipoPagamentoNome!.isNotEmpty)
                         _buildInfoRow(
                           Icons.payment,
@@ -2591,8 +3404,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           fiado.tipoPagamentoNome!,
                           statusColor,
                         ),
-
-                      // Responsáveis
                       if (fiado.mecanicoNome != null && fiado.mecanicoNome!.isNotEmpty)
                         _buildInfoRow(
                           Icons.build,

@@ -37,7 +37,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   bool _isLoading = false;
   bool _isLoadingPecas = true;
-  String _filtroEstoque = 'todos'; // 'todos', 'critico', 'sem_estoque', 'em_uso'
+  String _filtroEstoque = 'todos';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;

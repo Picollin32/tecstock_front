@@ -123,7 +123,7 @@ class Checklist {
     this.chaveRoda,
     this.triangulo,
     this.tapetes,
-    this.status = 'ABERTO',
+    this.status = 'Aberto',
     this.createdAt,
     this.updatedAt,
   });
@@ -190,7 +190,7 @@ class Checklist {
       chaveRoda: json['chaveRoda'],
       triangulo: json['triangulo'],
       tapetes: json['tapetes'],
-      status: json['status'] ?? 'ABERTO',
+      status: json['status'] ?? 'Aberto',
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );

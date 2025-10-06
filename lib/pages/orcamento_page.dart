@@ -848,6 +848,31 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
+            if (orcamento.transformadoEmOS && orcamento.numeroOSGerado != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, size: 14, color: Colors.purple.shade600),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Transformado em OS ${orcamento.numeroOSGerado}',
+                      style: TextStyle(
+                        color: Colors.purple.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (orcamento.clienteNome.isNotEmpty)
               Row(
                 children: [
@@ -944,7 +969,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(width: 8),
             Container(
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
@@ -977,37 +1001,70 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.edit_outlined,
-                  color: Colors.orange.shade600,
-                  size: 20,
+            if (!orcamento.transformadoEmOS) ...[
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                onPressed: () => _editOrcamento(orcamento),
-                tooltip: 'Editar Orçamento',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.delete_outline,
-                  color: Colors.red.shade600,
-                  size: 20,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.assignment_turned_in,
+                    color: Colors.purple.shade600,
+                    size: 20,
+                  ),
+                  onPressed: () => _confirmarTransformacaoEmOS(orcamento),
+                  tooltip: 'Transformar em OS',
                 ),
-                onPressed: () => _confirmarExclusaoOrcamento(orcamento),
-                tooltip: 'Excluir Orçamento',
               ),
-            ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    color: Colors.orange.shade600,
+                    size: 20,
+                  ),
+                  onPressed: () => _editOrcamento(orcamento),
+                  tooltip: 'Editar Orçamento',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: Colors.red.shade600,
+                    size: 20,
+                  ),
+                  onPressed: () => _confirmarExclusaoOrcamento(orcamento),
+                  tooltip: 'Excluir Orçamento',
+                ),
+              ),
+            ] else
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.lock_outlined,
+                    color: Colors.purple.shade600,
+                    size: 20,
+                  ),
+                  onPressed: null,
+                  tooltip: 'Orçamento Bloqueado - Transformado em OS ${orcamento.numeroOSGerado}',
+                ),
+              ),
           ],
         ),
         onTap: () async {
@@ -1675,6 +1732,94 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Excluir', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmarTransformacaoEmOS(Orcamento orcamento) async {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.assignment_turned_in, color: Colors.purple.shade600),
+            ),
+            const SizedBox(width: 12),
+            const Text('Transformar em OS'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Deseja transformar o orçamento ${orcamento.numeroOrcamento} em uma Ordem de Serviço?'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'O orçamento será bloqueado e não poderá mais ser editado.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (orcamento.id != null) {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(child: CircularProgressIndicator()),
+                );
+
+                final ordemServico = await OrcamentoService.transformarEmOrdemServico(orcamento.id!);
+
+                Navigator.pop(context);
+
+                if (ordemServico != null) {
+                  await _loadData();
+                  _showSuccessMessage('Orçamento transformado em OS ${ordemServico.numeroOS} com sucesso!');
+                } else {
+                  _showErrorMessage('Erro ao transformar orçamento em OS');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Transformar', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -3508,7 +3653,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       if (veiculo != null) {
         setState(() {
           _veiculoNomeController.text = veiculo.nome ?? '';
-          _veiculoMarcaController.text = veiculo.marca?.nome ?? '';
+          _veiculoMarcaController.text = veiculo.marca?.marca ?? '';
           _veiculoAnoController.text = veiculo.ano?.toString() ?? '';
           _veiculoCorController.text = veiculo.cor ?? '';
           _veiculoQuilometragemController.text = veiculo.quilometragem?.toString() ?? '';
@@ -3558,6 +3703,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly],
+              keyboardType: _isViewMode ? null : TextInputType.number,
               onChanged: _isViewMode
                   ? null
                   : (value) {

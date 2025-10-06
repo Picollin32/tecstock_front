@@ -2179,6 +2179,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             return TextField(
               controller: controller,
               focusNode: focusNode,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

@@ -34,10 +34,13 @@ class OrdemServico {
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
   int? prazoFiadoDias;
+  bool? fiadoPago;
   Funcionario? mecanico;
   Funcionario? consultor;
   String status;
   String? observacoes;
+  int? orcamentoOrigemId;
+  String? numeroOrcamentoOrigem;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -70,10 +73,13 @@ class OrdemServico {
     this.tipoPagamento,
     this.numeroParcelas,
     this.prazoFiadoDias,
+    this.fiadoPago,
     this.mecanico,
     this.consultor,
     this.status = 'Aberta',
     this.observacoes,
+    this.orcamentoOrigemId,
+    this.numeroOrcamentoOrigem,
     this.createdAt,
     this.updatedAt,
   });
@@ -110,10 +116,13 @@ class OrdemServico {
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
       prazoFiadoDias: json['prazoFiadoDias'],
+      fiadoPago: json['fiadoPago'],
       mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       status: json['status'] ?? 'Aberta',
       observacoes: json['observacoes'],
+      orcamentoOrigemId: json['orcamentoOrigemId'],
+      numeroOrcamentoOrigem: json['numeroOrcamentoOrigem'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -150,10 +159,13 @@ class OrdemServico {
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
     if (prazoFiadoDias != null) map['prazoFiadoDias'] = prazoFiadoDias;
+    if (fiadoPago != null) map['fiadoPago'] = fiadoPago;
     if (mecanico != null) map['mecanico'] = mecanico!.toJson();
     if (consultor != null) map['consultor'] = consultor!.toJson();
     map['status'] = status;
     if (observacoes != null) map['observacoes'] = observacoes;
+    if (orcamentoOrigemId != null) map['orcamentoOrigemId'] = orcamentoOrigemId;
+    if (numeroOrcamentoOrigem != null) map['numeroOrcamentoOrigem'] = numeroOrcamentoOrigem;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();
     if (updatedAt != null) map['updatedAt'] = updatedAt!.toIso8601String();
 

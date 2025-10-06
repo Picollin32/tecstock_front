@@ -24,7 +24,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   DateTime? _dataInicio;
   DateTime? _dataFim;
-  String _tipoRelatorio = 'agendamentos';
+  String _tipoRelatorio = 'consultores';
   bool _isLoading = false;
   bool _isGeneratingPdf = false;
 
@@ -163,6 +163,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           break;
         case 'fiado':
           relatorio = await _relatorioService.getRelatorioFiado(_dataInicio!, _dataFim!);
+          break;
+        case 'consultores':
+          relatorio = await _relatorioService.getRelatorioConsultores(_dataInicio!, _dataFim!);
           break;
       }
 
@@ -387,42 +390,22 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ),
               items: const [
                 DropdownMenuItem(
+                  value: 'consultores',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people_alt, size: 20),
+                      SizedBox(width: 12),
+                      Text('Desempenho Consultores'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
                   value: 'agendamentos',
                   child: Row(
                     children: [
                       Icon(Icons.calendar_month, size: 20),
                       SizedBox(width: 12),
                       Text('Relatório de Agendamentos'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'servicos',
-                  child: Row(
-                    children: [
-                      Icon(Icons.build, size: 20),
-                      SizedBox(width: 12),
-                      Text('Relatório de Serviços'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'estoque',
-                  child: Row(
-                    children: [
-                      Icon(Icons.inventory, size: 20),
-                      SizedBox(width: 12),
-                      Text('Relatório de Estoque'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
-                  value: 'financeiro',
-                  child: Row(
-                    children: [
-                      Icon(Icons.attach_money, size: 20),
-                      SizedBox(width: 12),
-                      Text('Relatório Financeiro'),
                     ],
                   ),
                 ),
@@ -437,12 +420,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                   ),
                 ),
                 DropdownMenuItem(
-                  value: 'garantias',
+                  value: 'estoque',
                   child: Row(
                     children: [
-                      Icon(Icons.verified_user, size: 20),
+                      Icon(Icons.inventory, size: 20),
                       SizedBox(width: 12),
-                      Text('Relatório de Garantias'),
+                      Text('Relatório de Estoque'),
                     ],
                   ),
                 ),
@@ -453,6 +436,36 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       Icon(Icons.credit_card, size: 20),
                       SizedBox(width: 12),
                       Text('Relatório de Fiado'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'financeiro',
+                  child: Row(
+                    children: [
+                      Icon(Icons.attach_money, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório Financeiro'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'garantias',
+                  child: Row(
+                    children: [
+                      Icon(Icons.verified_user, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório de Garantias'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'servicos',
+                  child: Row(
+                    children: [
+                      Icon(Icons.build, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório de Serviços'),
                     ],
                   ),
                 ),
@@ -720,6 +733,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             break;
           case 'fiado':
             await _printRelatorioFiado(_relatorioAtual as RelatorioFiado);
+            break;
+          case 'consultores':
+            await _printRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
             break;
         }
       } catch (e) {
@@ -1211,14 +1227,31 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
           pw.SizedBox(height: 16),
-          _buildPdfSectionTitle('Resumo'),
+          _buildPdfSectionTitle('Resumo Geral'),
           pw.SizedBox(height: 10),
           _buildPdfMetricCard('Total de Fiados', relatorio.totalFiados.toString()),
-          _buildPdfMetricCard('No Prazo', relatorio.fiadosNoPrazo.toString()),
-          _buildPdfMetricCard('Vencidos', relatorio.fiadosVencidos.toString()),
           _buildPdfMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalFiado.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Status de Prazo'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('No Prazo', relatorio.fiadosNoPrazo.toString()),
+          _buildPdfMetricCard('Atrasados', relatorio.fiadosVencidos.toString()),
           _buildPdfMetricCard('Valor No Prazo', 'R\$ ${relatorio.valorNoPrazo.toStringAsFixed(2)}'),
-          _buildPdfMetricCard('Valor Vencido', 'R\$ ${relatorio.valorVencido.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor Atrasado', 'R\$ ${relatorio.valorVencido.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Status de Pagamento'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Pagos', relatorio.fiadosPagos.toString()),
+          _buildPdfMetricCard('Não Pagos', relatorio.fiadosNaoPagos.toString()),
+          _buildPdfMetricCard('Valor Pago', 'R\$ ${relatorio.valorPago.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor Não Pago', 'R\$ ${relatorio.valorNaoPago.toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Detalhamento Combinado'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('No Prazo - Pago', relatorio.fiadosNoPrazoPagos.toString()),
+          _buildPdfMetricCard('No Prazo - Não Pago', relatorio.fiadosNoPrazoNaoPagos.toString()),
+          _buildPdfMetricCard('Atrasado - Pago', relatorio.fiadosAtrasadosPagos.toString()),
+          _buildPdfMetricCard('Atrasado - Não Pago', relatorio.fiadosAtrasadosNaoPagos.toString()),
           pw.SizedBox(height: 16),
           _buildPdfSectionTitle('Fiados no Período'),
           pw.SizedBox(height: 10),
@@ -1227,46 +1260,68 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               child: pw.Text('Nenhum fiado encontrado no período selecionado', style: const pw.TextStyle(fontSize: 11)),
             )
           else
-            ...relatorio.fiados.map((fiado) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 10),
-                  padding: const pw.EdgeInsets.all(12),
-                  decoration: pw.BoxDecoration(
-                    color: fiado.noPrazo ? PdfColors.green50 : PdfColors.red50,
-                    border: pw.Border.all(color: fiado.noPrazo ? PdfColors.green : PdfColors.red, width: 1.5),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('OS #${fiado.numeroOS}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                          pw.Text(fiado.statusDescricao,
-                              style: pw.TextStyle(
-                                  fontSize: 10, fontWeight: pw.FontWeight.bold, color: fiado.noPrazo ? PdfColors.green : PdfColors.red)),
-                        ],
-                      ),
-                      pw.SizedBox(height: 5),
-                      pw.Text('Cliente: ${fiado.clienteNome} - CPF: ${fiado.clienteCpf}', style: const pw.TextStyle(fontSize: 10)),
-                      if (fiado.clienteTelefone != null && fiado.clienteTelefone!.isNotEmpty)
-                        pw.Text('Telefone: ${fiado.clienteTelefone}', style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text('Veículo: ${fiado.veiculoNome} - ${fiado.veiculoPlaca}', style: const pw.TextStyle(fontSize: 10)),
-                      pw.SizedBox(height: 3),
-                      pw.Text(
-                          'Valor: R\$ ${fiado.valorTotal.toStringAsFixed(2)} | Prazo: ${fiado.prazoFiadoDias} ${fiado.prazoFiadoDias == 1 ? 'dia' : 'dias'}',
-                          style: const pw.TextStyle(fontSize: 9)),
-                      if (fiado.tipoPagamentoNome != null && fiado.tipoPagamentoNome!.isNotEmpty)
-                        pw.Text('Tipo Pagamento: ${fiado.tipoPagamentoNome}', style: const pw.TextStyle(fontSize: 9)),
-                      pw.Text('Encerramento OS: ${DateFormat('dd/MM/yyyy').format(fiado.dataEncerramento)}',
-                          style: const pw.TextStyle(fontSize: 9)),
-                      pw.Text('Vencimento: ${DateFormat('dd/MM/yyyy').format(fiado.dataVencimentoFiado)}',
-                          style: const pw.TextStyle(fontSize: 9)),
-                      if (fiado.mecanicoNome != null && fiado.mecanicoNome!.isNotEmpty)
-                        pw.Text('Mecânico: ${fiado.mecanicoNome}', style: const pw.TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                )),
+            ...relatorio.fiados.map((fiado) {
+              PdfColor cardColor;
+              PdfColor borderColor;
+
+              if (fiado.fiadoPago) {
+                if (fiado.noPrazo) {
+                  cardColor = PdfColors.green50;
+                  borderColor = PdfColors.green;
+                } else {
+                  cardColor = PdfColors.amber50;
+                  borderColor = PdfColors.amber;
+                }
+              } else {
+                if (fiado.noPrazo) {
+                  cardColor = PdfColors.blue50;
+                  borderColor = PdfColors.blue;
+                } else {
+                  cardColor = PdfColors.red50;
+                  borderColor = PdfColors.red;
+                }
+              }
+
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 10),
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: cardColor,
+                  border: pw.Border.all(color: borderColor, width: 1.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('OS #${fiado.numeroOS}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                        pw.Text(fiado.statusDescricao,
+                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: borderColor)),
+                      ],
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text('Cliente: ${fiado.clienteNome} - CPF: ${fiado.clienteCpf}', style: const pw.TextStyle(fontSize: 10)),
+                    if (fiado.clienteTelefone != null && fiado.clienteTelefone!.isNotEmpty)
+                      pw.Text('Telefone: ${fiado.clienteTelefone}', style: const pw.TextStyle(fontSize: 10)),
+                    pw.Text('Veículo: ${fiado.veiculoNome} - ${fiado.veiculoPlaca}', style: const pw.TextStyle(fontSize: 10)),
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                        'Valor: R\$ ${fiado.valorTotal.toStringAsFixed(2)} | Prazo: ${fiado.prazoFiadoDias} ${fiado.prazoFiadoDias == 1 ? 'dia' : 'dias'}',
+                        style: const pw.TextStyle(fontSize: 9)),
+                    if (fiado.tipoPagamentoNome != null && fiado.tipoPagamentoNome!.isNotEmpty)
+                      pw.Text('Tipo Pagamento: ${fiado.tipoPagamentoNome}', style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text('Encerramento OS: ${DateFormat('dd/MM/yyyy').format(fiado.dataEncerramento)}',
+                        style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text('Vencimento: ${DateFormat('dd/MM/yyyy').format(fiado.dataVencimentoFiado)}',
+                        style: const pw.TextStyle(fontSize: 9)),
+                    if (fiado.mecanicoNome != null && fiado.mecanicoNome!.isNotEmpty)
+                      pw.Text('Mecânico: ${fiado.mecanicoNome}', style: const pw.TextStyle(fontSize: 9)),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -1556,6 +1611,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         return _buildRelatorioGarantias(_relatorioAtual as RelatorioGarantias);
       case 'fiado':
         return _buildRelatorioFiado(_relatorioAtual as RelatorioFiado);
+      case 'consultores':
+        return _buildRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
       default:
         return const SizedBox();
     }
@@ -3138,32 +3195,34 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
+                'Valor Total',
+                'R\$ ${relatorio.valorTotalFiado.toStringAsFixed(2)}',
+                Icons.attach_money,
+                Colors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Status de Prazo', Icons.schedule, Colors.blue),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
                 'No Prazo',
                 relatorio.fiadosNoPrazo.toString(),
                 Icons.check_circle_outlined,
                 Colors.green,
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCardEnhanced(
-                'Vencidos',
-                relatorio.fiadosVencidos.toString(),
-                Icons.cancel_outlined,
-                Colors.red,
-              ),
-            ),
             const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
-                'Valor Total',
-                'R\$ ${relatorio.valorTotalFiado.toStringAsFixed(2)}',
-                Icons.attach_money,
-                Colors.blue,
+                'Atrasados',
+                relatorio.fiadosVencidos.toString(),
+                Icons.cancel_outlined,
+                Colors.red,
               ),
             ),
           ],
@@ -3182,9 +3241,101 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
-                'Valor Vencido',
+                'Valor Atrasado',
                 'R\$ ${relatorio.valorVencido.toStringAsFixed(2)}',
                 Icons.warning_outlined,
+                Colors.red,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Status de Pagamento', Icons.payment, Colors.purple),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Pagos',
+                relatorio.fiadosPagos.toString(),
+                Icons.check_circle,
+                Colors.teal,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Não Pagos',
+                relatorio.fiadosNaoPagos.toString(),
+                Icons.money_off,
+                Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Valor Pago',
+                'R\$ ${relatorio.valorPago.toStringAsFixed(2)}',
+                Icons.check_circle,
+                Colors.teal,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Valor Não Pago',
+                'R\$ ${relatorio.valorNaoPago.toStringAsFixed(2)}',
+                Icons.money_off,
+                Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Detalhamento Combinado', Icons.analytics, Colors.indigo),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'No Prazo - Pago',
+                relatorio.fiadosNoPrazoPagos.toString(),
+                Icons.verified,
+                Colors.green,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'No Prazo - Não Pago',
+                relatorio.fiadosNoPrazoNaoPagos.toString(),
+                Icons.schedule,
+                Colors.blue,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Atrasado - Pago',
+                relatorio.fiadosAtrasadosPagos.toString(),
+                Icons.check_circle_outline,
+                Colors.amber,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Atrasado - Não Pago',
+                relatorio.fiadosAtrasadosNaoPagos.toString(),
+                Icons.error_outline,
                 Colors.red,
               ),
             ),
@@ -3234,9 +3385,36 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             ),
           ),
         ...relatorio.fiados.map((fiado) {
-          final Color statusColor = fiado.noPrazo ? Colors.green : Colors.red;
-          final Color backgroundColor = fiado.noPrazo ? Colors.green.shade50 : Colors.red.shade50;
-          final Color borderColor = fiado.noPrazo ? Colors.green.shade200 : Colors.red.shade200;
+          Color statusColor;
+          Color backgroundColor;
+          Color borderColor;
+          IconData statusIcon;
+
+          if (fiado.fiadoPago) {
+            if (fiado.noPrazo) {
+              statusColor = Colors.green;
+              backgroundColor = Colors.green.shade50;
+              borderColor = Colors.green.shade200;
+              statusIcon = Icons.verified;
+            } else {
+              statusColor = Colors.amber;
+              backgroundColor = Colors.amber.shade50;
+              borderColor = Colors.amber.shade200;
+              statusIcon = Icons.check_circle_outline;
+            }
+          } else {
+            if (fiado.noPrazo) {
+              statusColor = Colors.blue;
+              backgroundColor = Colors.blue.shade50;
+              borderColor = Colors.blue.shade200;
+              statusIcon = Icons.schedule;
+            } else {
+              statusColor = Colors.red;
+              backgroundColor = Colors.red.shade50;
+              borderColor = Colors.red.shade200;
+              statusIcon = Icons.error_outline;
+            }
+          }
 
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -3273,7 +3451,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
-                          fiado.noPrazo ? Icons.check_circle : Icons.warning,
+                          statusIcon,
                           color: statusColor,
                           size: 24,
                         ),
@@ -3427,5 +3605,402 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         }),
       ],
     );
+  }
+
+  Widget _buildRelatorioConsultores(RelatorioConsultores relatorio) {
+    final consultoresOrdenados = List<ConsultorMetricas>.from(relatorio.consultores)
+      ..sort((a, b) => b.valorTotalOS.compareTo(a.valorTotalOS));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.people_alt, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Text(
+                  'Desempenho Consultores',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Resumo Geral', Icons.assessment, Colors.deepPurple),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total Orçamentos',
+                relatorio.totalOrcamentosGeral.toString(),
+                Icons.description_outlined,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total OS',
+                relatorio.totalOSGeral.toString(),
+                Icons.assignment_outlined,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total Checklists',
+                relatorio.totalChecklistsGeral.toString(),
+                Icons.checklist,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Valor Total',
+                'R\$ ${relatorio.valorTotalGeral.toStringAsFixed(2)}',
+                Icons.attach_money,
+                Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Ticket Médio',
+                'R\$ ${relatorio.valorMedioGeral.toStringAsFixed(2)}',
+                Icons.analytics,
+                Colors.indigo,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Taxa Conversão',
+                '${relatorio.taxaConversaoGeral.toStringAsFixed(1)}%',
+                Icons.trending_up,
+                Colors.teal,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        _buildSectionHeader('Ranking de Consultores', Icons.emoji_events, Colors.amber),
+        const SizedBox(height: 16),
+        ...consultoresOrdenados.asMap().entries.map((entry) {
+          final index = entry.key;
+          final consultor = entry.value;
+
+          Color rankColor;
+          IconData rankIcon;
+          Color backgroundColor;
+
+          if (index == 0) {
+            rankColor = Colors.amber;
+            rankIcon = Icons.emoji_events;
+            backgroundColor = Colors.amber.shade50;
+          } else if (index == 1) {
+            rankColor = Colors.grey;
+            rankIcon = Icons.emoji_events;
+            backgroundColor = Colors.grey.shade50;
+          } else if (index == 2) {
+            rankColor = Colors.brown;
+            rankIcon = Icons.emoji_events;
+            backgroundColor = Colors.brown.shade50;
+          } else {
+            rankColor = Colors.blue;
+            rankIcon = Icons.person;
+            backgroundColor = Colors.blue.shade50;
+          }
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: rankColor.withOpacity(0.3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: rankColor.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: rankColor.withOpacity(0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(14),
+                      topRight: Radius.circular(14),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: rankColor.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: index < 3
+                              ? Icon(rankIcon, color: rankColor, size: 28)
+                              : Text(
+                                  '${index + 1}º',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: rankColor,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              consultor.consultorNome,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'R\$ ${consultor.valorTotalOS.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: rankColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.star, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${consultor.taxaConversao.toStringAsFixed(1)}%',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Orçamentos',
+                              consultor.totalOrcamentos.toString(),
+                              Icons.description,
+                              Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'OS',
+                              consultor.totalOS.toString(),
+                              Icons.assignment,
+                              Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Checklists',
+                              consultor.totalChecklists.toString(),
+                              Icons.checklist,
+                              Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Ticket Médio',
+                              'R\$ ${consultor.valorMedioOS.toStringAsFixed(2)}',
+                              Icons.analytics,
+                              Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Conversão',
+                              '${consultor.taxaConversao.toStringAsFixed(1)}%',
+                              Icons.trending_up,
+                              Colors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildConsultorMetricItem(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printRelatorioConsultores(RelatorioConsultores relatorio) async {
+    _cachedLogoImage ??= pw.MemoryImage(
+      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
+    );
+
+    final consultoresOrdenados = List<ConsultorMetricas>.from(relatorio.consultores)
+      ..sort((a, b) => b.valorTotalOS.compareTo(a.valorTotalOS));
+
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Desempenho Consultores', Icons.people_alt, PdfColors.deepPurple600, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo Geral'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Orçamentos', relatorio.totalOrcamentosGeral.toString()),
+          _buildPdfMetricCard('Total de OS', relatorio.totalOSGeral.toString()),
+          _buildPdfMetricCard('Total de Checklists', relatorio.totalChecklistsGeral.toString()),
+          _buildPdfMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalGeral.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Ticket Médio', 'R\$ ${relatorio.valorMedioGeral.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Taxa de Conversão', '${relatorio.taxaConversaoGeral.toStringAsFixed(1)}%'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Ranking de Consultores'),
+          pw.SizedBox(height: 10),
+          _buildPdfTable(
+            headers: ['Pos.', 'Consultor', 'Orç.', 'OS', 'Checks', 'Valor Total', 'Ticket', 'Conv.%'],
+            rows: consultoresOrdenados.asMap().entries.map((entry) {
+              final index = entry.key;
+              final c = entry.value;
+              String posicao = '${index + 1}º';
+              if (index == 0) posicao = '1º *';
+              if (index == 1) posicao = '2º *';
+              if (index == 2) posicao = '3º *';
+
+              return [
+                posicao,
+                c.consultorNome,
+                c.totalOrcamentos.toString(),
+                c.totalOS.toString(),
+                c.totalChecklists.toString(),
+                'R\$ ${c.valorTotalOS.toStringAsFixed(2)}',
+                'R\$ ${c.valorMedioOS.toStringAsFixed(2)}',
+                '${c.taxaConversao.toStringAsFixed(1)}%',
+              ];
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 }

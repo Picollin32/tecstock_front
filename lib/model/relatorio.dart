@@ -480,6 +480,7 @@ class FiadoItem {
   final String? consultorNome;
   final String? tipoPagamentoNome;
   final bool noPrazo;
+  final bool fiadoPago;
   final String statusDescricao;
 
   FiadoItem({
@@ -500,6 +501,7 @@ class FiadoItem {
     this.consultorNome,
     this.tipoPagamentoNome,
     required this.noPrazo,
+    required this.fiadoPago,
     required this.statusDescricao,
   });
 
@@ -522,6 +524,7 @@ class FiadoItem {
       consultorNome: json['consultorNome'],
       tipoPagamentoNome: json['tipoPagamentoNome'],
       noPrazo: json['noPrazo'] ?? false,
+      fiadoPago: json['fiadoPago'] ?? false,
       statusDescricao: json['statusDescricao'] ?? '',
     );
   }
@@ -533,9 +536,17 @@ class RelatorioFiado {
   final int totalFiados;
   final int fiadosNoPrazo;
   final int fiadosVencidos;
+  final int fiadosPagos;
+  final int fiadosNaoPagos;
+  final int fiadosNoPrazoPagos;
+  final int fiadosNoPrazoNaoPagos;
+  final int fiadosAtrasadosPagos;
+  final int fiadosAtrasadosNaoPagos;
   final double valorTotalFiado;
   final double valorNoPrazo;
   final double valorVencido;
+  final double valorPago;
+  final double valorNaoPago;
   final List<FiadoItem> fiados;
 
   RelatorioFiado({
@@ -544,9 +555,17 @@ class RelatorioFiado {
     required this.totalFiados,
     required this.fiadosNoPrazo,
     required this.fiadosVencidos,
+    required this.fiadosPagos,
+    required this.fiadosNaoPagos,
+    required this.fiadosNoPrazoPagos,
+    required this.fiadosNoPrazoNaoPagos,
+    required this.fiadosAtrasadosPagos,
+    required this.fiadosAtrasadosNaoPagos,
     required this.valorTotalFiado,
     required this.valorNoPrazo,
     required this.valorVencido,
+    required this.valorPago,
+    required this.valorNaoPago,
     required this.fiados,
   });
 
@@ -557,10 +576,91 @@ class RelatorioFiado {
       totalFiados: json['totalFiados'] ?? 0,
       fiadosNoPrazo: json['fiadosNoPrazo'] ?? 0,
       fiadosVencidos: json['fiadosVencidos'] ?? 0,
+      fiadosPagos: json['fiadosPagos'] ?? 0,
+      fiadosNaoPagos: json['fiadosNaoPagos'] ?? 0,
+      fiadosNoPrazoPagos: json['fiadosNoPrazoPagos'] ?? 0,
+      fiadosNoPrazoNaoPagos: json['fiadosNoPrazoNaoPagos'] ?? 0,
+      fiadosAtrasadosPagos: json['fiadosAtrasadosPagos'] ?? 0,
+      fiadosAtrasadosNaoPagos: json['fiadosAtrasadosNaoPagos'] ?? 0,
       valorTotalFiado: (json['valorTotalFiado'] ?? 0).toDouble(),
       valorNoPrazo: (json['valorNoPrazo'] ?? 0).toDouble(),
       valorVencido: (json['valorVencido'] ?? 0).toDouble(),
+      valorPago: (json['valorPago'] ?? 0).toDouble(),
+      valorNaoPago: (json['valorNaoPago'] ?? 0).toDouble(),
       fiados: (json['fiados'] as List?)?.map((item) => FiadoItem.fromJson(item)).toList() ?? [],
+    );
+  }
+}
+
+class ConsultorMetricas {
+  final int consultorId;
+  final String consultorNome;
+  final int totalOrcamentos;
+  final int totalOS;
+  final int totalChecklists;
+  final double valorTotalOS;
+  final double valorMedioOS;
+  final double taxaConversao;
+
+  ConsultorMetricas({
+    required this.consultorId,
+    required this.consultorNome,
+    required this.totalOrcamentos,
+    required this.totalOS,
+    required this.totalChecklists,
+    required this.valorTotalOS,
+    required this.valorMedioOS,
+    required this.taxaConversao,
+  });
+
+  factory ConsultorMetricas.fromJson(Map<String, dynamic> json) {
+    return ConsultorMetricas(
+      consultorId: json['consultorId'] ?? 0,
+      consultorNome: json['consultorNome'] ?? '',
+      totalOrcamentos: json['totalOrcamentos'] ?? 0,
+      totalOS: json['totalOS'] ?? 0,
+      totalChecklists: json['totalChecklists'] ?? 0,
+      valorTotalOS: (json['valorTotalOS'] ?? 0).toDouble(),
+      valorMedioOS: (json['valorMedioOS'] ?? 0).toDouble(),
+      taxaConversao: (json['taxaConversao'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class RelatorioConsultores {
+  final DateTime dataInicio;
+  final DateTime dataFim;
+  final List<ConsultorMetricas> consultores;
+  final int totalOrcamentosGeral;
+  final int totalOSGeral;
+  final int totalChecklistsGeral;
+  final double valorTotalGeral;
+  final double valorMedioGeral;
+  final double taxaConversaoGeral;
+
+  RelatorioConsultores({
+    required this.dataInicio,
+    required this.dataFim,
+    required this.consultores,
+    required this.totalOrcamentosGeral,
+    required this.totalOSGeral,
+    required this.totalChecklistsGeral,
+    required this.valorTotalGeral,
+    required this.valorMedioGeral,
+    required this.taxaConversaoGeral,
+  });
+
+  factory RelatorioConsultores.fromJson(Map<String, dynamic> json) {
+    return RelatorioConsultores(
+      dataInicio: DateTime.parse(json['dataInicio']),
+      dataFim: DateTime.parse(json['dataFim']),
+      consultores: (json['consultores'] as List?)?.map((item) => ConsultorMetricas.fromJson(item)).toList() ?? [],
+      totalOrcamentosGeral: json['totalOrcamentosGeral'] ?? 0,
+      totalOSGeral: json['totalOSGeral'] ?? 0,
+      totalChecklistsGeral: json['totalChecklistsGeral'] ?? 0,
+      valorTotalGeral: (json['valorTotalGeral'] ?? 0).toDouble(),
+      valorMedioGeral: (json['valorMedioGeral'] ?? 0).toDouble(),
+      taxaConversaoGeral: (json['taxaConversaoGeral'] ?? 0).toDouble(),
     );
   }
 }

@@ -279,4 +279,35 @@ class OrdemServicoService {
       return {};
     }
   }
+
+  Future<List<OrdemServico>> getFiadosEmAberto() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/fiados-em-aberto'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.map((e) => OrdemServico.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Erro ao buscar fiados em aberto: $e');
+      throw Exception('Erro ao buscar fiados em aberto: $e');
+    }
+  }
+
+  Future<bool> marcarFiadoComoPago(int id, bool pago) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/$id/fiado-pago?pago=$pago'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Erro ao marcar fiado como pago: $e');
+      throw Exception('Erro ao marcar fiado como pago: $e');
+    }
+  }
 }

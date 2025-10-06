@@ -34,6 +34,8 @@ class Orcamento {
   Funcionario? mecanico;
   Funcionario? consultor;
   String? observacoes;
+  bool transformadoEmOS;
+  String? numeroOSGerado;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -66,6 +68,8 @@ class Orcamento {
     this.mecanico,
     this.consultor,
     this.observacoes,
+    this.transformadoEmOS = false,
+    this.numeroOSGerado,
     this.createdAt,
     this.updatedAt,
   });
@@ -100,6 +104,8 @@ class Orcamento {
       mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       observacoes: json['observacoes'],
+      transformadoEmOS: json['transformadoEmOS'] ?? false,
+      numeroOSGerado: json['numeroOSGerado'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -136,6 +142,8 @@ class Orcamento {
     if (mecanico != null) map['mecanico'] = mecanico!.toJson();
     if (consultor != null) map['consultor'] = consultor!.toJson();
     if (observacoes != null) map['observacoes'] = observacoes;
+    map['transformadoEmOS'] = transformadoEmOS;
+    if (numeroOSGerado != null) map['numeroOSGerado'] = numeroOSGerado;
     if (createdAt != null) map['createdAt'] = createdAt!.toIso8601String();
     if (updatedAt != null) map['updatedAt'] = updatedAt!.toIso8601String();
 

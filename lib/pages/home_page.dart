@@ -7,6 +7,8 @@ import 'package:TecStock/pages/cadastro_peca_page.dart';
 import 'package:TecStock/pages/cadastro_servico_page.dart';
 import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
+import 'package:TecStock/pages/gerenciamento_fiados_page.dart';
+import 'package:TecStock/pages/gerenciar_usuarios_page.dart';
 import 'package:TecStock/pages/ordem_servico_page.dart';
 import 'package:TecStock/pages/orcamento_page.dart';
 import 'package:TecStock/pages/relatorios_page.dart';
@@ -122,6 +124,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
         {'title': 'Orçamento', 'icon': Icons.receipt_long, 'page': const OrcamentoPage()},
         {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
+        {'title': 'Gerenciar Fiados', 'icon': Icons.credit_card, 'page': const GerenciamentoFiadosPage()},
+        {'title': 'Gerenciar Usuários', 'icon': Icons.person, 'page': const GerenciarUsuariosPage()},
       ],
     },
     {
@@ -482,23 +486,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _addActivityFromEntity<dynamic>(
           entities: ordens.cast<dynamic>(),
           getName: (os) => os.numeroOS ?? 'OS',
-          getSubtitle: (os) => 'OS: ${os.numeroOS} - Cliente: ${os.clienteNome ?? 'N/A'}',
+          getSubtitle: (os) {
+            String subtitle = 'OS: ${os.numeroOS} - Cliente: ${os.clienteNome ?? 'N/A'}';
+            if (os.numeroOrcamentoOrigem != null && os.numeroOrcamentoOrigem.isNotEmpty) {
+              subtitle += ' (Origem: Orçamento ${os.numeroOrcamentoOrigem})';
+            }
+            return subtitle;
+          },
           getCreatedAt: (os) => os.createdAt,
           getUpdatedAt: (os) => os.updatedAt,
           entityType: 'ordem de serviço',
           createIcon: Icons.description,
           createColor: const Color(0xFF009688),
+          getTag: (os) => os.numeroOrcamentoOrigem != null && os.numeroOrcamentoOrigem.isNotEmpty ? 'DE ORÇAMENTO' : null,
+          getTagColor: (os) => os.numeroOrcamentoOrigem != null && os.numeroOrcamentoOrigem.isNotEmpty ? Colors.purple : null,
         );
 
         _addActivityFromEntity<dynamic>(
           entities: orcamentos.cast<dynamic>(),
           getName: (orcamento) => orcamento.numeroOrcamento ?? 'Orçamento',
-          getSubtitle: (orcamento) => 'Orçamento: ${orcamento.numeroOrcamento} - Cliente: ${orcamento.clienteNome ?? 'N/A'}',
+          getSubtitle: (orcamento) {
+            String subtitle = 'Orçamento: ${orcamento.numeroOrcamento} - Cliente: ${orcamento.clienteNome ?? 'N/A'}';
+            if (orcamento.transformadoEmOS && orcamento.numeroOSGerado != null) {
+              subtitle += ' (Transformado em OS ${orcamento.numeroOSGerado})';
+            }
+            return subtitle;
+          },
           getCreatedAt: (orcamento) => orcamento.createdAt,
           getUpdatedAt: (orcamento) => orcamento.updatedAt,
           entityType: 'orçamento',
           createIcon: Icons.request_quote,
           createColor: const Color(0xFF6366F1),
+          getTag: (orcamento) => orcamento.transformadoEmOS ? 'TRANSFORMADO' : null,
+          getTagColor: (orcamento) => orcamento.transformadoEmOS ? Colors.purple : null,
         );
 
         if (movimentacoes.isNotEmpty) {
@@ -602,9 +622,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required Color createColor,
     bool skipEdited = false,
     bool Function(T)? shouldShowEdited,
+    String? Function(T)? getTag,
+    Color? Function(T)? getTagColor,
   }) {
     final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
     for (final entity in todayCreated) {
+      final tag = getTag != null ? getTag(entity) : null;
+      final tagColor = getTagColor != null ? getTagColor(entity) : null;
+
       _recentActivities.add({
         'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} cadastrado',
         'subtitle': getSubtitle(entity),
@@ -613,6 +638,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'dateTime': getCreatedAt(entity) ?? DateTime.now(),
         'type': entityType,
         'isEdit': false,
+        'tag': tag,
+        'tagColor': tagColor,
       });
     }
 
@@ -630,6 +657,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }).toList();
 
       for (final entity in todayEdited) {
+        final tag = getTag != null ? getTag(entity) : null;
+        final tagColor = getTagColor != null ? getTagColor(entity) : null;
+
         _recentActivities.add({
           'title': '${entityType.substring(0, 1).toUpperCase()}${entityType.substring(1)} atualizado',
           'subtitle': getSubtitle(entity),
@@ -638,6 +668,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           'dateTime': getUpdatedAt(entity) ?? DateTime.now(),
           'type': entityType,
           'isEdit': true,
+          'tag': tag,
+          'tagColor': tagColor,
         });
       }
     }
@@ -730,8 +762,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 child: Image.asset(
                   'assets/images/TecStock_icone.png',
-                  width: 56,
-                  height: 56,
+                  width: 100,
+                  height: 100,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -1491,8 +1523,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                             child: Image.asset(
                               'assets/images/TecStock_icone.png',
-                              width: 48,
-                              height: 48,
+                              width: 64,
+                              height: 64,
                               fit: BoxFit.contain,
                             ),
                           ),

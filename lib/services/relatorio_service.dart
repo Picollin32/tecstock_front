@@ -146,4 +146,24 @@ class RelatorioService {
       throw Exception('Erro ao conectar com o servidor: $e');
     }
   }
+
+  Future<RelatorioConsultores> getRelatorioConsultores(DateTime dataInicio, DateTime dataFim) async {
+    try {
+      final inicio = DateFormat('yyyy-MM-dd').format(dataInicio);
+      final fim = DateFormat('yyyy-MM-dd').format(dataFim);
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/relatorios/consultores?dataInicio=$inicio&dataFim=$fim'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return RelatorioConsultores.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      } else {
+        throw Exception('Erro ao buscar relatório de consultores: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao conectar com o servidor: $e');
+    }
+  }
 }

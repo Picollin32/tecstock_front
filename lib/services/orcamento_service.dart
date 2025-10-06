@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:TecStock/model/orcamento.dart';
+import 'package:TecStock/model/ordem_servico.dart';
 import 'package:http/http.dart' as http;
 
 class OrcamentoService {
@@ -175,6 +176,23 @@ class OrcamentoService {
       return null;
     } catch (e) {
       print('Erro ao calcular máximos de desconto: $e');
+      return null;
+    }
+  }
+
+  static Future<OrdemServico?> transformarEmOrdemServico(int id) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/$id/transformar-em-os'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return OrdemServico.fromJson(jsonData);
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao transformar orçamento em OS: $e');
       return null;
     }
   }

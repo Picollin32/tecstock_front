@@ -980,6 +980,31 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 8),
+            if (os.numeroOrcamentoOrigem != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.receipt_long, size: 14, color: Colors.blue.shade600),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Proveniente do Orçamento ${os.numeroOrcamentoOrigem}',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (os.clienteNome.isNotEmpty)
               Row(
                 children: [
@@ -1545,6 +1570,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly],
+              keyboardType: _isViewMode ? null : TextInputType.number,
               onChanged: _isViewMode
                   ? null
                   : (value) {

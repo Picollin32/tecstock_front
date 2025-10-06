@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import '../model/fornecedor.dart';
 
@@ -8,8 +9,7 @@ class FornecedorService {
 
     try {
       final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(fornecedor.toJson()),
       );
 
@@ -41,7 +41,7 @@ class FornecedorService {
     String baseUrl = 'http://localhost:8081/api/fornecedores/listarTodos';
 
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         final lista = jsonList.map((json) => Fornecedor.fromJson(json)).toList();
@@ -60,8 +60,7 @@ class FornecedorService {
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(fornecedor.toJson()),
       );
 
@@ -93,7 +92,7 @@ class FornecedorService {
     String baseUrl = 'http://localhost:8081/api/fornecedores/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return {'success': true, 'message': 'Fornecedor excluído com sucesso'};

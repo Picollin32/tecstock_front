@@ -19,6 +19,8 @@ dependencies:
   printing: ^5.14.2
   pdf: ^3.11.3
   google_fonts: ^4.0.4
+  shared_preferences: ^2.2.2
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:

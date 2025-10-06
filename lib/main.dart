@@ -1,4 +1,6 @@
 import 'package:TecStock/pages/home_page.dart';
+import 'package:TecStock/pages/login_page.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -34,8 +36,34 @@ class MainApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
         ),
       ),
-      home: const HomePage(),
+      home: const AuthChecker(),
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class AuthChecker extends StatelessWidget {
+  const AuthChecker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: AuthService.isLoggedIn(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasData && snapshot.data == true) {
+          return const HomePage();
+        }
+
+        return const LoginPage();
+      },
     );
   }
 }

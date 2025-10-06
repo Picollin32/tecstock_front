@@ -14,6 +14,7 @@ import '../services/tipo_pagamento_service.dart';
 import '../services/ordem_servico_service.dart';
 import '../services/funcionario_service.dart';
 import '../services/peca_service.dart';
+import '../services/auth_service.dart';
 import '../model/checklist.dart';
 import '../model/servico.dart';
 import '../model/tipo_pagamento.dart';
@@ -21,6 +22,7 @@ import '../model/ordem_servico.dart';
 import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
 import '../model/funcionario.dart';
+import '../model/veiculo.dart';
 
 class OrdemServicoPage extends StatelessWidget {
   const OrdemServicoPage({super.key});
@@ -69,7 +71,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final _observacoesController = TextEditingController();
   final _checklistController = TextEditingController();
 
-  List<dynamic> _clientes = [];
   List<dynamic> _funcionarios = [];
   List<dynamic> _veiculos = [];
   List<Checklist> _checklists = [];
@@ -110,6 +111,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   double _descontoPecas = 0.0;
   final TextEditingController _descontoServicosController = TextEditingController();
   final TextEditingController _descontoPecasController = TextEditingController();
+  bool _isAdmin = false;
+  bool _isLoadingInitialData = true;
 
   @override
   void initState() {
@@ -143,7 +146,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _dateController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
 
-    _loadData();
+    _initializeData();
     _searchController.addListener(_filtrarRecentes);
     _servicoSearchController.addListener(_filtrarServicos);
 
@@ -151,32 +154,54 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _slideController.forward();
   }
 
+  Future<void> _initializeData() async {
+    await _verificarPermissoes();
+    await _loadData();
+    if (mounted) {
+      setState(() {
+        _isLoadingInitialData = false;
+      });
+    }
+  }
+
+  Future<void> _verificarPermissoes() async {
+    final isAdmin = await AuthService.isAdmin();
+    setState(() {
+      _isAdmin = isAdmin;
+    });
+  }
+
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _dateController.dispose();
-    _timeController.dispose();
-    _osNumberController.dispose();
-    _clienteNomeController.dispose();
-    _clienteCpfController.dispose();
-    _clienteTelefoneController.dispose();
-    _clienteEmailController.dispose();
-    _veiculoNomeController.dispose();
-    _veiculoMarcaController.dispose();
-    _veiculoAnoController.dispose();
-    _veiculoCorController.dispose();
-    _veiculoPlacaController.dispose();
-    _veiculoQuilometragemController.dispose();
-    _queixaPrincipalController.dispose();
-    _observacoesController.dispose();
-    _checklistController.dispose();
-    _searchController.removeListener(_filtrarRecentes);
-    _searchController.dispose();
-    _servicoSearchController.removeListener(_filtrarServicos);
-    _servicoSearchController.dispose();
-    _descontoServicosController.dispose();
-    _descontoPecasController.dispose();
+    try {
+      _fadeController.dispose();
+      _slideController.dispose();
+      _dateController.dispose();
+      _timeController.dispose();
+      _osNumberController.dispose();
+      _clienteNomeController.dispose();
+      _clienteCpfController.dispose();
+      _clienteTelefoneController.dispose();
+      _clienteEmailController.dispose();
+      _veiculoNomeController.dispose();
+      _veiculoMarcaController.dispose();
+      _veiculoAnoController.dispose();
+      _veiculoCorController.dispose();
+      _veiculoPlacaController.dispose();
+      _veiculoQuilometragemController.dispose();
+      _queixaPrincipalController.dispose();
+      _observacoesController.dispose();
+      _checklistController.dispose();
+      _searchController.removeListener(_filtrarRecentes);
+      _searchController.dispose();
+      _servicoSearchController.removeListener(_filtrarServicos);
+      _servicoSearchController.dispose();
+      _descontoServicosController.dispose();
+      _descontoPecasController.dispose();
+    } catch (e) {
+      // Ignorar erros de dispose - controllers já foram descartados
+      print('⚠️ Erro ao fazer dispose OS (ignorado): $e');
+    }
     super.dispose();
   }
 
@@ -202,39 +227,82 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         pecasFuture
       ]);
 
-      setState(() {
-        _clientes = results[0];
-        _funcionarios = results[1];
-        _veiculos = results[2];
-        _checklists = (results[3] as List<Checklist>).where((c) => c.createdAt != null).toList()
-          ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
-        _checklistsFiltrados = _checklists;
-        _servicosDisponiveis = results[4] as List<Servico>;
-        _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-        _servicosFiltrados = _servicosDisponiveis;
-        _tiposPagamento = results[5] as List<TipoPagamento>;
-        _pecasDisponiveis = results[7] as List<Peca>;
+      // Preparar dados antes do setState
+      final clientes = results[0] as List<dynamic>;
+      final funcionarios = results[1] as List<Funcionario>;
+      final veiculos = results[2] as List<Veiculo>;
+      final checklists = (results[3] as List<Checklist>).where((c) => c.createdAt != null).toList()
+        ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
+      final servicos = results[4] as List<Servico>;
+      servicos.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+      final tiposPagamento = results[5] as List<TipoPagamento>;
+      final pecas = results[7] as List<Peca>;
 
-        final ordensServico = results[6] as List<OrdemServico>;
-        ordensServico.sort((a, b) {
-          final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return bDate.compareTo(aDate);
-        });
-        _recent = ordensServico.take(5).toList();
-        _recentFiltrados = _recent;
-
-        for (var c in _clientes) {
-          _clienteByCpf[c.cpf] = c;
-        }
-
-        for (var f in _funcionarios) {
-          _clienteByCpf[f.cpf] = f;
-        }
-        for (var v in _veiculos) {
-          _veiculoByPlaca[v.placa] = v;
-        }
+      final ordensServico = results[6] as List<OrdemServico>;
+      ordensServico.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
       });
+      final recent = ordensServico.take(5).toList();
+
+      final clienteByCpf = <String, dynamic>{};
+      for (var c in clientes) {
+        clienteByCpf[c.cpf] = c;
+      }
+      for (var f in funcionarios) {
+        clienteByCpf[f.cpf] = f;
+      }
+
+      final veiculoByPlaca = <String, Veiculo>{};
+      for (var v in veiculos) {
+        veiculoByPlaca[v.placa] = v;
+      }
+
+      // Auto-preencher consultor ANTES do setState
+      print('🔍 DEBUG OS - Iniciando auto-preenchimento...');
+      print('🔍 DEBUG OS - _isAdmin: $_isAdmin');
+      print('🔍 DEBUG OS - _consultorSelecionado atual: ${_consultorSelecionado?.nome}');
+
+      Funcionario? consultorParaSelecionar;
+
+      if (!_isAdmin && _consultorSelecionado == null) {
+        final consultorId = await AuthService.getConsultorId();
+        print('🔍 DEBUG OS - consultorId: $consultorId');
+        print('🔍 DEBUG OS - Total funcionários: ${funcionarios.length}');
+
+        if (consultorId != null) {
+          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+          print('🔍 DEBUG OS - Consultor encontrado: ${consultorParaSelecionar?.nome}');
+        }
+      }
+
+      // ÚNICO setState com TUDO junto
+      if (mounted) {
+        setState(() {
+          _funcionarios = funcionarios;
+          _veiculos = veiculos;
+          _checklists = checklists;
+          _checklistsFiltrados = checklists;
+          _servicosDisponiveis = servicos;
+          _servicosFiltrados = servicos;
+          _tiposPagamento = tiposPagamento;
+          _pecasDisponiveis = pecas;
+          _recent = recent;
+          _recentFiltrados = recent;
+          _clienteByCpf.clear();
+          _clienteByCpf.addAll(clienteByCpf);
+          _veiculoByPlaca.clear();
+          _veiculoByPlaca.addAll(veiculoByPlaca);
+
+          if (consultorParaSelecionar != null) {
+            _consultorSelecionado = consultorParaSelecionar;
+          }
+        });
+
+        print('✅ DEBUG OS - setState executado');
+        print('✅ DEBUG OS - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
+      }
     } catch (e) {
       print('Erro ao carregar dados: $e');
     }
@@ -564,11 +632,20 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 children: [
                   _buildModernHeader(colorScheme),
                   const SizedBox(height: 32),
-                  if (_showForm) _buildFullForm(),
-                  if (!_showForm) ...[
-                    _buildSearchSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildRecentList(),
+                  if (_isLoadingInitialData)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(48),
+                        child: CircularProgressIndicator(color: Colors.orange.shade600),
+                      ),
+                    )
+                  else ...[
+                    if (_showForm) _buildFullForm(),
+                    if (!_showForm) ...[
+                      _buildSearchSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildRecentList(),
+                    ],
                   ],
                 ],
               ),
@@ -661,6 +738,20 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     setState(() {
                       _showForm = true;
                     });
+
+                    // Auto-preencher consultor ao abrir formulário novo
+                    if (!_isAdmin && _consultorSelecionado == null) {
+                      final consultorId = await AuthService.getConsultorId();
+                      if (consultorId != null && mounted) {
+                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+                        if (consultor != null && mounted) {
+                          setState(() {
+                            _consultorSelecionado = consultor;
+                          });
+                          print('✅ DEBUG OS - Consultor auto-preenchido ao abrir form: ${consultor.nome}');
+                        }
+                      }
+                    }
                   }
                 },
                 child: Padding(
@@ -1150,7 +1241,25 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
               ),
             if (!_isOSEncerrada(os.status)) const SizedBox(width: 8),
-            if (_isOSEncerrada(os.status))
+            if (_isOSEncerrada(os.status)) ...[
+              if (_isAdmin) ...[
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.lock_open_outlined,
+                      color: Colors.amber.shade700,
+                      size: 20,
+                    ),
+                    onPressed: () => _reabrirOS(os),
+                    tooltip: 'Destrancar OS (Admin)',
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Container(
                 decoration: BoxDecoration(
                   color: Colors.purple.shade50,
@@ -1165,8 +1274,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   onPressed: null,
                   tooltip: 'OS Encerrada',
                 ),
-              )
-            else ...[
+              ),
+            ] else ...[
               Container(
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
@@ -2833,7 +2942,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _mecanicoSelecionado,
+                  value: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2887,7 +2996,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _consultorSelecionado,
+                  value: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2916,7 +3025,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       );
                     }).toList();
                   })(),
-                  onChanged: _isViewMode
+                  onChanged: (_isViewMode || !_isAdmin)
                       ? null
                       : (value) {
                           setState(() {
@@ -3613,6 +3722,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
       );
 
+      print('💾 DEBUG SALVAR OS - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
       print('Tentando ${_editingOSId != null ? "atualizar" : "salvar"} OS...');
       print('Serviços selecionados: ${_servicosSelecionados.length}');
       print('Peças selecionadas: ${_pecasSelecionadas.length}');
@@ -4777,18 +4887,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               try {
                 final resultado = await OrdemServicoService.fecharOrdemServico(os.id!);
                 if (resultado['sucesso']) {
-                  if (os.checklistId != null) {
-                    final checklistFechado = await ChecklistService.fecharChecklist(os.checklistId!);
-                    if (checklistFechado) {
-                      print('Checklist ID ${os.checklistId} foi fechado automaticamente');
-                    } else {
-                      print('Erro ao fechar checklist ID ${os.checklistId}');
-                    }
-                  }
-
                   await _loadData();
                   _showSuccessSnackBar(
-                      'OS encerrada com sucesso! Estoque atualizado e movimentações registradas.${os.checklistId != null ? ' Checklist associado foi encerrado.' : ''}');
+                      'OS encerrada com sucesso! Estoque atualizado e movimentações registradas.${os.checklistId != null ? ' Checklist associado foi encerrado automaticamente.' : ''}');
                 } else {
                   _showErrorSnackBar('Erro ao fechar OS: ${resultado['mensagem']}');
                 }
@@ -4801,6 +4902,86 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Encerrar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _reabrirOS(OrdemServico os) async {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.lock_open, color: Colors.amber.shade700),
+            ),
+            const SizedBox(width: 12),
+            const Text('Destrancar OS'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Deseja realmente reabrir a OS ${os.numeroOS}?'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'A OS voltará para o status "Aberta" e poderá ser editada novamente.',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final resultado = await OrdemServicoService.reabrirOrdemServico(os.id!);
+                if (resultado['sucesso']) {
+                  await _loadData();
+                  _showSuccessSnackBar('OS reaberta com sucesso!');
+                } else {
+                  _showErrorSnackBar('Erro ao reabrir OS: ${resultado['mensagem']}');
+                }
+              } catch (e) {
+                _showErrorSnackBar('Erro ao reabrir OS: ${e.toString()}');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Reabrir', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

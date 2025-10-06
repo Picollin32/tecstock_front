@@ -8,6 +8,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/agendamento_service.dart';
 import '../services/veiculo_service.dart';
 import '../services/funcionario_service.dart';
+import '../services/auth_service.dart';
 import '../utils/error_utils.dart';
 
 enum AgendamentoStep { calendario, horarios }
@@ -32,6 +33,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   List<Funcionario> _funcionarios = [];
   List<Funcionario> _mecanicos = [];
   List<Funcionario> _consultores = [];
+  bool _isAdmin = false;
   final _maskPlaca = MaskTextInputFormatter(
       mask: 'AAA-#X##',
       filter: {"#": RegExp(r'[0-9]'), "A": RegExp(r'[a-zA-Z]'), "X": RegExp(r'[a-zA-Z0-9]')},
@@ -105,6 +107,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     _selectedDay = _focusedDay;
     _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay!));
     _initializeAnimations();
+    _verificarPermissoes();
     _loadEvents();
     _carregarVeiculos();
     _carregarMecanicos();
@@ -136,6 +139,29 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     _fadeController.forward();
     _slideController.forward();
     _scaleController.forward();
+  }
+
+  Future<void> _verificarPermissoes() async {
+    final isAdmin = await AuthService.isAdmin();
+    setState(() {
+      _isAdmin = isAdmin;
+    });
+  }
+
+  Future<String?> _obterConsultorPadrao() async {
+    if (_isAdmin) return null;
+    if (_consultores.isEmpty) {
+      // Se os consultores ainda não foram carregados, aguarda um pouco
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (_consultores.isEmpty) return null;
+    }
+
+    final consultorId = await AuthService.getConsultorId();
+    if (consultorId != null) {
+      final consultor = _consultores.where((f) => f.id == consultorId).firstOrNull;
+      return consultor?.nome;
+    }
+    return null;
   }
 
   Future<void> _carregarVeiculos() async {
@@ -1737,10 +1763,10 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     );
   }
 
-  void _showAgendamentoDialog(String horario, Agendamento? agendamentoExistente) {
+  void _showAgendamentoDialog(String horario, Agendamento? agendamentoExistente) async {
     final placaController = TextEditingController(text: agendamentoExistente?.placaVeiculo);
     String? selectedMecanico = agendamentoExistente?.nomeMecanico;
-    String? selectedConsultor = agendamentoExistente?.nomeConsultor;
+    String? selectedConsultor = agendamentoExistente?.nomeConsultor ?? await _obterConsultorPadrao();
     String? selectedService = agendamentoExistente?.cor;
     String? inicioPref;
     String? fimPref;
@@ -1882,7 +1908,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       DropdownButtonFormField<String>(
                         value: selectedConsultor,
                         hint: const Text("Selecione o Consultor (Opcional)"),
-                        onChanged: (value) => setDialogState(() => selectedConsultor = value),
+                        onChanged: _isAdmin ? (value) => setDialogState(() => selectedConsultor = value) : null,
                         decoration: InputDecoration(
                           prefixIcon: Icon(Icons.support_agent, color: secondaryColor),
                           border: OutlineInputBorder(

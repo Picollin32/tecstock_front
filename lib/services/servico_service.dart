@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/servico.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,7 +9,7 @@ class ServicoService {
 
     try {
       final response =
-          await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(servico.toJson()));
+          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(servico.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Serviço salvo com sucesso'};
@@ -37,7 +38,7 @@ class ServicoService {
   static Future<List<Servico>> listarServicos() async {
     String baseUrl = 'http://localhost:8081/api/servicos/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Servico.fromJson(e)).toList();
@@ -52,7 +53,7 @@ class ServicoService {
   static Future<List<Servico>> listarServicosPendentes() async {
     String baseUrl = 'http://localhost:8081/api/servicos/pendentes';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Servico.fromJson(e)).toList();
@@ -79,7 +80,7 @@ class ServicoService {
     String baseUrl = 'http://localhost:8081/api/servicos/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir servico: $e');
@@ -92,8 +93,7 @@ class ServicoService {
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(servico.toJson()),
       );
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:TecStock/services/auth_service.dart';
 import '../model/agendamento.dart';
 
 class AgendamentoService {
@@ -7,9 +8,10 @@ class AgendamentoService {
     String baseUrl = 'http://localhost:8081/api/agendamentos/salvar';
 
     try {
+      final headers = await AuthService.getAuthHeaders();
       final response = await http.post(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        headers: headers,
         body: jsonEncode(agendamento.toJson()),
       );
       if (response.statusCode == 201 || response.statusCode == 200) return true;
@@ -33,9 +35,10 @@ class AgendamentoService {
       print('hora: ${jsonData['hora']}');
       print('================================');
 
+      final headers = await AuthService.getAuthHeaders();
       final response = await http.put(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        headers: headers,
         body: jsonEncode(jsonData),
       );
       if (response.statusCode == 200) {
@@ -53,7 +56,8 @@ class AgendamentoService {
   static Future<List<Agendamento>> listarAgendamentos() async {
     String baseUrl = 'http://localhost:8081/api/agendamentos/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.get(Uri.parse(baseUrl), headers: headers);
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Agendamento.fromJson(e)).toList();
@@ -69,7 +73,8 @@ class AgendamentoService {
     String baseUrl = 'http://localhost:8081/api/agendamentos/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.delete(Uri.parse(baseUrl), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir agendamento: $e');

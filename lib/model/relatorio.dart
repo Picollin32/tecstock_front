@@ -598,6 +598,7 @@ class ConsultorMetricas {
   final int totalOrcamentos;
   final int totalOS;
   final int totalChecklists;
+  final int totalAgendamentos;
   final double valorTotalOS;
   final double valorMedioOS;
   final double taxaConversao;
@@ -608,6 +609,7 @@ class ConsultorMetricas {
     required this.totalOrcamentos,
     required this.totalOS,
     required this.totalChecklists,
+    required this.totalAgendamentos,
     required this.valorTotalOS,
     required this.valorMedioOS,
     required this.taxaConversao,
@@ -620,6 +622,7 @@ class ConsultorMetricas {
       totalOrcamentos: json['totalOrcamentos'] ?? 0,
       totalOS: json['totalOS'] ?? 0,
       totalChecklists: json['totalChecklists'] ?? 0,
+      totalAgendamentos: json['totalAgendamentos'] ?? 0,
       valorTotalOS: (json['valorTotalOS'] ?? 0).toDouble(),
       valorMedioOS: (json['valorMedioOS'] ?? 0).toDouble(),
       taxaConversao: (json['taxaConversao'] ?? 0).toDouble(),
@@ -634,6 +637,7 @@ class RelatorioConsultores {
   final int totalOrcamentosGeral;
   final int totalOSGeral;
   final int totalChecklistsGeral;
+  final int totalAgendamentosGeral;
   final double valorTotalGeral;
   final double valorMedioGeral;
   final double taxaConversaoGeral;
@@ -645,6 +649,7 @@ class RelatorioConsultores {
     required this.totalOrcamentosGeral,
     required this.totalOSGeral,
     required this.totalChecklistsGeral,
+    required this.totalAgendamentosGeral,
     required this.valorTotalGeral,
     required this.valorMedioGeral,
     required this.taxaConversaoGeral,
@@ -658,6 +663,7 @@ class RelatorioConsultores {
       totalOrcamentosGeral: json['totalOrcamentosGeral'] ?? 0,
       totalOSGeral: json['totalOSGeral'] ?? 0,
       totalChecklistsGeral: json['totalChecklistsGeral'] ?? 0,
+      totalAgendamentosGeral: json['totalAgendamentosGeral'] ?? 0,
       valorTotalGeral: (json['valorTotalGeral'] ?? 0).toDouble(),
       valorMedioGeral: (json['valorMedioGeral'] ?? 0).toDouble(),
       taxaConversaoGeral: (json['taxaConversaoGeral'] ?? 0).toDouble(),

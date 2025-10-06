@@ -74,7 +74,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       } else {
         _usuariosFiltrados = _usuarios.where((usuario) {
           final nomeUsuarioMatch = usuario.nomeUsuario.toLowerCase().contains(query);
-          final consultorMatch = usuario.consultor.nome.toLowerCase().contains(query);
+          final consultorMatch = usuario.consultor?.nome.toLowerCase().contains(query) ?? false;
           return nomeUsuarioMatch || consultorMatch;
         }).toList();
       }
@@ -127,7 +127,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
+    final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor?.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
 
     if (consultorJaPossuiUsuario) {
       ErrorUtils.showVisibleError(context, 'Este consultor já possui um usuário cadastrado');
@@ -141,6 +141,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         id: _usuarioEmEdicao?.id,
         nomeUsuario: _nomeUsuarioController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
+        nivelAcesso: _consultorSelecionado != null ? 1 : 0, // 1 = Consultor, 0 = Admin
         consultor: _consultorSelecionado!,
       );
 
@@ -217,10 +218,14 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _nomeUsuarioController.text = usuario.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
-      _consultorSelecionado = _consultores.firstWhere(
-        (c) => c.id == usuario.consultor.id,
-        orElse: () => _consultores.first,
-      );
+      if (usuario.consultor != null) {
+        _consultorSelecionado = _consultores.firstWhere(
+          (c) => c.id == usuario.consultor!.id,
+          orElse: () => _consultores.first,
+        );
+      } else {
+        _consultorSelecionado = _consultores.isNotEmpty ? _consultores.first : null;
+      }
     });
     _showFormModal();
   }
@@ -781,7 +786,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        usuario.consultor.nome,
+                        usuario.consultor?.nome ?? 'Sem consultor',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

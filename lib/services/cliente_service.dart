@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:TecStock/model/cliente.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 class ClienteService {
@@ -7,8 +8,8 @@ class ClienteService {
     String baseUrl = 'http://localhost:8081/api/clientes/salvar';
 
     try {
-      final response =
-          await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(cliente.toJson()));
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.post(Uri.parse(baseUrl), headers: headers, body: jsonEncode(cliente.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Cliente salvo com sucesso'};
@@ -37,7 +38,8 @@ class ClienteService {
   static Future<List<Cliente>> listarClientes() async {
     String baseUrl = 'http://localhost:8081/api/clientes/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.get(Uri.parse(baseUrl), headers: headers);
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Cliente.fromJson(e)).toList();
@@ -53,7 +55,8 @@ class ClienteService {
     String baseUrl = 'http://localhost:8081/api/clientes/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.delete(Uri.parse(baseUrl), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir cliente: $e');
@@ -65,9 +68,10 @@ class ClienteService {
     String baseUrl = 'http://localhost:8081/api/clientes/atualizar/$id';
 
     try {
+      final headers = await AuthService.getAuthHeaders();
       final response = await http.put(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(cliente.toJson()),
       );
 

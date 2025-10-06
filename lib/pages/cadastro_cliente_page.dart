@@ -4,6 +4,7 @@ import 'package:TecStock/model/cliente.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
+import '../utils/uppercase_text_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/cliente_service.dart';
 import '../services/funcionario_service.dart';
@@ -25,6 +26,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   final TextEditingController _cpfController = TextEditingController();
   final TextEditingController _dataNascimentoController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _ruaController = TextEditingController();
+  final TextEditingController _numeroCasaController = TextEditingController();
+  final TextEditingController _bairroController = TextEditingController();
+  final TextEditingController _cidadeController = TextEditingController();
+  final TextEditingController _ufController = TextEditingController();
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
   final _maskCpf = MaskTextInputFormatter(mask: '###.###.###-##', filter: {"#": RegExp(r'[0-9]')});
@@ -72,6 +78,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _emailController.dispose();
     _cpfController.dispose();
     _dataNascimentoController.dispose();
+    _ruaController.dispose();
+    _numeroCasaController.dispose();
+    _bairroController.dispose();
+    _cidadeController.dispose();
+    _ufController.dispose();
     super.dispose();
   }
 
@@ -168,6 +179,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         email: _emailController.text,
         cpf: _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         dataNascimento: dataNascimentoFormatada,
+        rua: _ruaController.text.isNotEmpty ? _ruaController.text : null,
+        numeroCasa: _numeroCasaController.text.isNotEmpty ? _numeroCasaController.text : null,
+        bairro: _bairroController.text.isNotEmpty ? _bairroController.text : null,
+        cidade: _cidadeController.text.isNotEmpty ? _cidadeController.text : null,
+        uf: _ufController.text.isNotEmpty ? _ufController.text : null,
       );
 
       final resultado = _clienteEmEdicao != null
@@ -202,6 +218,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       _emailController.text = cliente.email;
       _cpfController.text = _maskCpf.maskText(cliente.cpf);
       _dataNascimentoController.text = DateFormat('dd/MM/yyyy').format(cliente.dataNascimento);
+      _ruaController.text = cliente.rua ?? '';
+      _numeroCasaController.text = cliente.numeroCasa ?? '';
+      _bairroController.text = cliente.bairro ?? '';
+      _cidadeController.text = cliente.cidade ?? '';
+      _ufController.text = cliente.uf ?? '';
       _clienteEmEdicao = cliente;
     });
     _showFormModal();
@@ -272,6 +293,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _emailController.clear();
     _cpfController.clear();
     _dataNascimentoController.clear();
+    _ruaController.clear();
+    _numeroCasaController.clear();
+    _bairroController.clear();
+    _cidadeController.clear();
+    _ufController.clear();
     _clienteEmEdicao = null;
   }
 
@@ -595,6 +621,17 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                       _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
                       _buildInfoRow(Icons.email, cliente.email),
                       _buildInfoRow(Icons.cake, DateFormat('dd/MM/yyyy').format(cliente.dataNascimento)),
+                      if (cliente.rua != null && cliente.rua!.isNotEmpty)
+                        _buildInfoRow(
+                          Icons.location_on,
+                          '${cliente.rua}${cliente.numeroCasa != null && cliente.numeroCasa!.isNotEmpty ? ', ${cliente.numeroCasa}' : ''}',
+                        ),
+                      if (cliente.bairro != null && cliente.bairro!.isNotEmpty) _buildInfoRow(Icons.map, cliente.bairro!),
+                      if (cliente.cidade != null && cliente.cidade!.isNotEmpty)
+                        _buildInfoRow(
+                          Icons.location_city,
+                          '${cliente.cidade}${cliente.uf != null && cliente.uf!.isNotEmpty ? ' - ${cliente.uf}' : ''}',
+                        ),
                     ],
                   ),
                 ),
@@ -733,6 +770,102 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
               }
               return null;
             },
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.location_on, size: 18, color: primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Endereço (Opcional)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildTextField(
+                  controller: _ruaController,
+                  label: 'Rua',
+                  icon: Icons.signpost,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: _buildTextField(
+                  controller: _numeroCasaController,
+                  label: 'Número',
+                  icon: Icons.numbers,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _bairroController,
+            label: 'Bairro',
+            icon: Icons.location_city,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildTextField(
+                  controller: _cidadeController,
+                  label: 'Cidade',
+                  icon: Icons.apartment,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: TextFormField(
+                  controller: _ufController,
+                  maxLength: 2,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                    UpperCaseTextFormatter(),
+                  ],
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: InputDecoration(
+                    labelText: 'UF',
+                    prefixIcon: Icon(Icons.map, color: primaryColor),
+                    counterText: '',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 2),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: errorColor),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 32),
           SizedBox(

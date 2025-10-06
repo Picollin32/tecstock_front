@@ -4,7 +4,9 @@ class Usuario {
   int? id;
   String nomeUsuario;
   String? senha;
-  Funcionario consultor;
+  String? nomeCompleto;
+  int? nivelAcesso; // 0 = Admin, 1 = Consultor
+  Funcionario? consultor; // Opcional - admin não precisa de consultor
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -12,7 +14,9 @@ class Usuario {
     this.id,
     required this.nomeUsuario,
     this.senha,
-    required this.consultor,
+    this.nomeCompleto,
+    this.nivelAcesso,
+    this.consultor,
     this.createdAt,
     this.updatedAt,
   });
@@ -22,7 +26,9 @@ class Usuario {
       id: json['id'],
       nomeUsuario: json['nomeUsuario'],
       senha: json['senha'],
-      consultor: Funcionario.fromJson(json['consultor']),
+      nomeCompleto: json['nomeCompleto'],
+      nivelAcesso: json['nivelAcesso'],
+      consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -32,10 +38,21 @@ class Usuario {
     final Map<String, dynamic> data = {
       'id': id,
       'nomeUsuario': nomeUsuario,
-      'consultor': {'id': consultor.id},
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
+
+    if (nomeCompleto != null && nomeCompleto!.isNotEmpty) {
+      data['nomeCompleto'] = nomeCompleto;
+    }
+
+    if (nivelAcesso != null) {
+      data['nivelAcesso'] = nivelAcesso;
+    }
+
+    if (consultor != null && consultor!.id != null) {
+      data['consultor'] = {'id': consultor!.id};
+    }
 
     if (senha != null && senha!.isNotEmpty) {
       data['senha'] = senha;

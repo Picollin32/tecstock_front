@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:TecStock/model/tipo_pagamento.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 class TipoPagamentoService {
@@ -7,14 +8,20 @@ class TipoPagamentoService {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/salvar';
 
     try {
+      final nivelAcesso = await AuthService.getNivelAcesso();
       final response = await http.post(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Level': nivelAcesso?.toString() ?? '1',
+        },
         body: jsonEncode(tipoPagamento.toJson()),
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Tipo de pagamento salvo com sucesso'};
+      } else if (response.statusCode == 403) {
+        return {'success': false, 'message': 'Acesso negado. Apenas administradores podem gerenciar tipos de pagamento.'};
       } else {
         String errorMessage = 'Erro ao salvar tipo de pagamento';
         try {
@@ -40,7 +47,7 @@ class TipoPagamentoService {
   static Future<List<TipoPagamento>> listarTiposPagamento() async {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => TipoPagamento.fromJson(e)).toList();
@@ -56,10 +63,15 @@ class TipoPagamentoService {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return {'success': true, 'message': 'Tipo de pagamento excluído com sucesso'};
+      } else if (response.statusCode == 403) {
+        return {'success': false, 'message': 'Acesso negado. Apenas administradores podem gerenciar tipos de pagamento.'};
       } else {
         String errorMessage = 'Erro ao excluir tipo de pagamento';
         try {
@@ -86,14 +98,20 @@ class TipoPagamentoService {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/atualizar/$id';
 
     try {
+      final nivelAcesso = await AuthService.getNivelAcesso();
       final response = await http.put(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Level': nivelAcesso?.toString() ?? '1',
+        },
         body: jsonEncode(tipoPagamento.toJson()),
       );
 
       if (response.statusCode == 200) {
         return {'success': true, 'message': 'Tipo de pagamento atualizado com sucesso'};
+      } else if (response.statusCode == 403) {
+        return {'success': false, 'message': 'Acesso negado. Apenas administradores podem gerenciar tipos de pagamento.'};
       } else {
         String errorMessage = 'Erro ao atualizar tipo de pagamento';
         try {
@@ -119,7 +137,7 @@ class TipoPagamentoService {
   static Future<TipoPagamento?> buscarTipoPagamentoPorId(int id) async {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/buscar/$id';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final json = jsonDecode(utf8.decode(response.bodyBytes));
         return TipoPagamento.fromJson(json);

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/veiculo.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,7 +9,7 @@ class VeiculoService {
 
     try {
       final response =
-          await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(veiculo.toJson()));
+          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(veiculo.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Veículo salvo com sucesso'};
@@ -37,7 +38,7 @@ class VeiculoService {
   static Future<List<Veiculo>> listarVeiculos() async {
     String baseUrl = 'http://localhost:8081/api/veiculos/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Veiculo.fromJson(e)).toList();
@@ -53,7 +54,7 @@ class VeiculoService {
     String baseUrl = 'http://localhost:8081/api/veiculos/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return {'success': true, 'message': 'Veículo excluído com sucesso'};
@@ -84,8 +85,7 @@ class VeiculoService {
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(veiculo.toJson()),
       );
 

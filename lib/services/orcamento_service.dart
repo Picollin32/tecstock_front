@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/orcamento.dart';
 import 'package:TecStock/model/ordem_servico.dart';
 import 'package:http/http.dart' as http;
@@ -9,8 +10,7 @@ class OrcamentoService {
   static Future<bool> salvarOrcamento(Orcamento orcamento) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/salvar'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/salvar'), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(orcamento.toJson()),
       );
       return response.statusCode == 201 || response.statusCode == 200;
@@ -22,7 +22,7 @@ class OrcamentoService {
 
   static Future<Orcamento?> buscarOrcamentoPorId(int id) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar/$id'));
+      final response = await http.get(Uri.parse('$baseUrl/buscar/$id'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return Orcamento.fromJson(jsonData);
@@ -36,7 +36,7 @@ class OrcamentoService {
 
   static Future<List<Orcamento>> listarOrcamentos() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/listarTodos'));
+      final response = await http.get(Uri.parse('$baseUrl/listarTodos'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Orcamento.fromJson(e)).toList();
@@ -50,7 +50,7 @@ class OrcamentoService {
 
   static Future<bool> excluirOrcamento(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'));
+      final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir orçamento: $e');
@@ -64,8 +64,7 @@ class OrcamentoService {
       print('JSON enviado: ${jsonEncode(orcamento.toJson())}');
 
       final response = await http.put(
-        Uri.parse('$baseUrl/atualizar/$id'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/atualizar/$id'), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(orcamento.toJson()),
       );
 
@@ -96,7 +95,7 @@ class OrcamentoService {
 
   static Future<List<Orcamento>> buscarPorCliente(String cpf) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/cliente/$cpf'));
+      final response = await http.get(Uri.parse('$baseUrl/cliente/$cpf'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Orcamento.fromJson(e)).toList();
@@ -110,7 +109,7 @@ class OrcamentoService {
 
   static Future<List<Orcamento>> buscarPorVeiculo(String placa) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/veiculo/$placa'));
+      final response = await http.get(Uri.parse('$baseUrl/veiculo/$placa'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Orcamento.fromJson(e)).toList();
@@ -124,7 +123,7 @@ class OrcamentoService {
 
   static Future<List<Orcamento>> buscarPorStatus(String status) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/status/$status'));
+      final response = await http.get(Uri.parse('$baseUrl/status/$status'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Orcamento.fromJson(e)).toList();
@@ -138,7 +137,7 @@ class OrcamentoService {
 
   static Future<Orcamento?> buscarPorNumeroOrcamento(String numeroOrcamento) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar-numero/$numeroOrcamento'));
+      final response = await http.get(Uri.parse('$baseUrl/buscar-numero/$numeroOrcamento'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return Orcamento.fromJson(jsonData);
@@ -165,7 +164,7 @@ class OrcamentoService {
 
   static Future<Map<String, double>?> calcularMaxDescontos(int id) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/$id/max-descontos'));
+      final response = await http.get(Uri.parse('$baseUrl/$id/max-descontos'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return {
@@ -183,8 +182,7 @@ class OrcamentoService {
   static Future<OrdemServico?> transformarEmOrdemServico(int id) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/$id/transformar-em-os'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/$id/transformar-em-os'), headers: await AuthService.getAuthHeaders(),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));

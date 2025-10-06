@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../model/relatorio.dart';
@@ -14,7 +15,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/agendamentos?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -34,7 +35,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/servicos?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -54,7 +55,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/estoque?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -74,7 +75,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/financeiro?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -94,7 +95,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/comissao?dataInicio=$inicio&dataFim=$fim&mecanicoId=$mecanicoId'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -114,7 +115,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/garantias?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -134,7 +135,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/fiado?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -154,7 +155,7 @@ class RelatorioService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/relatorios/consultores?dataInicio=$inicio&dataFim=$fim'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {

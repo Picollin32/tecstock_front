@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/checklist.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,7 +9,7 @@ class ChecklistService {
 
     try {
       final response =
-          await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(checklist.toJson()));
+          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(checklist.toJson()));
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       print('Erro ao salvar checklist: $e');
@@ -20,7 +21,7 @@ class ChecklistService {
     String baseUrl = 'http://localhost:8081/api/checklists/buscar/$id';
 
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return Checklist.fromJson(jsonData);
@@ -35,7 +36,7 @@ class ChecklistService {
   static Future<List<Checklist>> listarChecklists() async {
     String baseUrl = 'http://localhost:8081/api/checklists/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Checklist.fromJson(e)).toList();
@@ -51,7 +52,7 @@ class ChecklistService {
     String baseUrl = 'http://localhost:8081/api/checklists/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir checklist: $e');
@@ -64,8 +65,7 @@ class ChecklistService {
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(checklist.toJson()),
       );
       return response.statusCode == 200;

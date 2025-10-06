@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:TecStock/model/fabricante.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 class FabricanteService {
@@ -8,7 +9,7 @@ class FabricanteService {
 
     try {
       final response =
-          await http.post(Uri.parse(baseUrl), headers: {'Content-Type': 'application/json'}, body: jsonEncode(fabricante.toJson()));
+          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(fabricante.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Fabricante salvo com sucesso'};
@@ -37,7 +38,7 @@ class FabricanteService {
   static Future<List<Fabricante>> listarFabricantes() async {
     String baseUrl = 'http://localhost:8081/api/fabricantes/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Fabricante.fromJson(e)).toList();
@@ -53,7 +54,7 @@ class FabricanteService {
     String baseUrl = 'http://localhost:8081/api/fabricantes/deletar/$id';
 
     try {
-      final response = await http.delete(Uri.parse(baseUrl));
+      final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         return {'success': true, 'message': 'Fabricante excluído com sucesso'};
@@ -85,7 +86,7 @@ class FabricanteService {
     try {
       final response = await http.put(
         Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(fabricante.toJson()),
       );
 

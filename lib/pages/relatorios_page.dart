@@ -3686,10 +3686,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
-                'Valor Total',
-                'R\$ ${relatorio.valorTotalGeral.toStringAsFixed(2)}',
-                Icons.attach_money,
-                Colors.purple,
+                'Total Agendamentos',
+                relatorio.totalAgendamentosGeral.toString(),
+                Icons.calendar_today,
+                Colors.pink,
               ),
             ),
           ],
@@ -3697,6 +3697,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         const SizedBox(height: 16),
         Row(
           children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Valor Total',
+                'R\$ ${relatorio.valorTotalGeral.toStringAsFixed(2)}',
+                Icons.attach_money,
+                Colors.purple,
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
                 'Ticket Médio',
@@ -3873,6 +3882,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                               Colors.orange,
                             ),
                           ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Agendamentos',
+                              consultor.totalAgendamentos.toString(),
+                              Icons.calendar_today,
+                              Colors.pink,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -3969,6 +3987,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           _buildPdfMetricCard('Total de Orçamentos', relatorio.totalOrcamentosGeral.toString()),
           _buildPdfMetricCard('Total de OS', relatorio.totalOSGeral.toString()),
           _buildPdfMetricCard('Total de Checklists', relatorio.totalChecklistsGeral.toString()),
+          _buildPdfMetricCard('Total de Agendamentos', relatorio.totalAgendamentosGeral.toString()),
           _buildPdfMetricCard('Valor Total', 'R\$ ${relatorio.valorTotalGeral.toStringAsFixed(2)}'),
           _buildPdfMetricCard('Ticket Médio', 'R\$ ${relatorio.valorMedioGeral.toStringAsFixed(2)}'),
           _buildPdfMetricCard('Taxa de Conversão', '${relatorio.taxaConversaoGeral.toStringAsFixed(1)}%'),
@@ -3976,7 +3995,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           _buildPdfSectionTitle('Ranking de Consultores'),
           pw.SizedBox(height: 10),
           _buildPdfTable(
-            headers: ['Pos.', 'Consultor', 'Orç.', 'OS', 'Checks', 'Valor Total', 'Ticket', 'Conv.%'],
+            headers: ['Pos.', 'Consultor', 'Orç.', 'OS', 'Checks', 'Agend.', 'Valor Total', 'Ticket', 'Conv.%'],
             rows: consultoresOrdenados.asMap().entries.map((entry) {
               final index = entry.key;
               final c = entry.value;
@@ -3991,6 +4010,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 c.totalOrcamentos.toString(),
                 c.totalOS.toString(),
                 c.totalChecklists.toString(),
+                c.totalAgendamentos.toString(),
                 'R\$ ${c.valorTotalOS.toStringAsFixed(2)}',
                 'R\$ ${c.valorMedioOS.toStringAsFixed(2)}',
                 '${c.taxaConversao.toStringAsFixed(1)}%',

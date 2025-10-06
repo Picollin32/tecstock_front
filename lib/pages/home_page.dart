@@ -9,10 +9,12 @@ import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:TecStock/pages/checklist_page.dart';
 import 'package:TecStock/pages/gerenciamento_fiados_page.dart';
 import 'package:TecStock/pages/gerenciar_usuarios_page.dart';
+import 'package:TecStock/pages/login_page.dart';
 import 'package:TecStock/pages/ordem_servico_page.dart';
 import 'package:TecStock/pages/orcamento_page.dart';
 import 'package:TecStock/pages/relatorios_page.dart';
 import 'package:TecStock/services/agendamento_service.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/services/cliente_service.dart';
 import 'package:TecStock/services/veiculo_service.dart';
 import 'package:TecStock/services/checklist_service.dart';
@@ -48,6 +50,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   bool _isDashboardActive = true;
   Widget? _currentPageWidget;
+
+  String _nomeUsuarioLogado = '';
+  int _nivelAcessoUsuarioLogado = 1;
 
   Map<String, int> _dashboardStats = {
     'Agendamentos Hoje': 0,
@@ -177,7 +182,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fadeController.forward();
     _slideController.forward();
 
+    _loadUserData();
     _loadDashboardData();
+  }
+
+  Future<void> _loadUserData() async {
+    final nomeCompleto = await AuthService.getNomeCompleto();
+    final nivelAcesso = await AuthService.getNivelAcesso();
+
+    setState(() {
+      _nomeUsuarioLogado = nomeCompleto ?? 'Usuário';
+      _nivelAcessoUsuarioLogado = nivelAcesso ?? 1;
+    });
+  }
+
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Logout'),
+        content: const Text('Deseja realmente sair do sistema?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await AuthService.logout();
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -1435,6 +1481,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         actions: [
+          // Nome do usuário logado
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Center(
+              child: Row(
+                children: [
+                  const Icon(Icons.person, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    _nomeUsuarioLogado,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (_nivelAcessoUsuarioLogado == 0)
+                    Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade700,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'ADMIN',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Botão de logout
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
+            tooltip: 'Sair do sistema',
+          ),
           if (_currentTitle == 'Início')
             IconButton(
               icon: _isLoadingStats
@@ -1554,8 +1642,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               const SizedBox(height: 8),
               ..._menuGroups.map((group) {
                 final items = group['items'] as List<dynamic>;
-                if (items.length == 1) {
-                  final item = items.first as Map<String, dynamic>;
+
+                // Filtra itens restritos para usuários nível 1
+                final filteredItems = items.where((raw) {
+                  final item = raw as Map<String, dynamic>;
+                  final title = item['title'] as String;
+
+                  // Restringe acesso para usuários não-admin
+                  if (_nivelAcessoUsuarioLogado != 0) {
+                    if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários') {
+                      return false;
+                    }
+                  }
+                  return true;
+                }).toList();
+
+                // Se não houver itens após filtrar, não renderiza o grupo
+                if (filteredItems.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                if (filteredItems.length == 1) {
+                  final item = filteredItems.first as Map<String, dynamic>;
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -1631,7 +1739,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       ),
                       iconColor: const Color(0xFF1565C0),
                       collapsedIconColor: const Color(0xFF1565C0),
-                      children: items.map<Widget>((raw) {
+                      children: filteredItems.map<Widget>((raw) {
                         final item = raw as Map<String, dynamic>;
                         return Container(
                           margin: const EdgeInsets.only(left: 16, right: 8, bottom: 4),

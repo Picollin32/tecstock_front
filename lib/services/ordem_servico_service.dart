@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:TecStock/model/ordem_servico.dart';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 
 class OrdemServicoService {
@@ -9,7 +10,7 @@ class OrdemServicoService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/salvar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(ordemServico.toJson()),
       );
       return response.statusCode == 201 || response.statusCode == 200;
@@ -21,7 +22,7 @@ class OrdemServicoService {
 
   static Future<OrdemServico?> buscarOrdemServicoPorId(int id) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar/$id'));
+      final response = await http.get(Uri.parse('$baseUrl/buscar/$id'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return OrdemServico.fromJson(jsonData);
@@ -35,7 +36,7 @@ class OrdemServicoService {
 
   static Future<List<OrdemServico>> listarOrdensServico() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/listarTodos'));
+      final response = await http.get(Uri.parse('$baseUrl/listarTodos'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => OrdemServico.fromJson(e)).toList();
@@ -49,7 +50,7 @@ class OrdemServicoService {
 
   static Future<bool> excluirOrdemServico(int id) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'));
+      final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print('Erro ao excluir ordem de serviço: $e');
@@ -64,7 +65,7 @@ class OrdemServicoService {
 
       final response = await http.put(
         Uri.parse('$baseUrl/atualizar/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(ordemServico.toJson()),
       );
 
@@ -97,7 +98,7 @@ class OrdemServicoService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/$id/fechar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -113,9 +114,36 @@ class OrdemServicoService {
     }
   }
 
+  static Future<Map<String, dynamic>> reabrirOrdemServico(int id) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/$id/reabrir'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+        return {'sucesso': true, 'mensagem': 'Ordem de serviço reaberta com sucesso', 'ordemServico': OrdemServico.fromJson(jsonData)};
+      } else {
+        String errorMessage = 'Erro ao reabrir ordem de serviço';
+        try {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        } catch (e) {
+          // Mantém a mensagem padrão
+        }
+        return {'sucesso': false, 'mensagem': errorMessage};
+      }
+    } catch (e) {
+      print('Erro ao reabrir ordem de serviço: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
   static Future<List<OrdemServico>> buscarPorCliente(String cpf) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar-por-cliente/$cpf'));
+      final response = await http.get(Uri.parse('$baseUrl/buscar-por-cliente/$cpf'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => OrdemServico.fromJson(e)).toList();
@@ -129,7 +157,7 @@ class OrdemServicoService {
 
   static Future<List<OrdemServico>> buscarPorVeiculo(String placa) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscar-por-veiculo/$placa'));
+      final response = await http.get(Uri.parse('$baseUrl/buscar-por-veiculo/$placa'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => OrdemServico.fromJson(e)).toList();
@@ -143,19 +171,13 @@ class OrdemServicoService {
 
   static Future<List<OrdemServico>> buscarPorStatus(String status) async {
     final url = Uri.parse('$baseUrl/status/$status');
-    print('🌐 Fazendo requisição para: $url');
 
     try {
-      final response = await http.get(url);
-      print('📡 Status da resposta: ${response.statusCode}');
-      print(
-          '📄 Corpo da resposta (primeiros 200 chars): ${response.body.length > 200 ? "${response.body.substring(0, 200)}..." : response.body}');
+      final response = await http.get(url, headers: await AuthService.getAuthHeaders());
 
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        print('📊 Dados decodificados: ${jsonList.length} ordens encontradas');
         List<OrdemServico> ordens = jsonList.map((e) => OrdemServico.fromJson(e)).toList();
-        print('✅ Ordens convertidas com sucesso');
         return ordens;
       } else {
         print('❌ Erro HTTP: ${response.statusCode}');
@@ -190,14 +212,11 @@ class OrdemServicoService {
 
   static Future<Map<String, Map<String, dynamic>>> buscarPecasEmOSAbertas() async {
     try {
-      print('🔍 Buscando peças em OS abertas...');
       final ordensAbertas = await buscarPorStatus('Aberta');
-      print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
 
       Map<String, Map<String, dynamic>> pecasInfo = {};
 
       for (final os in ordensAbertas) {
-        print('📋 Processando OS ${os.numeroOS} com ${os.pecasUtilizadas.length} peças');
         for (final pecaOS in os.pecasUtilizadas) {
           final codigo = pecaOS.peca.codigoFabricante;
 
@@ -217,33 +236,26 @@ class OrdemServicoService {
         }
       }
 
-      print('📦 Total de peças diferentes em OS: ${pecasInfo.length}');
       return pecasInfo;
     } catch (e) {
-      print('❌ Erro ao buscar peças em OS abertas: $e');
+      print('Erro ao buscar peças em OS abertas: $e');
       return {};
     }
   }
 
   static Future<Map<int, Map<String, dynamic>>> buscarServicosEmOSAbertas() async {
     try {
-      print('🔍 Buscando serviços em OS abertas...');
       final ordensAbertas = await buscarPorStatus('Aberta');
-      print('📋 Encontradas ${ordensAbertas.length} ordens abertas');
 
       Map<int, Map<String, dynamic>> servicosInfo = {};
 
       for (final os in ordensAbertas) {
-        print('📋 OS ${os.numeroOS}: ${os.servicosRealizados.length} serviços');
-
         if (os.servicosRealizados.isEmpty) {
-          print('⚠️ OS ${os.numeroOS} não tem serviços realizados');
           continue;
         }
 
         for (final servico in os.servicosRealizados) {
           if (servico.id == null) {
-            print('⚠️ Serviço sem ID na OS ${os.numeroOS}: ${servico.nome}');
             continue;
           }
 
@@ -262,20 +274,12 @@ class OrdemServicoService {
           if (!servicosInfo[servicoId]!['ordens'].contains(os.numeroOS)) {
             servicosInfo[servicoId]!['ordens'].add(os.numeroOS);
           }
-
-          print('✅ Serviço ${servico.nome} (ID: $servicoId) adicionado à OS ${os.numeroOS}');
         }
       }
 
-      print('🔧 Total de serviços diferentes em OS: ${servicosInfo.length}');
-      servicosInfo.forEach((id, info) {
-        print('   - Serviço ID $id: ${info['nome']} em ${info['quantidade']} OS(s): ${info['ordens']}');
-      });
-
       return servicosInfo;
-    } catch (e, stackTrace) {
-      print('❌ Erro ao buscar serviços em OS abertas: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('Erro ao buscar serviços em OS abertas: $e');
       return {};
     }
   }
@@ -284,7 +288,7 @@ class OrdemServicoService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/fiados-em-aberto'),
-        headers: {'Content-Type': 'application/json'},
+        headers: await AuthService.getAuthHeaders(),
       );
 
       if (response.statusCode == 200) {
@@ -308,6 +312,30 @@ class OrdemServicoService {
     } catch (e) {
       print('Erro ao marcar fiado como pago: $e');
       throw Exception('Erro ao marcar fiado como pago: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> desbloquearOS(int id) async {
+    try {
+      final nivelAcesso = await AuthService.getNivelAcesso();
+      final response = await http.post(
+        Uri.parse('$baseUrl/$id/desbloquear'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Level': nivelAcesso?.toString() ?? '1',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return {'sucesso': true, 'mensagem': 'OS desbloqueada com sucesso'};
+      } else if (response.statusCode == 403) {
+        return {'sucesso': false, 'mensagem': 'Acesso negado. Apenas administradores podem desbloquear OSs.'};
+      } else {
+        return {'sucesso': false, 'mensagem': 'Erro ao desbloquear OS'};
+      }
+    } catch (e) {
+      print('Erro ao desbloquear OS: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
 }

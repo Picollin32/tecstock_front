@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../model/fornecedor.dart';
 import '../model/peca.dart';
+import '../services/auth_service.dart';
 import '../services/fabricante_service.dart';
 import '../services/fornecedor_service.dart';
 import '../services/peca_service.dart';
@@ -288,6 +289,220 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       }
     } catch (e) {
       _showVisibleError('Erro inesperado ao excluir peça: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _mostrarDialogoAjusteEstoque(Peca peca) {
+    int ajuste = 0;
+    final observacoesController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.tune, color: primaryColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Ajustar Estoque'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  peca.nome,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Código: ${peca.codigoFabricante}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Estoque Atual:',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        '${peca.quantidadeEstoque} unid.',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Ajuste:',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          ajuste--;
+                        });
+                      },
+                      icon: const Icon(Icons.remove_circle),
+                      color: errorColor,
+                      iconSize: 36,
+                    ),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: ajuste == 0 ? Colors.grey[100] : (ajuste > 0 ? Colors.green[50] : Colors.red[50]),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: ajuste == 0 ? Colors.grey[300]! : (ajuste > 0 ? Colors.green[300]! : Colors.red[300]!),
+                            width: 2,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              ajuste == 0 ? '0' : (ajuste > 0 ? '+$ajuste' : '$ajuste'),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: ajuste == 0 ? Colors.grey[600] : (ajuste > 0 ? successColor : errorColor),
+                              ),
+                            ),
+                            Text(
+                              'unidades',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          ajuste++;
+                        });
+                      },
+                      icon: const Icon(Icons.add_circle),
+                      color: successColor,
+                      iconSize: 36,
+                    ),
+                  ],
+                ),
+                if (ajuste != 0) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: ajuste > 0 ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: ajuste > 0 ? Colors.green[200]! : Colors.red[200]!,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Novo Estoque:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${peca.quantidadeEstoque + ajuste} unid.',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: ajuste > 0 ? successColor : errorColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: observacoesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Observações (opcional)',
+                    hintText: 'Motivo do ajuste...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ajuste == 0 ? Colors.grey : primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: ajuste == 0
+                  ? null
+                  : () async {
+                      Navigator.pop(context);
+                      await _aplicarAjusteEstoque(
+                        peca,
+                        ajuste,
+                        observacoesController.text.trim(),
+                      );
+                    },
+              child: const Text('Aplicar Ajuste'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _aplicarAjusteEstoque(Peca peca, int ajuste, String observacoes) async {
+    if (ajuste == 0) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final resultado = await PecaService.ajustarEstoque(
+        pecaId: peca.id!,
+        ajuste: ajuste,
+        observacoes: observacoes.isEmpty ? null : observacoes,
+      );
+
+      if (resultado['sucesso']) {
+        await _carregarPecas();
+        _showSuccessSnackBar(
+          'Estoque ajustado: ${ajuste > 0 ? '+' : ''}$ajuste unidade${ajuste.abs() != 1 ? 's' : ''}',
+        );
+      } else {
+        _showVisibleError(resultado['mensagem']);
+      }
+    } catch (e) {
+      _showVisibleError('Erro ao ajustar estoque: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -584,8 +799,21 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // _editarPeca(peca);
+          onTap: () async {
+            // Verifica se o usuário é admin
+            final isAdmin = await AuthService.isAdmin();
+            if (!isAdmin) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Apenas administradores podem editar peças'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              return;
+            }
+            _editarPeca(peca);
           },
           child: Padding(
             padding: const EdgeInsets.all(10),
@@ -640,24 +868,62 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ),
                     ),
                     PopupMenuButton<String>(
-                      onSelected: (value) {
+                      onSelected: (value) async {
                         if (value == 'edit') {
+                          // Verifica se o usuário é admin
+                          final isAdmin = await AuthService.isAdmin();
+                          if (!isAdmin) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Apenas administradores podem editar peças'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            return;
+                          }
                           _editarPeca(peca);
+                        } else if (value == 'ajustar') {
+                          // Verifica se o usuário é admin
+                          final isAdmin = await AuthService.isAdmin();
+                          if (!isAdmin) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Apenas administradores podem ajustar estoque'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                            return;
+                          }
+                          _mostrarDialogoAjusteEstoque(peca);
                         } else if (value == 'delete') {
                           _confirmarExclusao(peca);
                         }
                       },
                       itemBuilder: (context) => [
-                        // const PopupMenuItem(
-                        //   value: 'edit',
-                        //   child: Row(
-                        //     children: [
-                        //       Icon(Icons.edit, size: 18),
-                        //       SizedBox(width: 8),
-                        //       Text('Editar'),
-                        //     ],
-                        //   ),
-                        // ),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'ajustar',
+                          child: Row(
+                            children: [
+                              Icon(Icons.tune, size: 18, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('Ajustar Estoque', style: TextStyle(color: Colors.blue)),
+                            ],
+                          ),
+                        ),
                         const PopupMenuItem(
                           value: 'delete',
                           child: Row(
@@ -686,6 +952,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             : "Não informado",
                       ),
                       _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
+                      _buildInfoRow(Icons.shield, 'Estoque Seg.: ${peca.estoqueSeguranca} unid.'),
                     ],
                   ),
                 ),

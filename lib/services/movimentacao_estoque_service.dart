@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import '../model/movimentacao_estoque.dart';
 
@@ -84,8 +85,7 @@ class MovimentacaoEstoqueService {
       };
 
       final response = await http.post(
-        Uri.parse('$baseUrl/entrada-multipla'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$baseUrl/entrada-multipla'), headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(body),
       );
 
@@ -103,7 +103,7 @@ class MovimentacaoEstoqueService {
 
   static Future<List<MovimentacaoEstoque>> listarTodas() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/listar'));
+      final response = await http.get(Uri.parse('$baseUrl/listar'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => MovimentacaoEstoque.fromJson(e)).toList();
@@ -117,7 +117,7 @@ class MovimentacaoEstoqueService {
 
   static Future<List<MovimentacaoEstoque>> listarPorCodigoPeca(String codigoPeca) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/por-codigo/$codigoPeca'));
+      final response = await http.get(Uri.parse('$baseUrl/por-codigo/$codigoPeca'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => MovimentacaoEstoque.fromJson(e)).toList();
@@ -131,7 +131,7 @@ class MovimentacaoEstoqueService {
 
   static Future<List<MovimentacaoEstoque>> listarPorFornecedor(int fornecedorId) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/por-fornecedor/$fornecedorId'));
+      final response = await http.get(Uri.parse('$baseUrl/por-fornecedor/$fornecedorId'), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => MovimentacaoEstoque.fromJson(e)).toList();

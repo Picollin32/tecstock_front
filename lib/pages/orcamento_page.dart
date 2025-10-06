@@ -12,6 +12,7 @@ import '../services/peca_service.dart';
 import '../services/cliente_service.dart';
 import '../services/veiculo_service.dart';
 import '../services/funcionario_service.dart';
+import '../services/auth_service.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import '../model/servico.dart';
 import '../model/tipo_pagamento.dart';
@@ -19,6 +20,7 @@ import '../model/orcamento.dart';
 import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
 import '../model/funcionario.dart';
+import '../model/veiculo.dart';
 
 extension IterableExtension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
@@ -72,7 +74,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   final _queixaPrincipalController = TextEditingController();
   final _observacoesController = TextEditingController();
 
-  List<dynamic> _clientes = [];
   List<dynamic> _funcionarios = [];
   List<dynamic> _veiculos = [];
   List<Servico> _servicosDisponiveis = [];
@@ -110,6 +111,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   final TextEditingController _descontoServicosController = TextEditingController();
   final TextEditingController _descontoPecasController = TextEditingController();
   bool _isLoadingData = false;
+  bool _isAdmin = false;
+  bool _isLoadingInitialData = true;
 
   @override
   void initState() {
@@ -146,7 +149,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
     _pecaSearchController = TextEditingController();
 
-    _loadData();
+    _initializeData();
     _searchController.addListener(_filtrarRecentes);
     _servicoSearchController.addListener(_filtrarServicos);
     _fadeController.forward();
@@ -155,38 +158,60 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _clienteFocusNode = FocusNode();
   }
 
+  Future<void> _initializeData() async {
+    await _verificarPermissoes();
+    await _loadData();
+    if (mounted) {
+      setState(() {
+        _isLoadingInitialData = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    _dateController.dispose();
-    _timeController.dispose();
-    _orcamentoNumberController.dispose();
-    _clienteNomeController.dispose();
-    _clienteCpfController.removeListener(_onClienteCpfChanged);
-    _clienteCpfController.dispose();
-    _clienteTelefoneController.dispose();
-    _clienteEmailController.dispose();
-    _veiculoNomeController.dispose();
-    _veiculoMarcaController.dispose();
-    _veiculoAnoController.dispose();
-    _veiculoCorController.dispose();
-    _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
-    _veiculoPlacaController.dispose();
-    _veiculoQuilometragemController.dispose();
-    _queixaPrincipalController.dispose();
-    _observacoesController.dispose();
-    _searchController.removeListener(_filtrarRecentes);
-    _searchController.dispose();
-    _servicoSearchController.removeListener(_filtrarServicos);
-    _servicoSearchController.dispose();
-    _descontoServicosController.dispose();
-    _descontoPecasController.dispose();
-    _codigoPecaController.dispose();
-    _pecaSearchController.dispose();
-    _scrollController.dispose();
-    _clienteFocusNode.dispose();
+    try {
+      _fadeController.dispose();
+      _slideController.dispose();
+      _dateController.dispose();
+      _timeController.dispose();
+      _orcamentoNumberController.dispose();
+      _clienteNomeController.dispose();
+      _clienteCpfController.removeListener(_onClienteCpfChanged);
+      _clienteCpfController.dispose();
+      _clienteTelefoneController.dispose();
+      _clienteEmailController.dispose();
+      _veiculoNomeController.dispose();
+      _veiculoMarcaController.dispose();
+      _veiculoAnoController.dispose();
+      _veiculoCorController.dispose();
+      _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
+      _veiculoPlacaController.dispose();
+      _veiculoQuilometragemController.dispose();
+      _queixaPrincipalController.dispose();
+      _observacoesController.dispose();
+      _searchController.removeListener(_filtrarRecentes);
+      _searchController.dispose();
+      _servicoSearchController.removeListener(_filtrarServicos);
+      _servicoSearchController.dispose();
+      _descontoServicosController.dispose();
+      _descontoPecasController.dispose();
+      _codigoPecaController.dispose();
+      _pecaSearchController.dispose();
+      _scrollController.dispose();
+      _clienteFocusNode.dispose();
+    } catch (e) {
+      // Ignorar erros de dispose - controllers já foram descartados
+      print('⚠️ Erro ao fazer dispose (ignorado): $e');
+    }
     super.dispose();
+  }
+
+  Future<void> _verificarPermissoes() async {
+    final isAdmin = await AuthService.isAdmin();
+    setState(() {
+      _isAdmin = isAdmin;
+    });
   }
 
   Future<void> _loadData() async {
@@ -205,40 +230,81 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         Funcionarioservice.listarFuncionarios(),
       ]);
 
-      setState(() {
-        _recent = results[0] as List<Orcamento>;
-        _servicosDisponiveis = results[1] as List<Servico>;
+      // Preparar dados antes do setState
+      final orcamentos = results[0] as List<Orcamento>;
+      final servicos = results[1] as List<Servico>;
+      final tiposPagamento = results[2] as List<TipoPagamento>;
+      final pecas = results[3] as List<Peca>;
+      final clientes = results[4] as List<dynamic>;
+      final veiculos = results[5] as List<Veiculo>;
+      final funcionarios = results[6] as List<Funcionario>;
 
-        _servicosDisponiveis.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-        _servicosFiltrados = _servicosDisponiveis;
-        _tiposPagamento = results[2] as List<TipoPagamento>;
-        final Map<int, TipoPagamento> tpById = {};
-        for (var tp in _tiposPagamento) {
-          if (tp.id != null) tpById[tp.id!] = tp;
-        }
-        _tiposPagamento = tpById.values.toList();
-        _pecasDisponiveis = results[3] as List<Peca>;
-        _clientes = results[4];
-        _veiculos = results[5];
-        _funcionarios = results[6];
+      servicos.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
-        _recent.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
-        _recentFiltrados = List.from(_recent);
-        _clienteByCpf.clear();
-        for (var cliente in _clientes) {
-          _clienteByCpf[cliente.cpf] = cliente;
-        }
-        for (var func in _funcionarios) {
-          _clienteByCpf[func.cpf] = func;
-        }
+      final Map<int, TipoPagamento> tpById = {};
+      for (var tp in tiposPagamento) {
+        if (tp.id != null) tpById[tp.id!] = tp;
+      }
 
-        _veiculoByPlaca.clear();
-        for (var veiculo in _veiculos) {
-          _veiculoByPlaca[veiculo.placa] = veiculo;
-        }
+      orcamentos.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
 
-        _isLoadingData = false;
-      });
+      final clienteByCpf = <String, dynamic>{};
+      for (var cliente in clientes) {
+        clienteByCpf[cliente.cpf] = cliente;
+      }
+      for (var func in funcionarios) {
+        clienteByCpf[func.cpf] = func;
+      }
+
+      final veiculoByPlaca = <String, Veiculo>{};
+      for (var veiculo in veiculos) {
+        veiculoByPlaca[veiculo.placa] = veiculo;
+      }
+
+      // Auto-preencher consultor ANTES do setState
+      print('🔍 DEBUG Orçamento - Iniciando auto-preenchimento...');
+      print('🔍 DEBUG Orçamento - _isAdmin: $_isAdmin');
+      print('🔍 DEBUG Orçamento - _consultorSelecionado atual: ${_consultorSelecionado?.nome}');
+
+      Funcionario? consultorParaSelecionar;
+
+      if (!_isAdmin && _consultorSelecionado == null) {
+        final consultorId = await AuthService.getConsultorId();
+        print('🔍 DEBUG Orçamento - consultorId: $consultorId');
+        print('🔍 DEBUG Orçamento - Total funcionários: ${funcionarios.length}');
+        print('🔍 DEBUG Orçamento - Consultores (nível 1): ${funcionarios.where((f) => f.nivelAcesso == 1).length}');
+
+        if (consultorId != null) {
+          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+          print('🔍 DEBUG Orçamento - Consultor encontrado: ${consultorParaSelecionar?.nome}');
+        }
+      }
+
+      // ÚNICO setState com TUDO junto
+      if (mounted) {
+        setState(() {
+          _recent = orcamentos;
+          _servicosDisponiveis = servicos;
+          _servicosFiltrados = servicos;
+          _tiposPagamento = tpById.values.toList();
+          _pecasDisponiveis = pecas;
+          _veiculos = veiculos;
+          _funcionarios = funcionarios;
+          _recentFiltrados = List.from(orcamentos);
+          _clienteByCpf.clear();
+          _clienteByCpf.addAll(clienteByCpf);
+          _veiculoByPlaca.clear();
+          _veiculoByPlaca.addAll(veiculoByPlaca);
+          _isLoadingData = false;
+
+          if (consultorParaSelecionar != null) {
+            _consultorSelecionado = consultorParaSelecionar;
+          }
+        });
+
+        print('✅ DEBUG Orçamento - setState executado');
+        print('✅ DEBUG Orçamento - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
+      }
     } catch (e) {
       setState(() {
         _isLoadingData = false;
@@ -346,11 +412,20 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 children: [
                   _buildModernHeader(colorScheme),
                   const SizedBox(height: 32),
-                  if (_showForm) _buildFullForm(),
-                  if (!_showForm) ...[
-                    _buildSearchSection(colorScheme),
-                    const SizedBox(height: 24),
-                    _buildRecentList(),
+                  if (_isLoadingInitialData)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(48),
+                        child: CircularProgressIndicator(color: Colors.blue.shade600),
+                      ),
+                    )
+                  else ...[
+                    if (_showForm) _buildFullForm(),
+                    if (!_showForm) ...[
+                      _buildSearchSection(colorScheme),
+                      const SizedBox(height: 24),
+                      _buildRecentList(),
+                    ],
                   ],
                 ],
               ),
@@ -443,6 +518,20 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     setState(() {
                       _showForm = true;
                     });
+
+                    // Auto-preencher consultor ao abrir formulário novo
+                    if (!_isAdmin && _consultorSelecionado == null) {
+                      final consultorId = await AuthService.getConsultorId();
+                      if (consultorId != null && mounted) {
+                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+                        if (consultor != null && mounted) {
+                          setState(() {
+                            _consultorSelecionado = consultor;
+                          });
+                          print('✅ DEBUG Orçamento - Consultor auto-preenchido ao abrir form: ${consultor.nome}');
+                        }
+                      }
+                    }
                   }
                 },
                 child: Padding(
@@ -1962,7 +2051,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _mecanicoSelecionado,
+                  value: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2016,7 +2105,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _consultorSelecionado,
+                  value: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2045,7 +2134,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       );
                     }).toList();
                   })(),
-                  onChanged: _isViewMode
+                  onChanged: (_isViewMode || !_isAdmin)
                       ? null
                       : (value) {
                           setState(() {
@@ -3536,6 +3625,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _showErrorMessage('Selecione pelo menos um serviço ou uma peça para orçar');
       return;
     }
+
+    print('💾 DEBUG SALVAR Orçamento - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
 
     try {
       final orcamento = Orcamento(

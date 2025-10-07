@@ -63,24 +63,48 @@ class PecaService {
 
   static Future<Map<String, dynamic>> salvarPeca(Peca peca) async {
     try {
+      final headers = await AuthService.getAuthHeaders();
+      headers['Content-Type'] = 'application/json; charset=UTF-8';
+
       final response = await http.post(
         Uri.parse('$baseUrl/salvar'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
+        headers: headers,
         body: jsonEncode(peca.toJson()),
       );
 
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
+        // Tenta decodificar a resposta para verificar se é válida
+        try {
+          if (response.body.isNotEmpty) {
+            jsonDecode(utf8.decode(response.bodyBytes));
+          }
+          return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
+        } catch (e) {
+          print('Erro ao decodificar resposta de sucesso: $e');
+          return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
+        }
       } else if (response.statusCode == 409) {
-        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Código de peça duplicado para o mesmo fornecedor'};
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Código de peça duplicado para o mesmo fornecedor'};
+        } catch (e) {
+          return {'sucesso': false, 'mensagem': 'Código de peça duplicado para o mesmo fornecedor'};
+        }
+      } else if (response.statusCode == 403) {
+        return {'sucesso': false, 'mensagem': 'Acesso negado. Você não tem permissão para cadastrar peças.'};
       } else {
-        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao salvar peça'};
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao salvar peça'};
+        } catch (e) {
+          return {'sucesso': false, 'mensagem': 'Erro ao salvar peça (Status: ${response.statusCode})'};
+        }
       }
     } catch (e) {
+      print('Erro completo: $e');
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
@@ -90,12 +114,13 @@ class PecaService {
     required int fornecedorId,
     required double desconto,
   }) async {
+    final headers = await AuthService.getAuthHeaders();
+    headers['Content-Type'] = 'application/json; charset=UTF-8';
+
     final url = Uri.parse('http://localhost:8081/api/descontos/aplicar');
     final response = await http.post(
       url,
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
+      headers: headers,
       body: jsonEncode({
         'peca': peca.toJson(),
         'fornecedorId': fornecedorId,

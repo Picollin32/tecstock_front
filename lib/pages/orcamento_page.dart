@@ -85,6 +85,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
+  int? _prazoFiadoDias;
   Funcionario? _mecanicoSelecionado;
   Funcionario? _consultorSelecionado;
   String? _categoriaSelecionada;
@@ -113,6 +114,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   bool _isLoadingData = false;
   bool _isAdmin = false;
   bool _isLoadingInitialData = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -372,6 +374,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _tipoPagamentoSelecionado = null;
       _garantiaMeses = 3;
       _numeroParcelas = null;
+      _prazoFiadoDias = null;
       _mecanicoSelecionado = null;
       _consultorSelecionado = null;
       _precoTotal = 0.0;
@@ -869,10 +872,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: _salvarOrcamento,
-                          icon: const Icon(Icons.save, color: Colors.white),
+                          onPressed: _isSaving ? null : _salvarOrcamento,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.save, color: Colors.white),
                           label: Text(
-                            _editingOrcamentoId != null ? 'Atualizar Orçamento' : 'Salvar Orçamento',
+                            _isSaving ? 'Salvando...' : (_editingOrcamentoId != null ? 'Atualizar Orçamento' : 'Salvar Orçamento'),
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -1956,6 +1968,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _garantiaMeses = orcamento.garantiaMeses;
       _tipoPagamentoSelecionado = orcamento.tipoPagamento;
       _numeroParcelas = orcamento.numeroParcelas;
+      _prazoFiadoDias = orcamento.prazoFiadoDias;
 
       if (orcamento.mecanico != null && orcamento.mecanico!.id != null) {
         _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
@@ -3283,6 +3296,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                 (_tipoPagamentoSelecionado?.codigo != 3 && _tipoPagamentoSelecionado?.codigo != 4)) {
                               _numeroParcelas = null;
                             }
+                            if (_tipoPagamentoSelecionado == null || _tipoPagamentoSelecionado?.codigo != 6) {
+                              _prazoFiadoDias = null;
+                            }
                           });
                         },
                 ),
@@ -3341,7 +3357,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _numeroParcelas,
+                    value: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3369,7 +3385,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                         ? null
                         : (value) {
                             setState(() {
-                              _numeroParcelas = value;
+                              _prazoFiadoDias = value != null ? value * 30 : null;
                             });
                           },
                   ),
@@ -3596,6 +3612,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _salvarOrcamento() async {
+    // Prevenir duplo clique
+    if (_isSaving) {
+      print('⚠️ DEBUG: Tentativa de salvar orçamento enquanto já está salvando - BLOQUEADO');
+      return;
+    }
+
     if (_clienteNomeController.text.trim().isEmpty) {
       _showErrorMessage('O nome do cliente é obrigatório');
       return;
@@ -3628,6 +3650,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
     print('💾 DEBUG SALVAR Orçamento - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
 
+    setState(() {
+      _isSaving = true;
+    });
+
     try {
       final orcamento = Orcamento(
         id: _editingOrcamentoId,
@@ -3655,6 +3681,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: _numeroParcelas,
+        prazoFiadoDias: _prazoFiadoDias,
         mecanico: _mecanicoSelecionado,
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.trim().isNotEmpty ? _observacoesController.text.trim() : null,
@@ -3675,11 +3702,18 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         setState(() {
           _showForm = false;
           _editingOrcamentoId = null;
+          _isSaving = false;
         });
       } else {
+        setState(() {
+          _isSaving = false;
+        });
         _showErrorMessage('Erro ao salvar orçamento');
       }
     } catch (e) {
+      setState(() {
+        _isSaving = false;
+      });
       print('Erro ao salvar orçamento: $e');
       _showErrorMessage('Erro ao salvar orçamento: ${e.toString()}');
     }

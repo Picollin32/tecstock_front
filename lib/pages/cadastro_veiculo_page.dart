@@ -45,8 +45,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   List<Veiculo> _veiculosFiltrados = [];
   Veiculo? _veiculoEmEdicao;
 
+  // ignore: unused_field
   bool _isLoading = false;
   bool _isLoadingVeiculos = true;
+  bool _isSaving = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -133,9 +135,17 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   }
 
   void _salvarVeiculo() async {
+    if (_isSaving) {
+      print('⚠️ DEBUG: Tentativa de salvar veículo enquanto já está salvando - BLOQUEADO');
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isSaving = true;
+    });
 
     try {
       Marca? marcaSelecionada;
@@ -180,7 +190,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
       }
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isSaving = false;
+      });
     }
   }
 
@@ -754,7 +767,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _salvarVeiculo,
+              onPressed: _isSaving ? null : _salvarVeiculo,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
@@ -763,7 +776,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                 ),
                 elevation: 2,
               ),
-              child: _isLoading
+              child: _isSaving
                   ? const SizedBox(
                       height: 20,
                       width: 20,

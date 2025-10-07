@@ -36,8 +36,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Peca? _pecaEmEdicao;
   Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
+  // ignore: unused_field
   bool _isLoading = false;
   bool _isLoadingPecas = true;
+  bool _isSaving = false;
   String _filtroEstoque = 'todos';
 
   late AnimationController _fadeController;
@@ -180,9 +182,17 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   void _salvar() async {
+    if (_isSaving) {
+      print('⚠️ DEBUG: Tentativa de salvar peça enquanto já está salvando - BLOQUEADO');
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isSaving = true;
+    });
 
     try {
       double preco = double.parse(_precoUnitarioController.text.replaceAll(',', '.'));
@@ -218,7 +228,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     } catch (e) {
       _showVisibleError("Erro inesperado ao salvar peça: $e");
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isSaving = false;
+      });
     }
   }
 
@@ -1274,7 +1287,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _salvar,
+              onPressed: _isSaving ? null : _salvar,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
@@ -1283,7 +1296,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ),
                 elevation: 2,
               ),
-              child: _isLoading
+              child: _isSaving
                   ? const SizedBox(
                       height: 20,
                       width: 20,

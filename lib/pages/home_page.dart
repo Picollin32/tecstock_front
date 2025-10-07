@@ -1,4 +1,5 @@
 import 'package:TecStock/pages/agendamento_page.dart';
+import 'package:TecStock/pages/auditoria_page.dart';
 import 'package:TecStock/pages/cadastro_fabricante_page.dart';
 import 'package:TecStock/pages/cadastro_fornecedor_page.dart';
 import 'package:TecStock/pages/cadastro_funcioario_page.dart';
@@ -137,6 +138,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'group': 'Relatórios',
       'items': [
         {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
+      ],
+    },
+    {
+      'group': 'Administração',
+      'items': [
+        {'title': 'Auditoria', 'icon': Icons.history, 'page': const AuditoriaPage()},
       ],
     },
   ];
@@ -671,6 +678,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     String? Function(T)? getTag,
     Color? Function(T)? getTagColor,
   }) {
+    // Processa as criações (criado hoje)
     final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
     for (final entity in todayCreated) {
       final tag = getTag != null ? getTag(entity) : null;
@@ -689,11 +697,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
     }
 
+    // Processa as edições (updatedAt não é null E foi atualizado hoje)
     if (!skipEdited) {
       final todayEdited = entities.where((entity) {
         final updated = getUpdatedAt(entity);
-        final created = getCreatedAt(entity);
-        final wasUpdatedToday = _isToday(updated) && created != null && !_isToday(created);
+
+        // updatedAt não é null E foi atualizado hoje
+        final wasUpdatedToday = updated != null && _isToday(updated);
 
         if (wasUpdatedToday && shouldShowEdited != null) {
           return shouldShowEdited(entity);
@@ -1650,7 +1660,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                   // Restringe acesso para usuários não-admin
                   if (_nivelAcessoUsuarioLogado != 0) {
-                    if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários') {
+                    if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários' || title == 'Auditoria') {
                       return false;
                     }
                   }

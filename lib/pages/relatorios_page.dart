@@ -3921,7 +3921,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

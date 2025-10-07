@@ -39,8 +39,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   List<Cliente> _clientesFiltrados = [];
   Cliente? _clienteEmEdicao;
 
+  // ignore: unused_field
   bool _isLoading = false;
   bool _isLoadingClientes = true;
+  bool _isSaving = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -148,9 +150,17 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   }
 
   void _salvarCliente() async {
+    if (_isSaving) {
+      print('⚠️ DEBUG: Tentativa de salvar cliente enquanto já está salvando - BLOQUEADO');
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isSaving = true;
+    });
 
     try {
       final cpfLimpo = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -166,7 +176,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       if (existenteFuncionario != null) {
         if (!(_clienteEmEdicao != null && _clienteEmEdicao!.cpf == cpfLimpo)) {
           ErrorUtils.showVisibleError(context, 'CPF já cadastrado como Funcionário');
-          setState(() => _isLoading = false);
+          setState(() {
+            _isLoading = false;
+            _isSaving = false;
+          });
           return;
         }
       }
@@ -207,7 +220,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       }
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isSaving = false;
+      });
     }
   }
 
@@ -872,7 +888,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _salvarCliente,
+              onPressed: _isSaving ? null : _salvarCliente,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
@@ -881,7 +897,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                 ),
                 elevation: 2,
               ),
-              child: _isLoading
+              child: _isSaving
                   ? const SizedBox(
                       height: 20,
                       width: 20,

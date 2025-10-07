@@ -113,6 +113,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final TextEditingController _descontoPecasController = TextEditingController();
   bool _isAdmin = false;
   bool _isLoadingInitialData = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -1512,10 +1513,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           ],
                         ),
                         child: ElevatedButton.icon(
-                          onPressed: _salvarOS,
-                          icon: const Icon(Icons.save, color: Colors.white),
+                          onPressed: _isSaving ? null : _salvarOS,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.save, color: Colors.white),
                           label: Text(
-                            _editingOSId != null ? 'Atualizar OS' : 'Salvar OS',
+                            _isSaving ? 'Salvando...' : (_editingOSId != null ? 'Atualizar OS' : 'Salvar OS'),
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -3668,6 +3678,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _salvarOS() async {
+    // Prevenir duplo clique
+    if (_isSaving) {
+      print('⚠️ DEBUG: Tentativa de salvar OS enquanto já está salvando - BLOQUEADO');
+      return;
+    }
+
     if (_clienteNomeController.text.isEmpty || _clienteCpfController.text.isEmpty) {
       _showErrorSnackBar('Por favor, preencha os dados do cliente');
       return;
@@ -3687,6 +3703,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _showErrorSnackBar('Por favor, selecione pelo menos um serviço');
       return;
     }
+
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       final ordemServico = OrdemServico(
@@ -3746,11 +3766,18 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         setState(() {
           _showForm = false;
           _editingOSId = null;
+          _isSaving = false;
         });
       } else {
+        setState(() {
+          _isSaving = false;
+        });
         _showErrorSnackBar('Erro ao salvar OS');
       }
     } catch (e) {
+      setState(() {
+        _isSaving = false;
+      });
       print('Erro ao salvar OS: $e');
       _showErrorSnackBar('Erro ao salvar OS: ${e.toString()}');
     }

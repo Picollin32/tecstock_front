@@ -31,6 +31,7 @@ class Orcamento {
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
+  int? prazoFiadoDias;
   Funcionario? mecanico;
   Funcionario? consultor;
   String? observacoes;
@@ -65,6 +66,7 @@ class Orcamento {
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
+    this.prazoFiadoDias,
     this.mecanico,
     this.consultor,
     this.observacoes,
@@ -101,6 +103,7 @@ class Orcamento {
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
+      prazoFiadoDias: json['prazoFiadoDias'],
       mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       observacoes: json['observacoes'],
@@ -139,6 +142,7 @@ class Orcamento {
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
+    if (prazoFiadoDias != null) map['prazoFiadoDias'] = prazoFiadoDias;
     if (mecanico != null) map['mecanico'] = mecanico!.toJson();
     if (consultor != null) map['consultor'] = consultor!.toJson();
     if (observacoes != null) map['observacoes'] = observacoes;

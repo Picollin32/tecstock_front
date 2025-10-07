@@ -141,7 +141,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         id: _usuarioEmEdicao?.id,
         nomeUsuario: _nomeUsuarioController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
-        nivelAcesso: _consultorSelecionado != null ? 1 : 0, // 1 = Consultor, 0 = Admin
+        nivelAcesso: _consultorSelecionado != null ? 1 : 0,
         consultor: _consultorSelecionado!,
       );
 

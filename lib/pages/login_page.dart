@@ -41,12 +41,10 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (result['success']) {
-        // Login bem-sucedido, navega para a HomePage
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const HomePage()),
         );
       } else {
-        // Mostra erro
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message'] ?? 'Erro ao fazer login'),
@@ -104,7 +102,6 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Logo
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -118,8 +115,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Título
                       Text(
                         'TecStock',
                         style: TextStyle(
@@ -137,8 +132,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 32),
-
-                      // Campo de usuário
                       TextFormField(
                         controller: _nomeUsuarioController,
                         decoration: InputDecoration(
@@ -157,8 +150,6 @@ class _LoginPageState extends State<LoginPage> {
                         enabled: !_isLoading,
                       ),
                       const SizedBox(height: 16),
-
-                      // Campo de senha
                       TextFormField(
                         controller: _senhaController,
                         obscureText: _obscurePassword,
@@ -189,8 +180,6 @@ class _LoginPageState extends State<LoginPage> {
                         onFieldSubmitted: (_) => _handleLogin(),
                       ),
                       const SizedBox(height: 24),
-
-                      // Botão de login
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -223,8 +212,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Informação
                       Text(
                         'Entre com suas credenciais para acessar o sistema',
                         textAlign: TextAlign.center,

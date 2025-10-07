@@ -39,8 +39,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   List<Cliente> _clientesFiltrados = [];
   Cliente? _clienteEmEdicao;
 
-  // ignore: unused_field
-  bool _isLoading = false;
   bool _isLoadingClientes = true;
   bool _isSaving = false;
 
@@ -151,14 +149,12 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
   void _salvarCliente() async {
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar cliente enquanto já está salvando - BLOQUEADO');
       return;
     }
 
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading = true;
       _isSaving = true;
     });
 
@@ -177,7 +173,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         if (!(_clienteEmEdicao != null && _clienteEmEdicao!.cpf == cpfLimpo)) {
           ErrorUtils.showVisibleError(context, 'CPF já cadastrado como Funcionário');
           setState(() {
-            _isLoading = false;
             _isSaving = false;
           });
           return;
@@ -221,7 +216,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() {
-        _isLoading = false;
         _isSaving = false;
       });
     }
@@ -286,7 +280,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   }
 
   Future<void> _excluirCliente(Cliente cliente) async {
-    setState(() => _isLoading = true);
     try {
       final sucesso = await ClienteService.excluirCliente(cliente.id!);
       if (sucesso) {
@@ -297,8 +290,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       }
     } catch (e) {
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir cliente');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 

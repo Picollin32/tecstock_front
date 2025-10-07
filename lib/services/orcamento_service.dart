@@ -10,7 +10,8 @@ class OrcamentoService {
   static Future<bool> salvarOrcamento(Orcamento orcamento) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/salvar'), headers: await AuthService.getAuthHeaders(),
+        Uri.parse('$baseUrl/salvar'),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(orcamento.toJson()),
       );
       return response.statusCode == 201 || response.statusCode == 200;
@@ -60,18 +61,11 @@ class OrcamentoService {
 
   static Future<bool> atualizarOrcamento(int id, Orcamento orcamento) async {
     try {
-      print('Tentando atualizar orçamento $id...');
-      print('JSON enviado: ${jsonEncode(orcamento.toJson())}');
-
       final response = await http.put(
-        Uri.parse('$baseUrl/atualizar/$id'), headers: await AuthService.getAuthHeaders(),
+        Uri.parse('$baseUrl/atualizar/$id'),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(orcamento.toJson()),
       );
-
-      print('Resposta do servidor: ${response.statusCode}');
-      if (response.statusCode != 200) {
-        print('Corpo da resposta de erro: ${response.body}');
-      }
 
       return response.statusCode == 200;
     } catch (e) {
@@ -182,7 +176,8 @@ class OrcamentoService {
   static Future<OrdemServico?> transformarEmOrdemServico(int id) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/$id/transformar-em-os'), headers: await AuthService.getAuthHeaders(),
+        Uri.parse('$baseUrl/$id/transformar-em-os'),
+        headers: await AuthService.getAuthHeaders(),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));

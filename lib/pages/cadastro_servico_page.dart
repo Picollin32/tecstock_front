@@ -62,29 +62,13 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
 
   Future<void> _carregarServicosEmOS() async {
     try {
-      print('🔄 Iniciando carregamento de serviços em OS...');
       final servicosEmOS = await OrdemServicoService.buscarServicosEmOSAbertas();
-      print('📊 Serviços carregados em OS: ${servicosEmOS.length} serviços encontrados');
-
-      if (servicosEmOS.isEmpty) {
-        print('⚠️ ATENÇÃO: Nenhum serviço encontrado em OSs abertas!');
-        print('   Possíveis motivos:');
-        print('   1. Não há OSs com status ABERTA no sistema');
-        print('   2. As OSs abertas não têm serviços adicionados');
-        print('   3. Problema na deserialização do JSON');
-      } else {
-        print('✅ Mapeamento de serviços em OS:');
-        servicosEmOS.forEach((id, info) {
-          print('   Serviço ID $id (${info['nome']}): ${info['quantidade']} OSs → ${info['ordens']}');
-        });
-      }
 
       setState(() {
         _servicosEmOS = servicosEmOS;
       });
-    } catch (e, stackTrace) {
-      print('❌ Erro ao carregar serviços em OS: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('Erro ao carregar serviços em OS: $e');
     }
   }
 

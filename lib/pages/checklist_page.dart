@@ -177,25 +177,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       final todosFuncionarios = await Funcionarioservice.listarFuncionarios();
       final consultores = todosFuncionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
 
-      // Auto-preencher consultor ANTES do setState
-      print('🔍 DEBUG Checklist - Iniciando auto-preenchimento...');
-      print('🔍 DEBUG Checklist - _isAdmin: $_isAdmin');
-      print('🔍 DEBUG Checklist - _consultorSelecionado atual: ${_consultorSelecionado?.nome}');
-
       Funcionario? consultorParaSelecionar;
 
       if (!_isAdmin && _consultorSelecionado == null) {
         final consultorId = await AuthService.getConsultorId();
-        print('🔍 DEBUG Checklist - consultorId: $consultorId');
-        print('🔍 DEBUG Checklist - Total consultores: ${consultores.length}');
 
         if (consultorId != null) {
           consultorParaSelecionar = consultores.where((f) => f.id == consultorId).firstOrNull;
-          print('🔍 DEBUG Checklist - Consultor encontrado: ${consultorParaSelecionar?.nome}');
         }
       }
 
-      // ÚNICO setState com TUDO junto
       if (mounted) {
         setState(() {
           _funcionarios = consultores;
@@ -206,9 +197,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             _consultorSelecionado = consultorParaSelecionar;
           }
         });
-
-        print('✅ DEBUG Checklist - setState executado');
-        print('✅ DEBUG Checklist - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
       }
     } catch (e) {
       print('Erro ao carregar funcionários: $e');
@@ -297,8 +285,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       _searchController.removeListener(_filtrarRecentes);
       _searchController.dispose();
     } catch (e) {
-      // Ignorar erros de dispose - controllers já foram descartados
-      print('⚠️ Erro ao fazer dispose Checklist (ignorado): $e');
+      // Erro ao fazer dispose (ignorado)
     }
     super.dispose();
   }
@@ -1038,7 +1025,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     }
                   });
 
-                  // Auto-preencher consultor ao abrir formulário novo
                   if (_showForm && !_isAdmin && _consultorSelecionado == null) {
                     final consultorId = await AuthService.getConsultorId();
                     if (consultorId != null && mounted) {
@@ -1047,7 +1033,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         setState(() {
                           _consultorSelecionado = consultor;
                         });
-                        print('✅ DEBUG - Consultor auto-preenchido ao abrir form: ${consultor.nome}');
                       }
                     }
                   }
@@ -1931,8 +1916,6 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       return;
     }
 
-    print('💾 DEBUG SALVAR Checklist - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
-
     final numeroParaUsar = _editingChecklistId != null ? _checklistNumberController.text : '';
     String getStatusForBackend(String key, Map<String, String> source) {
       return source[key] ?? '';
@@ -2118,14 +2101,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildConsultorDropdown() {
-    print('🎨 DEBUG BUILD Dropdown - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
-    print('🎨 DEBUG BUILD Dropdown - _funcionarios.length: ${_funcionarios.length}');
-    print('🎨 DEBUG BUILD Dropdown - IDs na lista: ${_funcionarios.map((f) => '${f.id}:${f.nome}').join(', ')}');
-
-    // Encontrar o funcionário correto na lista baseado no ID
     final consultorAtual = _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null;
-
-    print('🎨 DEBUG BUILD Dropdown - consultorAtual encontrado: ${consultorAtual?.nome} (ID: ${consultorAtual?.id})');
 
     return Column(
       mainAxisSize: MainAxisSize.min,

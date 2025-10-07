@@ -200,8 +200,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _descontoServicosController.dispose();
       _descontoPecasController.dispose();
     } catch (e) {
-      // Ignorar erros de dispose - controllers já foram descartados
-      print('⚠️ Erro ao fazer dispose OS (ignorado): $e');
+      // Erro ao fazer dispose (ignorado)
     }
     super.dispose();
   }
@@ -228,7 +227,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         pecasFuture
       ]);
 
-      // Preparar dados antes do setState
       final clientes = results[0] as List<dynamic>;
       final funcionarios = results[1] as List<Funcionario>;
       final veiculos = results[2] as List<Veiculo>;
@@ -260,25 +258,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         veiculoByPlaca[v.placa] = v;
       }
 
-      // Auto-preencher consultor ANTES do setState
-      print('🔍 DEBUG OS - Iniciando auto-preenchimento...');
-      print('🔍 DEBUG OS - _isAdmin: $_isAdmin');
-      print('🔍 DEBUG OS - _consultorSelecionado atual: ${_consultorSelecionado?.nome}');
-
       Funcionario? consultorParaSelecionar;
 
       if (!_isAdmin && _consultorSelecionado == null) {
         final consultorId = await AuthService.getConsultorId();
-        print('🔍 DEBUG OS - consultorId: $consultorId');
-        print('🔍 DEBUG OS - Total funcionários: ${funcionarios.length}');
 
         if (consultorId != null) {
           consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
-          print('🔍 DEBUG OS - Consultor encontrado: ${consultorParaSelecionar?.nome}');
         }
       }
 
-      // ÚNICO setState com TUDO junto
       if (mounted) {
         setState(() {
           _funcionarios = funcionarios;
@@ -300,9 +289,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             _consultorSelecionado = consultorParaSelecionar;
           }
         });
-
-        print('✅ DEBUG OS - setState executado');
-        print('✅ DEBUG OS - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
       }
     } catch (e) {
       print('Erro ao carregar dados: $e');
@@ -740,7 +726,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       _showForm = true;
                     });
 
-                    // Auto-preencher consultor ao abrir formulário novo
                     if (!_isAdmin && _consultorSelecionado == null) {
                       final consultorId = await AuthService.getConsultorId();
                       if (consultorId != null && mounted) {
@@ -749,7 +734,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           setState(() {
                             _consultorSelecionado = consultor;
                           });
-                          print('✅ DEBUG OS - Consultor auto-preenchido ao abrir form: ${consultor.nome}');
                         }
                       }
                     }
@@ -3163,7 +3147,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           });
                         },
                 ),
-                if (_tipoPagamentoSelecionado?.codigo == 3) ...[
+                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Número de Parcelas',
@@ -3207,7 +3191,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           },
                   ),
                 ],
-                if (_tipoPagamentoSelecionado?.codigo == 6) ...[
+                if (_tipoPagamentoSelecionado?.codigo == 5) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Prazo (meses)',
@@ -3678,9 +3662,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _salvarOS() async {
-    // Prevenir duplo clique
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar OS enquanto já está salvando - BLOQUEADO');
       return;
     }
 
@@ -3742,20 +3724,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
       );
 
-      print('💾 DEBUG SALVAR OS - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
-      print('Tentando ${_editingOSId != null ? "atualizar" : "salvar"} OS...');
-      print('Serviços selecionados: ${_servicosSelecionados.length}');
-      print('Peças selecionadas: ${_pecasSelecionadas.length}');
-      print('Tipo de Pagamento: ${_tipoPagamentoSelecionado?.nome} (código: ${_tipoPagamentoSelecionado?.codigo})');
-      print('Prazo Fiado Dias: $_prazoFiadoDias');
-      print('Número Parcelas: $_numeroParcelas');
-
       bool sucesso;
       if (_editingOSId != null) {
-        print('Atualizando OS ID: $_editingOSId');
         sucesso = await OrdemServicoService.atualizarOrdemServico(_editingOSId!, ordemServico);
       } else {
-        print('Salvando nova OS');
         sucesso = await OrdemServicoService.salvarOrdemServico(ordemServico);
       }
 

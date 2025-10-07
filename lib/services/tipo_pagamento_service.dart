@@ -9,12 +9,12 @@ class TipoPagamentoService {
 
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
+      final headers = await AuthService.getAuthHeaders();
+      headers['X-User-Level'] = nivelAcesso?.toString() ?? '1';
+
       final response = await http.post(
         Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Level': nivelAcesso?.toString() ?? '1',
-        },
+        headers: headers,
         body: jsonEncode(tipoPagamento.toJson()),
       );
 
@@ -63,9 +63,13 @@ class TipoPagamentoService {
     String baseUrl = 'http://localhost:8081/api/tipos-pagamento/deletar/$id';
 
     try {
+      final nivelAcesso = await AuthService.getNivelAcesso();
+      final headers = await AuthService.getAuthHeaders();
+      headers['X-User-Level'] = nivelAcesso?.toString() ?? '1';
+
       final response = await http.delete(
         Uri.parse(baseUrl),
-        headers: await AuthService.getAuthHeaders(),
+        headers: headers,
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
@@ -99,12 +103,12 @@ class TipoPagamentoService {
 
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
+      final headers = await AuthService.getAuthHeaders();
+      headers['X-User-Level'] = nivelAcesso?.toString() ?? '1';
+
       final response = await http.put(
         Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Level': nivelAcesso?.toString() ?? '1',
-        },
+        headers: headers,
         body: jsonEncode(tipoPagamento.toJson()),
       );
 

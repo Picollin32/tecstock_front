@@ -28,12 +28,6 @@ class AgendamentoService {
 
     try {
       final jsonData = agendamento.toJson();
-      print('=== DEBUG ATUALIZAR AGENDAMENTO ===');
-      print('JSON enviado: ${jsonEncode(jsonData)}');
-      print('horaInicio: ${jsonData['horaInicio']}');
-      print('horaFim: ${jsonData['horaFim']}');
-      print('hora: ${jsonData['hora']}');
-      print('================================');
 
       final headers = await AuthService.getAuthHeaders();
       final response = await http.put(
@@ -42,7 +36,6 @@ class AgendamentoService {
         body: jsonEncode(jsonData),
       );
       if (response.statusCode == 200) {
-        print('Agendamento atualizado com sucesso.');
         return true;
       }
       print('Falha ao atualizar agendamento. Status: ${response.statusCode}. Body: ${response.body}');

@@ -5,7 +5,6 @@ import '../model/auditoria_log.dart';
 class AuditoriaService {
   static const String baseUrl = 'http://localhost:8081/api/auditoria';
 
-  // Headers padrão com autenticação
   static Map<String, String> _getHeaders(String? token) {
     return {
       'Content-Type': 'application/json',
@@ -13,7 +12,6 @@ class AuditoriaService {
     };
   }
 
-  // Buscar todos os logs (paginado)
   static Future<Map<String, dynamic>> buscarTodosLogs(String token, int page, int size,
       {String sortBy = 'dataHora', String sortDir = 'desc'}) async {
     final response = await http.get(
@@ -34,7 +32,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar logs por usuário
   static Future<Map<String, dynamic>> buscarLogsPorUsuario(String token, String usuario, int page, int size) async {
     final response = await http.get(
       Uri.parse('$baseUrl/usuario/$usuario?page=$page&size=$size'),
@@ -54,7 +51,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar logs por entidade
   static Future<Map<String, dynamic>> buscarLogsPorEntidade(String token, String entidade, int page, int size) async {
     final response = await http.get(
       Uri.parse('$baseUrl/entidade/$entidade?page=$page&size=$size'),
@@ -74,7 +70,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar histórico de uma entidade específica
   static Future<List<AuditoriaLog>> buscarHistoricoEntidade(String token, String entidade, int entidadeId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/historico/$entidade/$entidadeId'),
@@ -89,7 +84,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar logs por operação
   static Future<Map<String, dynamic>> buscarLogsPorOperacao(String token, String operacao, int page, int size) async {
     final response = await http.get(
       Uri.parse('$baseUrl/operacao/$operacao?page=$page&size=$size'),
@@ -109,7 +103,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar logs com filtros
   static Future<Map<String, dynamic>> buscarLogsComFiltros(String token,
       {String? usuario,
       String? entidade,
@@ -121,7 +114,6 @@ class AuditoriaService {
       int size = 50,
       String sortBy = 'dataHora',
       String sortDir = 'desc'}) async {
-    // Se não há filtros, usa o endpoint padrão que é mais eficiente
     if ((usuario == null || usuario.isEmpty) &&
         (entidade == null || entidade.isEmpty) &&
         (operacao == null || operacao.isEmpty) &&
@@ -173,7 +165,6 @@ class AuditoriaService {
     }
   }
 
-  // Buscar atividades recentes (últimas 24h)
   static Future<List<AuditoriaLog>> buscarAtividadesRecentes(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/recentes'),
@@ -188,7 +179,6 @@ class AuditoriaService {
     }
   }
 
-  // Gerar relatório por usuário
   static Future<Map<String, dynamic>> gerarRelatorioUsuario(String token, String usuario) async {
     final response = await http.get(
       Uri.parse('$baseUrl/relatorio/usuario/$usuario'),
@@ -202,7 +192,6 @@ class AuditoriaService {
     }
   }
 
-  // Gerar relatório geral
   static Future<Map<String, dynamic>> gerarRelatorioGeral(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/relatorio/geral'),
@@ -216,7 +205,6 @@ class AuditoriaService {
     }
   }
 
-  // Listar entidades auditadas
   static Future<List<String>> listarEntidadesAuditadas(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/entidades'),
@@ -231,7 +219,6 @@ class AuditoriaService {
     }
   }
 
-  // Listar usuários ativos
   static Future<List<String>> listarUsuariosAtivos(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/usuarios'),
@@ -246,10 +233,8 @@ class AuditoriaService {
     }
   }
 
-  // Buscar meses disponíveis com logs
   static Future<List<DateTime>> buscarMesesDisponiveis(String token) async {
     try {
-      // Busca todos os logs sem paginação para encontrar o range de datas
       final response = await http.get(
         Uri.parse('$baseUrl?page=0&size=1&sortBy=dataHora&sortDir=desc'),
         headers: _getHeaders(token),
@@ -263,10 +248,8 @@ class AuditoriaService {
           return [];
         }
 
-        // Busca o log mais recente (já temos)
         final logRecente = AuditoriaLog.fromJson(data['content'][0]);
 
-        // Busca o log mais antigo
         final responseAntigo = await http.get(
           Uri.parse('$baseUrl?page=0&size=1&sortBy=dataHora&sortDir=asc'),
           headers: _getHeaders(token),
@@ -276,18 +259,16 @@ class AuditoriaService {
           final dataAntiga = json.decode(utf8.decode(responseAntigo.bodyBytes));
           final logAntigo = AuditoriaLog.fromJson(dataAntiga['content'][0]);
 
-          // Gerar lista de meses entre o mais antigo e o mais recente
           final meses = <DateTime>[];
           var mesAtual = DateTime(logAntigo.dataHora.year, logAntigo.dataHora.month, 1);
           final mesRecente = DateTime(logRecente.dataHora.year, logRecente.dataHora.month, 1);
 
           while (mesAtual.isBefore(mesRecente) || mesAtual.isAtSameMomentAs(mesRecente)) {
             meses.add(mesAtual);
-            // Próximo mês
+
             mesAtual = DateTime(mesAtual.year, mesAtual.month + 1, 1);
           }
 
-          // Retorna em ordem decrescente (mais recente primeiro)
           return meses.reversed.toList();
         }
       }

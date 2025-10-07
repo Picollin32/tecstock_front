@@ -203,8 +203,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _scrollController.dispose();
       _clienteFocusNode.dispose();
     } catch (e) {
-      // Ignorar erros de dispose - controllers já foram descartados
-      print('⚠️ Erro ao fazer dispose (ignorado): $e');
+      // Erro ao fazer dispose (ignorado)
     }
     super.dispose();
   }
@@ -232,7 +231,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         Funcionarioservice.listarFuncionarios(),
       ]);
 
-      // Preparar dados antes do setState
       final orcamentos = results[0] as List<Orcamento>;
       final servicos = results[1] as List<Servico>;
       final tiposPagamento = results[2] as List<TipoPagamento>;
@@ -263,26 +261,16 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         veiculoByPlaca[veiculo.placa] = veiculo;
       }
 
-      // Auto-preencher consultor ANTES do setState
-      print('🔍 DEBUG Orçamento - Iniciando auto-preenchimento...');
-      print('🔍 DEBUG Orçamento - _isAdmin: $_isAdmin');
-      print('🔍 DEBUG Orçamento - _consultorSelecionado atual: ${_consultorSelecionado?.nome}');
-
       Funcionario? consultorParaSelecionar;
 
       if (!_isAdmin && _consultorSelecionado == null) {
         final consultorId = await AuthService.getConsultorId();
-        print('🔍 DEBUG Orçamento - consultorId: $consultorId');
-        print('🔍 DEBUG Orçamento - Total funcionários: ${funcionarios.length}');
-        print('🔍 DEBUG Orçamento - Consultores (nível 1): ${funcionarios.where((f) => f.nivelAcesso == 1).length}');
 
         if (consultorId != null) {
           consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
-          print('🔍 DEBUG Orçamento - Consultor encontrado: ${consultorParaSelecionar?.nome}');
         }
       }
 
-      // ÚNICO setState com TUDO junto
       if (mounted) {
         setState(() {
           _recent = orcamentos;
@@ -303,9 +291,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             _consultorSelecionado = consultorParaSelecionar;
           }
         });
-
-        print('✅ DEBUG Orçamento - setState executado');
-        print('✅ DEBUG Orçamento - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
       }
     } catch (e) {
       setState(() {
@@ -522,7 +507,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       _showForm = true;
                     });
 
-                    // Auto-preencher consultor ao abrir formulário novo
                     if (!_isAdmin && _consultorSelecionado == null) {
                       final consultorId = await AuthService.getConsultorId();
                       if (consultorId != null && mounted) {
@@ -531,7 +515,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           setState(() {
                             _consultorSelecionado = consultor;
                           });
-                          print('✅ DEBUG Orçamento - Consultor auto-preenchido ao abrir form: ${consultor.nome}');
                         }
                       }
                     }
@@ -3302,7 +3285,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           });
                         },
                 ),
-                if (_tipoPagamentoSelecionado?.codigo == 3) ...[
+                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Número de Parcelas',
@@ -3346,7 +3329,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           },
                   ),
                 ],
-                if (_tipoPagamentoSelecionado?.codigo == 6) ...[
+                if (_tipoPagamentoSelecionado?.codigo == 5) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Prazo (meses)',
@@ -3612,9 +3595,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _salvarOrcamento() async {
-    // Prevenir duplo clique
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar orçamento enquanto já está salvando - BLOQUEADO');
       return;
     }
 
@@ -3647,8 +3628,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _showErrorMessage('Selecione pelo menos um serviço ou uma peça para orçar');
       return;
     }
-
-    print('💾 DEBUG SALVAR Orçamento - _consultorSelecionado: ${_consultorSelecionado?.nome} (ID: ${_consultorSelecionado?.id})');
 
     setState(() {
       _isSaving = true;

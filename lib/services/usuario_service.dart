@@ -50,10 +50,8 @@ class UsuarioService {
       );
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        print('Usuarios recebidos: ${jsonList.length}');
         return jsonList.map((e) => Usuario.fromJson(e)).toList();
       }
-      print('Erro na resposta: ${response.statusCode}');
       return [];
     } catch (e) {
       print('Erro ao listar usuarios: $e');

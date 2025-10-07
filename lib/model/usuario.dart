@@ -5,8 +5,8 @@ class Usuario {
   String nomeUsuario;
   String? senha;
   String? nomeCompleto;
-  int? nivelAcesso; // 0 = Admin, 1 = Consultor
-  Funcionario? consultor; // Opcional - admin não precisa de consultor
+  int? nivelAcesso;
+  Funcionario? consultor;
   DateTime? createdAt;
   DateTime? updatedAt;
 

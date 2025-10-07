@@ -45,8 +45,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   List<Veiculo> _veiculosFiltrados = [];
   Veiculo? _veiculoEmEdicao;
 
-  // ignore: unused_field
-  bool _isLoading = false;
   bool _isLoadingVeiculos = true;
   bool _isSaving = false;
 
@@ -136,14 +134,12 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
 
   void _salvarVeiculo() async {
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar veículo enquanto já está salvando - BLOQUEADO');
       return;
     }
 
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading = true;
       _isSaving = true;
     });
 
@@ -191,7 +187,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() {
-        _isLoading = false;
         _isSaving = false;
       });
     }
@@ -254,7 +249,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   }
 
   Future<void> _excluirVeiculo(Veiculo veiculo) async {
-    setState(() => _isLoading = true);
     try {
       final resultado = await VeiculoService.excluirVeiculo(veiculo.id!);
       if (resultado['success']) {
@@ -271,8 +265,6 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         errorMessage = "Veículo em uso";
       }
       ErrorUtils.showVisibleError(context, errorMessage);
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 

@@ -2,7 +2,7 @@ class AuditoriaLog {
   final int? id;
   final String entidade;
   final int entidadeId;
-  final String operacao; // CREATE, UPDATE, DELETE
+  final String operacao;
   final String usuario;
   final DateTime dataHora;
   final String? valoresAntigos;

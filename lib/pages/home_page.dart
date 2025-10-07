@@ -678,7 +678,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     String? Function(T)? getTag,
     Color? Function(T)? getTagColor,
   }) {
-    // Processa as criações (criado hoje)
     final todayCreated = entities.where((entity) => _isToday(getCreatedAt(entity))).toList();
     for (final entity in todayCreated) {
       final tag = getTag != null ? getTag(entity) : null;
@@ -697,12 +696,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
     }
 
-    // Processa as edições (updatedAt não é null E foi atualizado hoje)
     if (!skipEdited) {
       final todayEdited = entities.where((entity) {
         final updated = getUpdatedAt(entity);
 
-        // updatedAt não é null E foi atualizado hoje
         final wasUpdatedToday = updated != null && _isToday(updated);
 
         if (wasUpdatedToday && shouldShowEdited != null) {
@@ -1491,7 +1488,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         actions: [
-          // Nome do usuário logado
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Center(
@@ -1527,7 +1523,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // Botão de logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
@@ -1653,12 +1648,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ..._menuGroups.map((group) {
                 final items = group['items'] as List<dynamic>;
 
-                // Filtra itens restritos para usuários nível 1
                 final filteredItems = items.where((raw) {
                   final item = raw as Map<String, dynamic>;
                   final title = item['title'] as String;
 
-                  // Restringe acesso para usuários não-admin
                   if (_nivelAcessoUsuarioLogado != 0) {
                     if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários' || title == 'Auditoria') {
                       return false;
@@ -1667,7 +1660,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   return true;
                 }).toList();
 
-                // Se não houver itens após filtrar, não renderiza o grupo
                 if (filteredItems.isEmpty) {
                   return const SizedBox.shrink();
                 }

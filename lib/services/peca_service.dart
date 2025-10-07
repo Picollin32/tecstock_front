@@ -72,18 +72,13 @@ class PecaService {
         body: jsonEncode(peca.toJson()),
       );
 
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Tenta decodificar a resposta para verificar se é válida
         try {
           if (response.body.isNotEmpty) {
             jsonDecode(utf8.decode(response.bodyBytes));
           }
           return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
         } catch (e) {
-          print('Erro ao decodificar resposta de sucesso: $e');
           return {'sucesso': true, 'mensagem': 'Peça salva com sucesso'};
         }
       } else if (response.statusCode == 409) {
@@ -104,7 +99,6 @@ class PecaService {
         }
       }
     } catch (e) {
-      print('Erro completo: $e');
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }

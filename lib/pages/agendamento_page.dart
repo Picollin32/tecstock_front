@@ -151,7 +151,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   Future<String?> _obterConsultorPadrao() async {
     if (_isAdmin) return null;
     if (_consultores.isEmpty) {
-      // Se os consultores ainda não foram carregados, aguarda um pouco
       await Future.delayed(const Duration(milliseconds: 500));
       if (_consultores.isEmpty) return null;
     }

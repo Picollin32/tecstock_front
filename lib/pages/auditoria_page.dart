@@ -18,26 +18,16 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   List<String> usuariosDisponiveis = [];
   bool isLoading = true;
   String? token;
-
-  // Filtros
   String? filtroUsuario;
   String? filtroEntidade;
   String? filtroOperacao;
   TextEditingController filtroIdController = TextEditingController();
-
-  // Filtro de período (mês)
   DateTime? mesSelecionado;
   List<DateTime> mesesDisponiveis = [];
-  List<DateTime> todosMeses = []; // Todos os meses a exibir (últimos 12 meses)
-
-  // Ordenação
+  List<DateTime> todosMeses = [];
   String ordenarPor = 'dataHora';
   String direcaoOrdenacao = 'desc';
-
-  // Estado de expansão dos filtros
   bool filtrosExpandidos = false;
-
-  // Paginação
   int currentPage = 0;
   int totalPages = 0;
   int totalElements = 0;
@@ -51,11 +41,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   @override
   void initState() {
     super.initState();
-    // Define o mês atual como padrão
     final agora = DateTime.now();
     mesSelecionado = DateTime(agora.year, agora.month, 1);
 
-    // Gera lista dos últimos 12 meses
     _gerarListaMeses();
 
     _initializeAnimations();
@@ -66,7 +54,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     final agora = DateTime.now();
     todosMeses.clear();
 
-    // Gera os últimos 12 meses
     for (int i = 0; i < 12; i++) {
       final mes = DateTime(agora.year, agora.month - i, 1);
       todosMeses.add(mes);
@@ -105,14 +92,11 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         return;
       }
 
-      // Carregar listas de filtros
       entidadesDisponiveis = await AuditoriaService.listarEntidadesAuditadas(token!);
       usuariosDisponiveis = await AuditoriaService.listarUsuariosAtivos(token!);
 
-      // Carregar meses disponíveis
       await _carregarMesesDisponiveis();
 
-      // Carregar logs
       await _buscarLogs();
     } catch (e) {
       if (mounted) {
@@ -131,13 +115,11 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     try {
       final entidadeId = filtroIdController.text.isEmpty ? null : int.tryParse(filtroIdController.text);
 
-      // Calcular início e fim do mês selecionado
       DateTime? dataInicio;
       DateTime? dataFim;
 
       if (mesSelecionado != null) {
         dataInicio = DateTime(mesSelecionado!.year, mesSelecionado!.month, 1);
-        // Último dia do mês
         dataFim = DateTime(mesSelecionado!.year, mesSelecionado!.month + 1, 0, 23, 59, 59);
       }
 
@@ -193,7 +175,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       }
     } catch (e) {
       print('Erro ao carregar meses disponíveis: $e');
-      // Não mostra erro para o usuário, apenas mantém lista vazia
     }
   }
 
@@ -204,7 +185,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       filtroOperacao = null;
       filtroIdController.clear();
       currentPage = 0;
-      // Não limpa o mesSelecionado - mantém o período atual
     });
     _buscarLogs();
   }
@@ -212,7 +192,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   void _aplicarFiltros() {
     setState(() {
       currentPage = 0;
-      filtrosExpandidos = false; // Minimiza o filtro após aplicar
+      filtrosExpandidos = false;
     });
     _buscarLogs();
   }
@@ -237,7 +217,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 700),
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
             child: Column(
@@ -323,67 +303,71 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                     ),
                   ),
                 ),
-                if (log.valoresAntigos != null) ...[
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Valores Antigos',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
+                if (log.operacao == 'UPDATE' && log.valoresAntigos != null && log.valoresNovos != null) ...[
+                  _buildComparacaoAlteracoes(log.valoresAntigos!, log.valoresNovos!),
+                ] else ...[
+                  if (log.valoresAntigos != null) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Valores Antigos',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFFECACA)),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Text(
-                        _formatarJson(log.valoresAntigos!),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          color: Color(0xFF7F1D1D),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(
+                          _formatarJson(log.valoresAntigos!),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF7F1D1D),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-                if (log.valoresNovos != null) ...[
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Valores Novos',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
+                  ],
+                  if (log.valoresNovos != null) ...[
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Valores Novos',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFBBF7D0)),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Text(
-                        _formatarJson(log.valoresNovos!),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontFamily: 'monospace',
-                          color: Color(0xFF14532D),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(
+                          _formatarJson(log.valoresNovos!),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF14532D),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
                 const SizedBox(height: 24),
                 Row(
@@ -407,6 +391,374 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         ),
       ),
     );
+  }
+
+  Widget _buildComparacaoAlteracoes(String valoresAntigosJson, String valoresNovosJson) {
+    try {
+      final Map<String, dynamic> antigos = json.decode(valoresAntigosJson);
+      final Map<String, dynamic> novos = json.decode(valoresNovosJson);
+
+      final alteracoes = _compararValores(antigos, novos);
+
+      if (alteracoes.isEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE0F2FE),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFF0369A1), size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Nenhuma alteração significativa detectada (apenas campos de auditoria foram modificados)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF0369A1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFFDE68A)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.compare_arrows, color: Color(0xFF92400E), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  '${alteracoes.length} ${alteracoes.length == 1 ? 'campo alterado' : 'campos alterados'}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF92400E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...alteracoes.map((alt) => _buildItemAlteracao(alt)),
+        ],
+      );
+    } catch (e) {
+      return const SizedBox.shrink();
+    }
+  }
+
+  List<Map<String, dynamic>> _compararValores(Map<String, dynamic> antigos, Map<String, dynamic> novos) {
+    final List<Map<String, dynamic>> alteracoes = [];
+    final todasChaves = {...antigos.keys, ...novos.keys};
+
+    for (final chave in todasChaves) {
+      final valorAntigo = antigos[chave];
+      final valorNovo = novos[chave];
+
+      if (_isCampoAuditoria(chave)) {
+        continue;
+      }
+
+      if (!antigos.containsKey(chave)) {
+        alteracoes.add({
+          'campo': chave,
+          'tipo': 'adicionado',
+          'valorNovo': valorNovo,
+        });
+      } else if (!novos.containsKey(chave)) {
+        alteracoes.add({
+          'campo': chave,
+          'tipo': 'removido',
+          'valorAntigo': valorAntigo,
+        });
+      } else if (_valoresDiferentes(valorAntigo, valorNovo)) {
+        alteracoes.add({
+          'campo': chave,
+          'tipo': 'alterado',
+          'valorAntigo': valorAntigo,
+          'valorNovo': valorNovo,
+        });
+      }
+    }
+
+    return alteracoes;
+  }
+
+  bool _isCampoAuditoria(String campo) {
+    final camposIgnorados = [
+      'datacriacao',
+      'dataatualizacao',
+      'criadopor',
+      'atualizadopor',
+      'versao',
+    ];
+    final campoNormalizado = campo.toLowerCase().replaceAll('_', '');
+    return camposIgnorados.contains(campoNormalizado);
+  }
+
+  bool _valoresDiferentes(dynamic v1, dynamic v2) {
+    if (v1 == null && v2 == null) return false;
+    if (v1 == null || v2 == null) return true;
+
+    if (v1 is Map && v2 is Map) {
+      if (v1.length != v2.length) return true;
+      for (final key in v1.keys) {
+        if (!v2.containsKey(key) || _valoresDiferentes(v1[key], v2[key])) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    if (v1 is List && v2 is List) {
+      if (v1.length != v2.length) return true;
+      for (int i = 0; i < v1.length; i++) {
+        if (_valoresDiferentes(v1[i], v2[i])) return true;
+      }
+      return false;
+    }
+
+    return v1.toString() != v2.toString();
+  }
+
+  Widget _buildItemAlteracao(Map<String, dynamic> alteracao) {
+    final campo = alteracao['campo'] as String;
+    final tipo = alteracao['tipo'] as String;
+    final campoFormatado = _formatarNomeCampo(campo);
+
+    Color corFundo;
+    Color corBorda;
+    Color corTexto;
+    IconData icone;
+    String titulo;
+
+    switch (tipo) {
+      case 'adicionado':
+        corFundo = const Color(0xFFF0FDF4);
+        corBorda = const Color(0xFFBBF7D0);
+        corTexto = const Color(0xFF166534);
+        icone = Icons.add_circle_outline;
+        titulo = 'Adicionado';
+        break;
+      case 'removido':
+        corFundo = const Color(0xFFFEF2F2);
+        corBorda = const Color(0xFFFECACA);
+        corTexto = const Color(0xFF991B1B);
+        icone = Icons.remove_circle_outline;
+        titulo = 'Removido';
+        break;
+      default:
+        corFundo = const Color(0xFFFEF3C7);
+        corBorda = const Color(0xFFFDE68A);
+        corTexto = const Color(0xFF92400E);
+        icone = Icons.edit_outlined;
+        titulo = 'Alterado';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: corFundo,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: corBorda, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icone, size: 18, color: corTexto),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  campoFormatado,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: corTexto,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: corTexto,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (tipo == 'alterado') ...[
+            const SizedBox(height: 10),
+            _buildValorComparacao(
+              'Valor Antigo',
+              alteracao['valorAntigo'],
+              campo,
+              const Color(0xFFDC2626),
+              Icons.remove_circle_outline,
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Icon(Icons.arrow_downward, size: 20, color: corTexto.withOpacity(0.5)),
+            ),
+            const SizedBox(height: 8),
+            _buildValorComparacao(
+              'Valor Novo',
+              alteracao['valorNovo'],
+              campo,
+              const Color(0xFF16A34A),
+              Icons.add_circle_outline,
+            ),
+          ] else if (tipo == 'adicionado') ...[
+            const SizedBox(height: 10),
+            _buildValorComparacao(
+              'Valor',
+              alteracao['valorNovo'],
+              campo,
+              const Color(0xFF16A34A),
+              Icons.add_circle_outline,
+            ),
+          ] else if (tipo == 'removido') ...[
+            const SizedBox(height: 10),
+            _buildValorComparacao(
+              'Valor',
+              alteracao['valorAntigo'],
+              campo,
+              const Color(0xFFDC2626),
+              Icons.remove_circle_outline,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildValorComparacao(String label, dynamic valor, String nomeCampo, Color cor, IconData icone) {
+    String valorFormatado;
+
+    if (valor == null) {
+      valorFormatado = '(vazio)';
+    } else if (_isCampoData(nomeCampo) && valor is int) {
+      valorFormatado = _formatarTimestamp(valor);
+    } else if (valor is bool) {
+      valorFormatado = valor ? 'Sim' : 'Não';
+    } else if (valor is Map || valor is List) {
+      valorFormatado = const JsonEncoder.withIndent('  ').convert(valor);
+    } else {
+      valorFormatado = valor.toString();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: cor.withOpacity(0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icone, size: 14, color: cor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: cor,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  valorFormatado,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: cor.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                    fontFamily: valorFormatado.contains('{') || valorFormatado.contains('[') ? 'monospace' : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatarNomeCampo(String campo) {
+    final palavras = campo.split(RegExp(r'[_\s]'));
+    final formatadas = palavras.map((p) {
+      if (p.isEmpty) return '';
+      return p[0].toUpperCase() + p.substring(1).toLowerCase();
+    });
+
+    String resultado = formatadas.join(' ');
+
+    final traducoes = {
+      'Nome': 'Nome',
+      'Email': 'E-mail',
+      'Telefone': 'Telefone',
+      'Cpf': 'CPF',
+      'Cnpj': 'CNPJ',
+      'Endereco': 'Endereço',
+      'Numero': 'Número',
+      'Cep': 'CEP',
+      'Cidade': 'Cidade',
+      'Estado': 'Estado',
+      'Pais': 'País',
+      'Datanascimento': 'Data de Nascimento',
+      'Datacriacao': 'Data de Criação',
+      'Dataatualizacao': 'Data de Atualização',
+      'Preco': 'Preço',
+      'Quantidade': 'Quantidade',
+      'Descricao': 'Descrição',
+      'Ativo': 'Ativo',
+      'Status': 'Status',
+    };
+
+    final campoNormalizado = campo.toLowerCase().replaceAll('_', '');
+    for (final entry in traducoes.entries) {
+      if (campoNormalizado == entry.key.toLowerCase()) {
+        return entry.value;
+      }
+    }
+
+    return resultado;
   }
 
   Widget _buildDetalheItem(String label, String valor, IconData icon) {
@@ -460,9 +812,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     if (obj is Map) {
       final Map<String, dynamic> resultado = {};
       obj.forEach((key, value) {
-        // Detecta campos de data comuns e converte timestamps
         if (_isCampoData(key) && value is int) {
-          // Adiciona a data formatada com indicação do timestamp original
           resultado[key] = '${_formatarTimestamp(value)} (ts: $value)';
         } else if (value is Map || value is List) {
           resultado[key] = _processarObjeto(value);
@@ -514,14 +864,12 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     try {
       final data = DateTime.fromMillisecondsSinceEpoch(timestamp);
 
-      // Se a hora for 00:00:00, mostra apenas a data
       if (data.hour == 0 && data.minute == 0 && data.second == 0) {
         return '${data.day.toString().padLeft(2, '0')}/'
             '${data.month.toString().padLeft(2, '0')}/'
             '${data.year}';
       }
 
-      // Caso contrário, mostra data e hora
       return '${data.day.toString().padLeft(2, '0')}/'
           '${data.month.toString().padLeft(2, '0')}/'
           '${data.year} ${data.hour.toString().padLeft(2, '0')}:'
@@ -566,14 +914,11 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       autofocus: true,
       onKeyEvent: (KeyEvent event) {
         if (event is KeyDownEvent) {
-          // Seta esquerda: mês anterior (mais antigo)
           if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
             if (_podeIrParaMesAnterior()) {
               _irParaMesAnterior();
             }
-          }
-          // Seta direita: próximo mês (mais recente)
-          else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
             if (_podeIrParaProximoMes()) {
               _irParaProximoMes();
             }
@@ -661,8 +1006,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
             ),
           ),
           const SizedBox(width: 12),
-
-          // Botão Anterior
           IconButton(
             icon: const Icon(Icons.chevron_left),
             iconSize: 24,
@@ -675,7 +1018,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               minHeight: 32,
             ),
           ),
-
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -743,8 +1085,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               ),
             ),
           ),
-
-          // Botão Próximo
           IconButton(
             icon: const Icon(Icons.chevron_right),
             iconSize: 24,
@@ -789,17 +1129,14 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   bool _mesTemLogs(DateTime mes) {
-    // Verifica se o mês está na lista de meses com logs disponíveis
     return mesesDisponiveis.any((m) => m.year == mes.year && m.month == mes.month);
   }
 
   bool _podeIrParaMesAnterior() {
     if (mesSelecionado == null) return false;
 
-    // Procura o próximo mês com logs antes do mês selecionado
     for (int i = 0; i < todosMeses.length - 1; i++) {
       if (todosMeses[i].year == mesSelecionado!.year && todosMeses[i].month == mesSelecionado!.month) {
-        // Verifica se há algum mês posterior com logs
         for (int j = i + 1; j < todosMeses.length; j++) {
           if (_mesTemLogs(todosMeses[j])) {
             return true;
@@ -814,10 +1151,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   bool _podeIrParaProximoMes() {
     if (mesSelecionado == null) return false;
 
-    // Procura o próximo mês com logs depois do mês selecionado
     for (int i = 1; i < todosMeses.length; i++) {
       if (todosMeses[i].year == mesSelecionado!.year && todosMeses[i].month == mesSelecionado!.month) {
-        // Verifica se há algum mês anterior com logs
         for (int j = i - 1; j >= 0; j--) {
           if (_mesTemLogs(todosMeses[j])) {
             return true;
@@ -832,10 +1167,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   void _irParaMesAnterior() {
     if (mesSelecionado == null) return;
 
-    // Encontra o próximo mês com logs antes do mês atual
     for (int i = 0; i < todosMeses.length - 1; i++) {
       if (todosMeses[i].year == mesSelecionado!.year && todosMeses[i].month == mesSelecionado!.month) {
-        // Procura o próximo mês com logs
         for (int j = i + 1; j < todosMeses.length; j++) {
           if (_mesTemLogs(todosMeses[j])) {
             setState(() {
@@ -853,10 +1186,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   void _irParaProximoMes() {
     if (mesSelecionado == null) return;
 
-    // Encontra o próximo mês com logs depois do mês atual
     for (int i = 1; i < todosMeses.length; i++) {
       if (todosMeses[i].year == mesSelecionado!.year && todosMeses[i].month == mesSelecionado!.month) {
-        // Procura o mês anterior com logs
         for (int j = i - 1; j >= 0; j--) {
           if (_mesTemLogs(todosMeses[j])) {
             setState(() {
@@ -890,7 +1221,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabeçalho com botão de expandir/colapsar
           InkWell(
             onTap: () => setState(() => filtrosExpandidos = !filtrosExpandidos),
             borderRadius: BorderRadius.circular(8),
@@ -930,8 +1260,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               ),
             ),
           ),
-
-          // Indicador de filtros ativos quando colapsado
           if (!filtrosExpandidos && _temFiltrosAtivos())
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -948,12 +1276,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                 ],
               ),
             ),
-
-          // Conteúdo expansível
           if (filtrosExpandidos) ...[
             const SizedBox(height: 16),
-
-            // Primeira linha: Usuário, Entidade, Operação
             Row(
               children: [
                 Expanded(
@@ -999,8 +1323,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               ],
             ),
             const SizedBox(height: 16),
-
-            // Segunda linha: ID da Entidade
             Row(
               children: [
                 Expanded(
@@ -1043,15 +1365,11 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               ],
             ),
             const SizedBox(height: 16),
-
-            // Divisor
             Container(
               height: 1,
               color: const Color(0xFFE2E8F0),
             ),
             const SizedBox(height: 16),
-
-            // Terceira linha: Ordenação
             Row(
               children: [
                 Expanded(
@@ -1105,8 +1423,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               ],
             ),
             const SizedBox(height: 16),
-
-            // Botões de ação
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

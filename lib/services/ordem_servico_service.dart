@@ -60,19 +60,11 @@ class OrdemServicoService {
 
   static Future<bool> atualizarOrdemServico(int id, OrdemServico ordemServico) async {
     try {
-      print('Tentando atualizar OS $id...');
-      print('JSON enviado: ${jsonEncode(ordemServico.toJson())}');
-
       final response = await http.put(
         Uri.parse('$baseUrl/atualizar/$id'),
         headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(ordemServico.toJson()),
       );
-
-      print('Resposta do servidor: ${response.statusCode}');
-      if (response.statusCode != 200) {
-        print('Corpo da resposta de erro: ${response.body}');
-      }
 
       return response.statusCode == 200;
     } catch (e) {
@@ -130,9 +122,7 @@ class OrdemServicoService {
           if (response.body.isNotEmpty) {
             errorMessage = response.body;
           }
-        } catch (e) {
-          // Mantém a mensagem padrão
-        }
+        } catch (e) {}
         return {'sucesso': false, 'mensagem': errorMessage};
       }
     } catch (e) {
@@ -180,11 +170,9 @@ class OrdemServicoService {
         List<OrdemServico> ordens = jsonList.map((e) => OrdemServico.fromJson(e)).toList();
         return ordens;
       } else {
-        print('❌ Erro HTTP: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('❌ Erro na requisição: $e');
       return [];
     }
   }
@@ -318,12 +306,12 @@ class OrdemServicoService {
   static Future<Map<String, dynamic>> desbloquearOS(int id) async {
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
+      final headers = await AuthService.getAuthHeaders();
+      headers['X-User-Level'] = nivelAcesso?.toString() ?? '1';
+
       final response = await http.post(
         Uri.parse('$baseUrl/$id/desbloquear'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Level': nivelAcesso?.toString() ?? '1',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {

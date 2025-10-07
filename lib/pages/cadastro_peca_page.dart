@@ -36,8 +36,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Peca? _pecaEmEdicao;
   Map<String, Map<String, dynamic>> _pecasEmOS = {};
 
-  // ignore: unused_field
-  bool _isLoading = false;
   bool _isLoadingPecas = true;
   bool _isSaving = false;
   String _filtroEstoque = 'todos';
@@ -134,7 +132,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Future<void> _carregarPecasEmOS() async {
     try {
       final pecasEmOS = await OrdemServicoService.buscarPecasEmOSAbertas();
-      print('Peças carregadas em OS: ${pecasEmOS.length} peças encontradas');
       setState(() {
         _pecasEmOS = pecasEmOS;
       });
@@ -183,14 +180,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   void _salvar() async {
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar peça enquanto já está salvando - BLOQUEADO');
       return;
     }
 
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading = true;
       _isSaving = true;
     });
 
@@ -229,7 +224,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       _showVisibleError("Erro inesperado ao salvar peça: $e");
     } finally {
       setState(() {
-        _isLoading = false;
         _isSaving = false;
       });
     }
@@ -291,7 +285,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   Future<void> _excluirPeca(Peca peca) async {
-    setState(() => _isLoading = true);
     try {
       final resultado = await PecaService.excluirPeca(peca.id!);
       if (resultado['sucesso']) {
@@ -302,8 +295,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       }
     } catch (e) {
       _showVisibleError('Erro inesperado ao excluir peça: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -498,7 +489,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Future<void> _aplicarAjusteEstoque(Peca peca, int ajuste, String observacoes) async {
     if (ajuste == 0) return;
 
-    setState(() => _isLoading = true);
     try {
       final resultado = await PecaService.ajustarEstoque(
         pecaId: peca.id!,
@@ -516,8 +506,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       }
     } catch (e) {
       _showVisibleError('Erro ao ajustar estoque: $e');
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -813,7 +801,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
-            // Verifica se o usuário é admin
             final isAdmin = await AuthService.isAdmin();
             if (!isAdmin) {
               if (mounted) {
@@ -883,7 +870,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     PopupMenuButton<String>(
                       onSelected: (value) async {
                         if (value == 'edit') {
-                          // Verifica se o usuário é admin
                           final isAdmin = await AuthService.isAdmin();
                           if (!isAdmin) {
                             if (mounted) {
@@ -898,7 +884,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           }
                           _editarPeca(peca);
                         } else if (value == 'ajustar') {
-                          // Verifica se o usuário é admin
                           final isAdmin = await AuthService.isAdmin();
                           if (!isAdmin) {
                             if (mounted) {

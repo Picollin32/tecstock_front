@@ -40,7 +40,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   List<Funcionario> _funcionariosFiltrados = [];
   Funcionario? _funcionarioEmEdicao;
 
-  // ignore: unused_field
   bool _isLoading = false;
   bool _isLoadingFuncionarios = true;
   bool _isSaving = false;
@@ -157,7 +156,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
   void _salvarFuncionario() async {
     if (_isSaving) {
-      print('⚠️ DEBUG: Tentativa de salvar funcionário enquanto já está salvando - BLOQUEADO');
       return;
     }
 
@@ -227,10 +225,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       }
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
-      setState(() {
-        _isLoading = false;
-        _isSaving = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -910,7 +905,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _isSaving ? null : _salvarFuncionario,
+              onPressed: _isLoading ? null : _salvarFuncionario,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
@@ -919,7 +914,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                 ),
                 elevation: 2,
               ),
-              child: _isSaving
+              child: _isLoading
                   ? const SizedBox(
                       height: 20,
                       width: 20,

@@ -209,6 +209,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           : await Funcionarioservice.salvarFuncionario(funcionario);
 
       if (resultado['success']) {
+        setState(() {
+          _isLoading = false;
+          _isSaving = false;
+        });
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarFuncionarios();
@@ -225,7 +229,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       }
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isSaving = false;
+      });
     }
   }
 

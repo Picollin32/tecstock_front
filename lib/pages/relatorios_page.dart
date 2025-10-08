@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import '../model/relatorio.dart';
 import '../model/funcionario.dart';
 import '../services/relatorio_service.dart';
+import '../services/auth_service.dart';
 
 class RelatoriosPage extends StatefulWidget {
   const RelatoriosPage({super.key});
@@ -62,7 +63,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       _isLoadingFuncionarios = true;
     });
     try {
-      final response = await http.get(Uri.parse('http://localhost:8081/api/funcionarios/listarMecanicos'));
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/funcionarios/listarMecanicos'),
+        headers: await AuthService.getAuthHeaders(),
+      );
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         final mecanicos = jsonList.map((e) => Funcionario.fromJson(e)).toList();

@@ -292,9 +292,12 @@ class OrdemServicoService {
 
   Future<bool> marcarFiadoComoPago(int id, bool pago) async {
     try {
+      final headers = await AuthService.getAuthHeaders();
+      headers['Content-Type'] = 'application/json';
+
       final response = await http.patch(
         Uri.parse('$baseUrl/$id/fiado-pago?pago=$pago'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
       );
       return response.statusCode == 200;
     } catch (e) {

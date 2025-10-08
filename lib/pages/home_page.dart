@@ -579,26 +579,63 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
           for (final mov in todayMovimentacoes) {
             final isEntrada = mov.tipoMovimentacao == TipoMovimentacao.ENTRADA;
+            final isReajuste = mov.tipoMovimentacao == TipoMovimentacao.REAJUSTE;
+            final houveReajustePreco = mov.precoAnterior != null && mov.precoNovo != null;
 
+            String title;
             String subtitle;
-            if (isEntrada) {
+            IconData icon;
+            Color color;
+            String tag;
+            Color tagColor;
+
+            if (isReajuste) {
+              title = 'Ajuste de Estoque';
+              subtitle = 'Peça: ${mov.codigoPeca}';
+
+              if (mov.observacoes != null && mov.observacoes!.isNotEmpty) {
+                String obs = mov.observacoes!;
+                if (obs.contains('|')) {
+                  obs = obs.split('|')[0].trim();
+                }
+                subtitle += ' - $obs';
+              }
+
+              if (houveReajustePreco) {
+                subtitle += '\n💰 Preço: R\$ ${mov.precoAnterior!.toStringAsFixed(2)} → R\$ ${mov.precoNovo!.toStringAsFixed(2)}';
+              }
+
+              icon = Icons.tune;
+              color = const Color(0xFF8B5CF6);
+              tag = 'REAJUSTE';
+              tagColor = const Color(0xFF8B5CF6);
+            } else if (isEntrada) {
+              title = 'Entrada de estoque';
               subtitle = 'Peça: ${mov.codigoPeca} - Qtd: ${mov.quantidade} - NF: ${mov.numeroNotaFiscal}';
+              icon = Icons.arrow_downward;
+              color = const Color(0xFF10B981);
+              tag = 'ENTRADA';
+              tagColor = const Color(0xFF10B981);
             } else {
               final obs = mov.observacoes != null && mov.observacoes!.isNotEmpty ? mov.observacoes : 'Sem observações';
-
+              title = 'Saída de estoque';
               subtitle = 'Peça: ${mov.codigoPeca} - $obs';
+              icon = Icons.arrow_upward;
+              color = const Color(0xFFEF4444);
+              tag = 'SAÍDA';
+              tagColor = const Color(0xFFEF4444);
             }
 
             _recentActivities.add({
-              'title': isEntrada ? 'Entrada de estoque' : 'Saída de estoque',
+              'title': title,
               'subtitle': subtitle,
-              'icon': isEntrada ? Icons.arrow_downward : Icons.arrow_upward,
-              'color': isEntrada ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+              'icon': icon,
+              'color': color,
               'dateTime': mov.dataMovimentacao ?? DateTime.now(),
               'type': 'movimentacao',
               'isEdit': false,
-              'tag': isEntrada ? 'ENTRADA' : 'SAÍDA',
-              'tagColor': isEntrada ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+              'tag': tag,
+              'tagColor': tagColor,
             });
           }
         }

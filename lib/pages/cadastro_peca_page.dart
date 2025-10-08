@@ -301,6 +301,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   void _mostrarDialogoAjusteEstoque(Peca peca) {
     int ajuste = 0;
     final observacoesController = TextEditingController();
+    final precoController = TextEditingController(text: peca.precoUnitario.toStringAsFixed(2));
+    bool alterarPreco = false;
 
     showDialog(
       context: context,
@@ -455,6 +457,36 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   ),
                   maxLines: 2,
                 ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: alterarPreco,
+                      onChanged: (valor) {
+                        setDialogState(() {
+                          alterarPreco = valor ?? false;
+                        });
+                      },
+                    ),
+                    const Text(
+                      'Alterar Preço Unitário',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                if (alterarPreco) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: precoController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Novo Preço Unitário',
+                      prefixText: 'R\$ ',
+                      border: const OutlineInputBorder(),
+                      helperText: 'Preço atual: R\$ ${peca.precoUnitario.toStringAsFixed(2)}',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -476,6 +508,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                         peca,
                         ajuste,
                         observacoesController.text.trim(),
+                        alterarPreco ? double.tryParse(precoController.text.replaceAll(',', '.')) : null,
                       );
                     },
               child: const Text('Aplicar Ajuste'),
@@ -486,7 +519,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  Future<void> _aplicarAjusteEstoque(Peca peca, int ajuste, String observacoes) async {
+  Future<void> _aplicarAjusteEstoque(Peca peca, int ajuste, String observacoes, [double? novoPrecoUnitario]) async {
     if (ajuste == 0) return;
 
     try {
@@ -494,6 +527,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         pecaId: peca.id!,
         ajuste: ajuste,
         observacoes: observacoes.isEmpty ? null : observacoes,
+        novoPrecoUnitario: novoPrecoUnitario,
       );
 
       if (resultado['sucesso']) {

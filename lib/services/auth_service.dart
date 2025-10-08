@@ -66,9 +66,11 @@ class AuthService {
 
   static Future<Map<String, String>> getAuthHeaders() async {
     final token = await getToken();
+    final nivelAcesso = await getNivelAcesso();
     return {
       'Content-Type': 'application/json',
       'Authorization': token != null ? 'Bearer $token' : '',
+      'X-User-Level': nivelAcesso?.toString() ?? '',
     };
   }
 

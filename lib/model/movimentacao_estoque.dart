@@ -7,6 +7,8 @@ class MovimentacaoEstoque {
   int quantidade;
   double? precoFinal;
   double? precoUnitario;
+  double? precoAnterior;
+  double? precoNovo;
   String numeroNotaFiscal;
   TipoMovimentacao tipoMovimentacao;
   DateTime? dataEntrada;
@@ -20,6 +22,8 @@ class MovimentacaoEstoque {
     required this.quantidade,
     this.precoUnitario,
     this.precoFinal,
+    this.precoAnterior,
+    this.precoNovo,
     required this.numeroNotaFiscal,
     required this.tipoMovimentacao,
     this.dataEntrada,
@@ -35,6 +39,8 @@ class MovimentacaoEstoque {
       quantidade: json['quantidade'],
       precoUnitario: json['precoUnitario'] != null ? (json['precoUnitario'] as num).toDouble() : null,
       precoFinal: json['precoFinal'] != null ? (json['precoFinal'] as num).toDouble() : null,
+      precoAnterior: json['precoAnterior'] != null ? (json['precoAnterior'] as num).toDouble() : null,
+      precoNovo: json['precoNovo'] != null ? (json['precoNovo'] as num).toDouble() : null,
       numeroNotaFiscal: json['numeroNotaFiscal'],
       tipoMovimentacao: TipoMovimentacao.values.firstWhere(
         (e) => e.toString().split('.').last == json['tipoMovimentacao'],
@@ -53,6 +59,8 @@ class MovimentacaoEstoque {
       'quantidade': quantidade,
       'precoUnitario': precoUnitario,
       'precoFinal': precoFinal,
+      'precoAnterior': precoAnterior,
+      'precoNovo': precoNovo,
       'numeroNotaFiscal': numeroNotaFiscal,
       'tipoMovimentacao': tipoMovimentacao.toString().split('.').last,
       'dataEntrada': dataEntrada?.toIso8601String(),
@@ -74,4 +82,5 @@ class MovimentacaoEstoque {
 enum TipoMovimentacao {
   ENTRADA,
   SAIDA,
+  REAJUSTE,
 }

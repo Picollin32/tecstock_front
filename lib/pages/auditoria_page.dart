@@ -546,6 +546,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     final tipo = alteracao['tipo'] as String;
     final campoFormatado = _formatarNomeCampo(campo);
 
+    final bool isCampoPreco = campo.toLowerCase().contains('preco') || campo.toLowerCase().contains('valor');
+
     Color corFundo;
     Color corBorda;
     Color corTexto;
@@ -568,11 +570,19 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         titulo = 'Removido';
         break;
       default:
-        corFundo = const Color(0xFFFEF3C7);
-        corBorda = const Color(0xFFFDE68A);
-        corTexto = const Color(0xFF92400E);
-        icone = Icons.edit_outlined;
-        titulo = 'Alterado';
+        if (isCampoPreco) {
+          corFundo = const Color(0xFFF3E8FF);
+          corBorda = const Color(0xFFD8B4FE);
+          corTexto = const Color(0xFF6B21A8);
+          icone = Icons.monetization_on_outlined;
+          titulo = '💰 Preço Alterado';
+        } else {
+          corFundo = const Color(0xFFFEF3C7);
+          corBorda = const Color(0xFFFDE68A);
+          corTexto = const Color(0xFF92400E);
+          icone = Icons.edit_outlined;
+          titulo = 'Alterado';
+        }
     }
 
     return Container(
@@ -581,7 +591,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       decoration: BoxDecoration(
         color: corFundo,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: corBorda, width: 1.5),
+        border: Border.all(color: corBorda, width: isCampoPreco ? 2.0 : 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

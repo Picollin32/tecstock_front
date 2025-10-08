@@ -172,6 +172,7 @@ class PecaService {
     required int pecaId,
     required int ajuste,
     String? observacoes,
+    double? novoPrecoUnitario,
   }) async {
     try {
       final headers = await AuthService.getAuthHeaders();
@@ -183,6 +184,7 @@ class PecaService {
           'pecaId': pecaId,
           'ajuste': ajuste,
           'observacoes': observacoes,
+          'novoPrecoUnitario': novoPrecoUnitario,
         }),
       );
 

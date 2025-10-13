@@ -1690,7 +1690,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   final title = item['title'] as String;
 
                   if (_nivelAcessoUsuarioLogado != 0) {
-                    if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários' || title == 'Auditoria') {
+                    if (title == 'Tipos de Pagamento' ||
+                        title == 'Gerenciar Usuários' ||
+                        title == 'Auditoria' ||
+                        title == 'Gerenciar Fiados') {
                       return false;
                     }
                   }

@@ -124,6 +124,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   Future<void> _carregarMarcas() async {
     try {
       final lista = await MarcaService.listarMarcas();
+      lista.sort((a, b) => a.marca.toLowerCase().compareTo(b.marca.toLowerCase()));
       setState(() {
         _marcas = lista;
       });

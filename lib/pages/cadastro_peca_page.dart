@@ -836,11 +836,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
             final isAdmin = await AuthService.isAdmin();
-            if (!isAdmin) {
+            if (!isAdmin && peca.quantidadeEstoque > 0) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Apenas administradores podem editar peças'),
+                    content: Text('Apenas administradores podem editar peças com estoque'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -905,11 +905,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       onSelected: (value) async {
                         if (value == 'edit') {
                           final isAdmin = await AuthService.isAdmin();
-                          if (!isAdmin) {
+                          if (!isAdmin && peca.quantidadeEstoque > 0) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Apenas administradores podem editar peças'),
+                                  content: Text('Apenas administradores podem editar peças com estoque'),
                                   backgroundColor: Colors.red,
                                 ),
                               );

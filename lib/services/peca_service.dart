@@ -49,7 +49,13 @@ class PecaService {
 
   static Future<Peca?> buscarPecaPorCodigo(String codigo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/buscarPorCodigo/$codigo'), headers: await AuthService.getAuthHeaders());
+      final url = Uri.parse(baseUrl).replace(
+        path: '${Uri.parse(baseUrl).path}/buscarPorCodigo',
+        queryParameters: {'codigo': codigo},
+      );
+
+      final response = await http.get(url, headers: await AuthService.getAuthHeaders());
+
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
         return Peca.fromJson(jsonData);
@@ -127,6 +133,7 @@ class PecaService {
   static Future<Map<String, dynamic>> atualizarPeca(int id, Peca peca) async {
     try {
       final headers = await AuthService.getAuthHeaders();
+      headers['Content-Type'] = 'application/json; charset=UTF-8';
 
       final response = await http.put(
         Uri.parse('$baseUrl/atualizar/$id'),

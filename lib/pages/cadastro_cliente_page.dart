@@ -779,24 +779,15 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             },
           ),
           const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.location_on, size: 18, color: primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  'Endereço (Opcional)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: primaryColor,
-                  ),
-                ),
-              ],
+          Text(
+            'Endereço',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -805,6 +796,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   controller: _ruaController,
                   label: 'Rua',
                   icon: Icons.signpost,
+                  validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
                 ),
               ),
               const SizedBox(width: 16),
@@ -814,6 +806,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   controller: _numeroCasaController,
                   label: 'Número',
                   icon: Icons.numbers,
+                  validator: (v) => v!.isEmpty ? 'Informe o número' : null,
                 ),
               ),
             ],
@@ -823,6 +816,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             controller: _bairroController,
             label: 'Bairro',
             icon: Icons.location_city,
+            validator: (v) => v!.isEmpty ? 'Informe o bairro' : null,
           ),
           const SizedBox(height: 16),
           Row(
@@ -833,6 +827,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   controller: _cidadeController,
                   label: 'Cidade',
                   icon: Icons.apartment,
+                  validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
                 ),
               ),
               const SizedBox(width: 16),
@@ -846,6 +841,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                     FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
                     UpperCaseTextFormatter(),
                   ],
+                  validator: (v) => v!.isEmpty ? 'Informe a UF' : null,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   decoration: InputDecoration(
                     labelText: 'UF',

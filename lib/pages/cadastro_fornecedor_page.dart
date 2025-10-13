@@ -22,6 +22,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   final _telefoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _margemLucroController = TextEditingController();
+  final _ruaController = TextEditingController();
+  final _numeroCasaController = TextEditingController();
+  final _bairroController = TextEditingController();
+  final _cidadeController = TextEditingController();
+  final _ufController = TextEditingController();
   final _searchController = TextEditingController();
 
   final _maskCnpj = MaskTextInputFormatter(mask: '##.###.###/####-##', filter: {"#": RegExp(r'[0-9]')});
@@ -72,6 +77,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _telefoneController.dispose();
     _emailController.dispose();
     _margemLucroController.dispose();
+    _ruaController.dispose();
+    _numeroCasaController.dispose();
+    _bairroController.dispose();
+    _cidadeController.dispose();
+    _ufController.dispose();
     super.dispose();
   }
 
@@ -126,6 +136,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         telefone: _telefoneController.text.replaceAll(RegExp(r'[^\d]'), ''),
         email: _emailController.text,
         margemLucro: (int.tryParse(_margemLucroController.text) ?? 0) / 100,
+        rua: _ruaController.text,
+        numeroCasa: _numeroCasaController.text,
+        bairro: _bairroController.text,
+        cidade: _cidadeController.text,
+        uf: _ufController.text,
       );
 
       final resultado = _fornecedorEmEdicao != null
@@ -162,6 +177,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       _nomeController.text = fornecedor.nome;
       _emailController.text = fornecedor.email;
       _margemLucroController.text = ((fornecedor.margemLucro ?? 0) * 100).toStringAsFixed(0);
+      _ruaController.text = fornecedor.rua ?? '';
+      _numeroCasaController.text = fornecedor.numeroCasa ?? '';
+      _bairroController.text = fornecedor.bairro ?? '';
+      _cidadeController.text = fornecedor.cidade ?? '';
+      _ufController.text = fornecedor.uf ?? '';
 
       if (fornecedor.cnpj.isNotEmpty) {
         _cnpjController.text = fornecedor.cnpj.length == 14 ? _maskCnpj.maskText(fornecedor.cnpj) : fornecedor.cnpj;
@@ -246,6 +266,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _telefoneController.clear();
     _emailController.clear();
     _margemLucroController.clear();
+    _ruaController.clear();
+    _numeroCasaController.clear();
+    _bairroController.clear();
+    _cidadeController.clear();
+    _ufController.clear();
     _fornecedorEmEdicao = null;
   }
 
@@ -708,6 +733,76 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
               return null;
             },
           ),
+          const SizedBox(height: 24),
+          Text(
+            'Endereço',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _ruaController,
+            label: 'Rua',
+            icon: Icons.location_on,
+            validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildTextField(
+                  controller: _bairroController,
+                  label: 'Bairro',
+                  icon: Icons.location_city,
+                  validator: (v) => v!.isEmpty ? 'Informe o bairro' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: _buildTextField(
+                  controller: _numeroCasaController,
+                  label: 'Número',
+                  icon: Icons.home,
+                  keyboardType: TextInputType.text,
+                  validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildTextField(
+                  controller: _cidadeController,
+                  label: 'Cidade',
+                  icon: Icons.location_city,
+                  validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: _buildTextField(
+                  controller: _ufController,
+                  label: 'UF',
+                  icon: Icons.map,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(2),
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                  ],
+                  validator: (v) => v!.isEmpty ? 'Informe a UF' : null,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -755,6 +850,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     String? suffixText,
     bool readOnly = false,
     VoidCallback? onTap,
+    TextCapitalization textCapitalization = TextCapitalization.none,
   }) {
     return TextFormField(
       controller: controller,
@@ -763,6 +859,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       validator: validator,
       readOnly: readOnly,
       onTap: onTap,
+      textCapitalization: textCapitalization,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,

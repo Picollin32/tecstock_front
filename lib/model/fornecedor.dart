@@ -5,6 +5,11 @@ class Fornecedor {
   String telefone;
   String email;
   double? margemLucro;
+  String? rua;
+  String? numeroCasa;
+  String? bairro;
+  String? cidade;
+  String? uf;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -15,6 +20,11 @@ class Fornecedor {
     required this.telefone,
     required this.email,
     this.margemLucro,
+    this.rua,
+    this.numeroCasa,
+    this.bairro,
+    this.cidade,
+    this.uf,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +37,11 @@ class Fornecedor {
       telefone: json['telefone'],
       email: json['email'],
       margemLucro: (json['margemLucro'] as num?)?.toDouble(),
+      rua: json['rua'],
+      numeroCasa: json['numeroCasa'],
+      bairro: json['bairro'],
+      cidade: json['cidade'],
+      uf: json['uf'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -40,6 +55,11 @@ class Fornecedor {
       'telefone': telefone,
       'email': email,
       'margemLucro': margemLucro,
+      'rua': rua,
+      'numeroCasa': numeroCasa,
+      'bairro': bairro,
+      'cidade': cidade,
+      'uf': uf,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };

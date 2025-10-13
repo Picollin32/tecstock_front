@@ -329,16 +329,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _checklistsFiltrados = _checklists.where((checklist) {
         bool matchCliente = true;
         bool matchVeiculo = true;
+        bool matchStatus = true;
 
         if (_clienteCpfController.text.isNotEmpty) {
-          matchCliente = checklist.clienteCpf?.toLowerCase() == _clienteCpfController.text.toLowerCase();
+          matchCliente = (checklist.clienteCpf ?? '').toLowerCase() == _clienteCpfController.text.toLowerCase();
         }
 
         if (_veiculoPlacaController.text.isNotEmpty) {
-          matchVeiculo = checklist.veiculoPlaca?.toLowerCase() == _veiculoPlacaController.text.toLowerCase();
+          matchVeiculo = (checklist.veiculoPlaca ?? '').toLowerCase() == _veiculoPlacaController.text.toLowerCase();
         }
 
-        return matchCliente && matchVeiculo;
+        matchStatus = checklist.status.toUpperCase() != 'FECHADO';
+
+        return matchCliente && matchVeiculo && matchStatus;
       }).toList();
     });
   }
@@ -1845,22 +1848,29 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         const SizedBox(height: 8),
         Autocomplete<Checklist>(
           optionsBuilder: (TextEditingValue textEditingValue) {
-            final baseList = _checklistsFiltrados.isNotEmpty ? _checklistsFiltrados : _checklists;
+            final bool hasFiltros = _clienteCpfController.text.isNotEmpty || _veiculoPlacaController.text.isNotEmpty;
+            final baseList = hasFiltros ? _checklistsFiltrados : _checklists;
 
-            final availableList = _isViewMode ? baseList : baseList.where((checklist) => checklist.status != 'FECHADO').toList();
+            final availableList =
+                _isViewMode ? baseList : baseList.where((checklist) => checklist.status.toUpperCase() != 'FECHADO').toList();
 
-            if (textEditingValue.text == '') return availableList;
-            return availableList.where((checklist) {
+            if (textEditingValue.text.isEmpty) {
+              return availableList;
+            }
+
+            final filtered = availableList.where((checklist) {
               final searchText = textEditingValue.text.toLowerCase();
               return checklist.numeroChecklist.toLowerCase().contains(searchText) ||
                   (checklist.clienteNome?.toLowerCase().contains(searchText) ?? false) ||
                   (checklist.veiculoPlaca?.toLowerCase().contains(searchText) ?? false);
-            });
+            }).toList();
+
+            return filtered;
           },
           displayStringForOption: (Checklist checklist) =>
               'Checklist ${checklist.numeroChecklist}${checklist.createdAt != null ? ' - ${DateFormat('dd/MM/yyyy').format(checklist.createdAt!)}' : ''}',
           onSelected: (Checklist selection) {
-            if (selection.status == 'FECHADO' && !_isViewMode) {
+            if (selection.status.toUpperCase() == 'FECHADO' && !_isViewMode) {
               _showErrorSnackBar('Este checklist está fechado e não pode ser usado em uma nova OS');
               return;
             }
@@ -4610,6 +4620,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
           _consultorSelecionado = osCompleta.consultor;
 
+          _filtrarChecklists();
+
           if (osCompleta.checklistId != null) {
             _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;
             if (_checklistSelecionado != null) {
@@ -4764,6 +4776,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           }
 
           _consultorSelecionado = osCompleta.consultor;
+
+          _filtrarChecklists();
 
           if (osCompleta.checklistId != null) {
             _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;

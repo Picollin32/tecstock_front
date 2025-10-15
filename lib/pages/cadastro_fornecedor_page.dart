@@ -31,7 +31,28 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
   final _maskCnpj = MaskTextInputFormatter(mask: '##.###.###/####-##', filter: {"#": RegExp(r'[0-9]')});
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
-  final _maskMargemLucro = MaskTextInputFormatter(mask: '###', filter: {"#": RegExp(r'[0-9]')});
+
+  final _decimalFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
+    // Permite apenas números e vírgula
+    final filteredText = newValue.text.replaceAll(RegExp(r'[^0-9,]'), '');
+
+    // Garante apenas uma vírgula
+    final parts = filteredText.split(',');
+    String formattedText = parts[0];
+    if (parts.length > 1) {
+      formattedText += ',' + parts[1];
+    }
+
+    // Limita a 2 casas decimais após a vírgula
+    if (parts.length > 1 && parts[1].length > 2) {
+      formattedText = parts[0] + ',' + parts[1].substring(0, 2);
+    }
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
+    );
+  });
 
   List<Fornecedor> _fornecedores = [];
   List<Fornecedor> _fornecedoresFiltrados = [];
@@ -129,13 +150,16 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() => _isLoading = true);
 
     try {
+      final margemText = _margemLucroController.text.replaceAll(',', '.');
+      final margemValue = double.tryParse(margemText) ?? 0;
+
       final fornecedor = Fornecedor(
         id: _fornecedorEmEdicao?.id,
         nome: _nomeController.text,
         cnpj: _cnpjController.text.replaceAll(RegExp(r'[^\d]'), ''),
         telefone: _telefoneController.text.replaceAll(RegExp(r'[^\d]'), ''),
         email: _emailController.text,
-        margemLucro: (int.tryParse(_margemLucroController.text) ?? 0) / 100,
+        margemLucro: margemValue / 100,
         rua: _ruaController.text,
         numeroCasa: _numeroCasaController.text,
         bairro: _bairroController.text,
@@ -176,7 +200,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() {
       _nomeController.text = fornecedor.nome;
       _emailController.text = fornecedor.email;
-      _margemLucroController.text = ((fornecedor.margemLucro ?? 0) * 100).toStringAsFixed(0);
+
+      // Formata a margem de lucro com vírgula
+      final margemPercentual = (fornecedor.margemLucro ?? 0) * 100;
+      _margemLucroController.text = margemPercentual.toStringAsFixed(2).replaceAll('.', ',');
+
       _ruaController.text = fornecedor.rua ?? '';
       _numeroCasaController.text = fornecedor.numeroCasa ?? '';
       _bairroController.text = fornecedor.bairro ?? '';
@@ -536,7 +564,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Margem: ${margem.toStringAsFixed(0)}%',
+                              'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
                               style: TextStyle(
                                 color: margemColor,
                                 fontSize: 11,
@@ -697,14 +725,15 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   controller: _margemLucroController,
                   label: 'Margem de Lucro',
                   icon: Icons.trending_up,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [_maskMargemLucro],
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [_decimalFormatter],
                   suffixText: '%',
                   validator: (v) {
                     if (v == null || v.isEmpty) {
                       return 'Informe a margem';
                     }
-                    final value = int.tryParse(v);
+                    final valueStr = v.replaceAll(',', '.');
+                    final value = double.tryParse(valueStr);
                     if (value == null) {
                       return 'Valor inválido';
                     }

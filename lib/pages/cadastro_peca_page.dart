@@ -980,7 +980,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       _buildInfoRow(
                         Icons.store,
                         peca.fornecedor != null
-                            ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(0)}%)"
+                            ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(2)}%)"
                             : "Não informado",
                       ),
                       _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
@@ -1276,7 +1276,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       .map((fornecedor) => DropdownMenuItem<Fornecedor>(
                             value: fornecedor,
                             child: Text(
-                                "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(0)}%)"),
+                                "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)"),
                           ))
                       .toList(),
                   onChanged: (value) {

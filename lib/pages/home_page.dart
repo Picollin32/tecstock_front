@@ -256,7 +256,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         'movimentacoes': MovimentacaoEstoqueService.listarTodas(),
       };
 
-      final results = await Future.wait(futures.values.map((f) => f.catchError((e) => e)).toList());
+      final results = await Future.wait(futures.values);
 
       final keys = futures.keys.toList();
       final Map<String, dynamic> loaded = {};
@@ -266,7 +266,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       dynamic safeList(String key) {
         final val = loaded[key];
-        if (val is Exception || val is Error) return <dynamic>[];
         return val ?? <dynamic>[];
       }
 
@@ -1586,7 +1585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('📊 Dados atualizados com sucesso!'),
+                              content: Text('✅ Todos os dados foram carregados com sucesso!'),
                               backgroundColor: Colors.green,
                               duration: Duration(seconds: 2),
                             ),
@@ -1596,9 +1595,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('❌ Erro ao atualizar: ${e.toString()}'),
+                              content: Text('❌ Erro ao carregar dados completos. Tente novamente.'),
                               backgroundColor: Colors.red,
                               duration: const Duration(seconds: 3),
+                              action: SnackBarAction(
+                                label: 'Recarregar',
+                                textColor: Colors.white,
+                                onPressed: () => _loadDashboardData(),
+                              ),
                             ),
                           );
                         }

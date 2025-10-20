@@ -16,10 +16,10 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   List<AuditoriaLog> logs = [];
   List<String> entidadesDisponiveis = [];
   List<String> usuariosDisponiveis = [];
+  Set<String> entidadesSelecionadas = {};
   bool isLoading = true;
   String? token;
   String? filtroUsuario;
-  String? filtroEntidade;
   String? filtroOperacao;
   TextEditingController filtroIdController = TextEditingController();
   DateTime? mesSelecionado;
@@ -126,7 +126,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       final resultado = await AuditoriaService.buscarLogsComFiltros(
         token!,
         usuario: filtroUsuario,
-        entidade: filtroEntidade,
+        entidade: entidadesSelecionadas.isEmpty ? null : entidadesSelecionadas.join(','),
         operacao: filtroOperacao,
         entidadeId: entidadeId,
         dataInicio: dataInicio,
@@ -181,7 +181,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   void _limparFiltros() {
     setState(() {
       filtroUsuario = null;
-      filtroEntidade = null;
+      entidadesSelecionadas.clear();
       filtroOperacao = null;
       filtroIdController.clear();
       currentPage = 0;
@@ -966,9 +966,26 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               )
             : Column(
                 children: [
-                  _buildSeletorMes(),
-                  _buildFiltros(),
-                  Expanded(child: _buildListaLogs()),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildSeletorMes(),
+                          _buildFiltros(),
+                          if (logs.isNotEmpty)
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.5,
+                              child: _buildListaLogs(),
+                            )
+                          else
+                            SizedBox(
+                              height: 300,
+                              child: _buildListaLogs(),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (totalPages > 0) _buildPaginacao(),
                 ],
               ),
@@ -1278,7 +1295,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                 runSpacing: 8,
                 children: [
                   if (filtroUsuario != null) _buildFiltroAtivoBadge('Usuário: $filtroUsuario'),
-                  if (filtroEntidade != null) _buildFiltroAtivoBadge('Entidade: $filtroEntidade'),
+                  if (entidadesSelecionadas.isNotEmpty)
+                    _buildFiltroAtivoBadge(
+                        'Entidades: ${entidadesSelecionadas.length} selecionada${entidadesSelecionadas.length > 1 ? 's' : ''}'),
                   if (filtroOperacao != null) _buildFiltroAtivoBadge('Operação: ${_getOperacaoTexto(filtroOperacao!)}'),
                   if (filtroIdController.text.isNotEmpty) _buildFiltroAtivoBadge('ID: ${filtroIdController.text}'),
                   if (ordenarPor != 'dataHora' || direcaoOrdenacao != 'desc')
@@ -1306,19 +1325,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                 Expanded(
                   flex: 1,
                   child: _buildDropdownField(
-                    label: 'Entidade',
-                    value: filtroEntidade,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Todas')),
-                      ...entidadesDisponiveis.map((e) => DropdownMenuItem(value: e, child: Text(e))),
-                    ],
-                    onChanged: (valor) => setState(() => filtroEntidade = valor),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 1,
-                  child: _buildDropdownField(
                     label: 'Operação',
                     value: filtroOperacao,
                     items: const [
@@ -1330,8 +1336,12 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                     onChanged: (valor) => setState(() => filtroOperacao = valor),
                   ),
                 ),
+                const SizedBox(width: 16),
+                Expanded(flex: 1, child: Container()),
               ],
             ),
+            const SizedBox(height: 16),
+            _buildEntidadesCheckboxes(),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1470,7 +1480,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
 
   bool _temFiltrosAtivos() {
     return filtroUsuario != null ||
-        filtroEntidade != null ||
+        entidadesSelecionadas.isNotEmpty ||
         filtroOperacao != null ||
         filtroIdController.text.isNotEmpty ||
         ordenarPor != 'dataHora' ||
@@ -1524,6 +1534,118 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
       default:
         return campo;
     }
+  }
+
+  Widget _buildEntidadesCheckboxes() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Entidades',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(width: 12),
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  if (entidadesSelecionadas.length == entidadesDisponiveis.length) {
+                    entidadesSelecionadas.clear();
+                  } else {
+                    entidadesSelecionadas = Set.from(entidadesDisponiveis);
+                  }
+                });
+              },
+              icon: Icon(
+                entidadesSelecionadas.length == entidadesDisponiveis.length ? Icons.check_box : Icons.check_box_outline_blank,
+                size: 18,
+              ),
+              label: Text(
+                entidadesSelecionadas.length == entidadesDisponiveis.length ? 'Desmarcar Todas' : 'Marcar Todas',
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF0EA5E9),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: entidadesDisponiveis.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: Text(
+                    'Nenhuma entidade disponível',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: entidadesDisponiveis.map((entidade) {
+                    final isSelected = entidadesSelecionadas.contains(entidade);
+                    return InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (isSelected) {
+                            entidadesSelecionadas.remove(entidade);
+                          } else {
+                            entidadesSelecionadas.add(entidade);
+                          }
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFF0EA5E9).withOpacity(0.1) : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0),
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                              size: 18,
+                              color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              entidade,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
   }
 
   Widget _buildDropdownField({

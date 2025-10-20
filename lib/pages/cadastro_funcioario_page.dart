@@ -34,7 +34,11 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   int? _nivelAcessoSelecionado;
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
-  final _maskCpf = MaskTextInputFormatter(mask: '###.###.###-##', filter: {"#": RegExp(r'[0-9]')});
+  final _maskCpf = MaskTextInputFormatter(
+    mask: '###.###.###-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
 
   List<Funcionario> _funcionarios = [];
   List<Funcionario> _funcionariosFiltrados = [];
@@ -102,7 +106,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         _funcionariosFiltrados = _funcionarios.where((funcionario) {
           final nomeMatch = funcionario.nome.toLowerCase().contains(query);
           final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfMatch = funcionario.cpf.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
+          final cpfFuncionarioSemMascara = funcionario.cpf.replaceAll(RegExp(r'[^0-9]'), '');
+          final cpfMatch = cpfFuncionarioSemMascara.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
 
           return nomeMatch || cpfMatch;
         }).toList();

@@ -29,23 +29,23 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   final _ufController = TextEditingController();
   final _searchController = TextEditingController();
 
-  final _maskCnpj = MaskTextInputFormatter(mask: '##.###.###/####-##', filter: {"#": RegExp(r'[0-9]')});
+  final _maskCnpj = MaskTextInputFormatter(
+    mask: '##.###.###/####-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
 
   final _decimalFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
-    // Permite apenas números e vírgula
     final filteredText = newValue.text.replaceAll(RegExp(r'[^0-9,]'), '');
-
-    // Garante apenas uma vírgula
     final parts = filteredText.split(',');
     String formattedText = parts[0];
     if (parts.length > 1) {
-      formattedText += ',' + parts[1];
+      formattedText += ',${parts[1]}';
     }
 
-    // Limita a 2 casas decimais após a vírgula
     if (parts.length > 1 && parts[1].length > 2) {
-      formattedText = parts[0] + ',' + parts[1].substring(0, 2);
+      formattedText = '${parts[0]},${parts[1].substring(0, 2)}';
     }
 
     return TextEditingValue(
@@ -115,7 +115,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         _fornecedoresFiltrados = _fornecedores.where((fornecedor) {
           final nomeMatch = fornecedor.nome.toLowerCase().contains(query);
           final cnpjSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cnpjMatch = fornecedor.cnpj.contains(cnpjSemMascara) && cnpjSemMascara.isNotEmpty;
+          final cnpjFornecedorSemMascara = fornecedor.cnpj.replaceAll(RegExp(r'[^0-9]'), '');
+          final cnpjMatch = cnpjFornecedorSemMascara.contains(cnpjSemMascara) && cnpjSemMascara.isNotEmpty;
 
           return nomeMatch || cnpjMatch;
         }).toList();
@@ -201,7 +202,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       _nomeController.text = fornecedor.nome;
       _emailController.text = fornecedor.email;
 
-      // Formata a margem de lucro com vírgula
       final margemPercentual = (fornecedor.margemLucro ?? 0) * 100;
       _margemLucroController.text = margemPercentual.toStringAsFixed(2).replaceAll('.', ',');
 

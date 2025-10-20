@@ -1653,7 +1653,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         Autocomplete<String>(
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
-            return options.where((cpf) => cpf.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+            return options.where((cpf) {
+              final cpfSemMascara = cpf.replaceAll(RegExp(r'[^0-9]'), '');
+              return cpfSemMascara.contains(searchValue);
+            });
           },
           onSelected: (String selection) {
             final pessoa = _clienteByCpf[selection];
@@ -2261,12 +2265,33 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Selecione um checklist relacionado',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
+          Row(
+            children: [
+              Text(
+                'Selecione um checklist relacionado',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red.shade200),
                 ),
+                child: Text(
+                  'OBRIGATÓRIO',
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (_checklistsFiltrados.isEmpty)
@@ -3212,7 +3237,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
+                    value: _prazoFiadoDias != null && _prazoFiadoDias! > 0
+                        ? () {
+                            int meses = _prazoFiadoDias! ~/ 30;
+                            if (meses < 1) meses = 1;
+                            if (meses > 12) meses = 12;
+                            return meses;
+                          }()
+                        : null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3691,6 +3723,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       return;
     }
 
+    if (_checklistSelecionado == null) {
+      _showErrorSnackBar('Por favor, selecione um checklist. Toda OS deve ter um checklist vinculado.');
+      return;
+    }
+
     if (_servicosSelecionados.isEmpty) {
       _showErrorSnackBar('Por favor, selecione pelo menos um serviço');
       return;
@@ -3735,14 +3772,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       );
 
       bool sucesso;
+      String mensagem = '';
       if (_editingOSId != null) {
-        sucesso = await OrdemServicoService.atualizarOrdemServico(_editingOSId!, ordemServico);
+        final resultado = await OrdemServicoService.atualizarOrdemServico(_editingOSId!, ordemServico);
+        sucesso = resultado['sucesso'];
+        mensagem = resultado['mensagem'];
       } else {
-        sucesso = await OrdemServicoService.salvarOrdemServico(ordemServico);
+        final resultado = await OrdemServicoService.salvarOrdemServico(ordemServico);
+        sucesso = resultado['sucesso'];
+        mensagem = resultado['mensagem'];
       }
 
       if (sucesso) {
-        _showSuccessSnackBar(_editingOSId != null ? 'OS atualizada com sucesso' : 'OS criada com sucesso');
+        _showSuccessSnackBar(mensagem);
         await _clearFormFields();
         await _loadData();
         setState(() {
@@ -3754,7 +3796,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         setState(() {
           _isSaving = false;
         });
-        _showErrorSnackBar('Erro ao salvar OS');
+        _showErrorSnackBar(mensagem);
       }
     } catch (e) {
       setState(() {
@@ -4605,6 +4647,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
+          print('🔍 DEBUG EDITAR: prazoFiadoDias=${osCompleta.prazoFiadoDias}, tipoPagamento=${osCompleta.tipoPagamento?.nome}');
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;

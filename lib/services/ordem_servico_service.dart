@@ -6,17 +6,31 @@ import 'package:http/http.dart' as http;
 class OrdemServicoService {
   static const String baseUrl = 'http://localhost:8081/api/ordens-servico';
 
-  static Future<bool> salvarOrdemServico(OrdemServico ordemServico) async {
+  static Future<Map<String, dynamic>> salvarOrdemServico(OrdemServico ordemServico) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/salvar'),
         headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(ordemServico.toJson()),
       );
-      return response.statusCode == 201 || response.statusCode == 200;
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'sucesso': true, 'mensagem': 'OS salva com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao salvar ordem de serviço';
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Se não conseguir decodificar, usa a mensagem padrão
+        }
+        return {'sucesso': false, 'mensagem': errorMessage};
+      }
     } catch (e) {
       print('Erro ao salvar ordem de serviço: $e');
-      return false;
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
 
@@ -58,7 +72,7 @@ class OrdemServicoService {
     }
   }
 
-  static Future<bool> atualizarOrdemServico(int id, OrdemServico ordemServico) async {
+  static Future<Map<String, dynamic>> atualizarOrdemServico(int id, OrdemServico ordemServico) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/atualizar/$id'),
@@ -66,10 +80,23 @@ class OrdemServicoService {
         body: jsonEncode(ordemServico.toJson()),
       );
 
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        return {'sucesso': true, 'mensagem': 'OS atualizada com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao atualizar ordem de serviço';
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          }
+        } catch (e) {
+          // Se não conseguir decodificar, usa a mensagem padrão
+        }
+        return {'sucesso': false, 'mensagem': errorMessage};
+      }
     } catch (e) {
       print('Erro ao atualizar ordem de serviço: $e');
-      return false;
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
 

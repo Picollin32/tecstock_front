@@ -3785,7 +3785,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         Autocomplete<String>(
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
-            return options.where((cpf) => cpf.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+            return options.where((cpf) {
+              final cpfSemMascara = cpf.replaceAll(RegExp(r'[^0-9]'), '');
+              return cpfSemMascara.contains(searchValue);
+            });
           },
           onSelected: (String selection) {
             final pessoa = _clienteByCpf[selection];

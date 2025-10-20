@@ -33,7 +33,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   final TextEditingController _ufController = TextEditingController();
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
-  final _maskCpf = MaskTextInputFormatter(mask: '###.###.###-##', filter: {"#": RegExp(r'[0-9]')});
+  final _maskCpf = MaskTextInputFormatter(
+    mask: '###.###.###-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
 
   List<Cliente> _clientes = [];
   List<Cliente> _clientesFiltrados = [];
@@ -95,7 +99,8 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         _clientesFiltrados = _clientes.where((cliente) {
           final nomeMatch = cliente.nome.toLowerCase().contains(query);
           final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfMatch = cliente.cpf.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
+          final cpfClienteSemMascara = cliente.cpf.replaceAll(RegExp(r'[^0-9]'), '');
+          final cpfMatch = cpfClienteSemMascara.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
 
           return nomeMatch || cpfMatch;
         }).toList();

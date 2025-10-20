@@ -51,16 +51,34 @@ class ClienteService {
     }
   }
 
-  static Future<bool> excluirCliente(int id) async {
+  static Future<Map<String, dynamic>> excluirCliente(int id) async {
     String baseUrl = 'http://localhost:8081/api/clientes/deletar/$id';
 
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.delete(Uri.parse(baseUrl), headers: headers);
-      return response.statusCode == 200 || response.statusCode == 204;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'success': true, 'message': 'Cliente excluído com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao excluir cliente';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao excluir cliente: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 

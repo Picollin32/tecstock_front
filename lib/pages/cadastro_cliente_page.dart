@@ -286,12 +286,12 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
   Future<void> _excluirCliente(Cliente cliente) async {
     try {
-      final sucesso = await ClienteService.excluirCliente(cliente.id!);
-      if (sucesso) {
+      final resultado = await ClienteService.excluirCliente(cliente.id!);
+      if (resultado['success']) {
         await _carregarClientes();
-        _showSuccessSnackBar('Cliente excluído com sucesso');
+        _showSuccessSnackBar(resultado['message'] ?? 'Cliente excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir cliente');
+        ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir cliente');
       }
     } catch (e) {
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir cliente');

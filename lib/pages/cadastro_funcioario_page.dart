@@ -303,12 +303,12 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   Future<void> _excluirFuncionario(Funcionario funcionario) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await Funcionarioservice.excluirFuncionario(funcionario.id!);
-      if (sucesso) {
+      final resultado = await Funcionarioservice.excluirFuncionario(funcionario.id!);
+      if (resultado['success']) {
         await _carregarFuncionarios();
-        _showSuccessSnackBar('Funcionário excluído com sucesso');
+        _showSuccessSnackBar(resultado['message'] ?? 'Funcionário excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir funcionário');
+        ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir funcionário');
       }
     } catch (e) {
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir funcionário');

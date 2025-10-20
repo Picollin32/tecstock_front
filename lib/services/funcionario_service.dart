@@ -50,15 +50,33 @@ class Funcionarioservice {
     }
   }
 
-  static Future<bool> excluirFuncionario(int id) async {
+  static Future<Map<String, dynamic>> excluirFuncionario(int id) async {
     String baseUrl = 'http://localhost:8081/api/funcionarios/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
-      return response.statusCode == 200 || response.statusCode == 204;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'success': true, 'message': 'Funcionário excluído com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao excluir funcionário';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao excluir funcionario: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 
@@ -67,7 +85,8 @@ class Funcionarioservice {
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(funcionario.toJson()),
       );
 

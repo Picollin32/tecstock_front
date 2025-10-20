@@ -575,7 +575,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
           corBorda = const Color(0xFFD8B4FE);
           corTexto = const Color(0xFF6B21A8);
           icone = Icons.monetization_on_outlined;
-          titulo = '💰 Preço Alterado';
+          titulo = 'Preço Alterado';
         } else {
           corFundo = const Color(0xFFFEF3C7);
           corBorda = const Color(0xFFFDE68A);

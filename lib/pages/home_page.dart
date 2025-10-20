@@ -601,7 +601,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               }
 
               if (houveReajustePreco) {
-                subtitle += '\n💰 Preço: R\$ ${mov.precoAnterior!.toStringAsFixed(2)} → R\$ ${mov.precoNovo!.toStringAsFixed(2)}';
+                subtitle += '\nPreço: R\$ ${mov.precoAnterior!.toStringAsFixed(2)} → R\$ ${mov.precoNovo!.toStringAsFixed(2)}';
               }
 
               icon = Icons.tune;

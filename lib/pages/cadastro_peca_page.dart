@@ -735,6 +735,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         emptyMessage = 'Nenhuma peça sem estoque encontrada';
         emptySubtitle = 'Todas as peças têm estoque!';
         emptyIcon = Icons.check_circle_outline;
+      } else if (_filtroEstoque == 'em_uso') {
+        emptyMessage = 'Nenhuma peça em uso encontrada';
+        emptySubtitle = 'Não há peças sendo utilizadas em Ordens de Serviço abertas';
+        emptyIcon = Icons.check_circle_outline;
       } else if (_searchController.text.isNotEmpty) {
         emptyMessage = 'Nenhum resultado encontrado';
         emptySubtitle = 'Tente ajustar os termos da busca';

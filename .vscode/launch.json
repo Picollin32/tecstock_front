@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "⚙️ Spring Boot - Backend",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "tecstock_spring.Main",
+            "projectName": "cadastro_veiculo_spring",
+            "cwd": "${workspaceFolder:tecstock_spring}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "🎨 Flutter - Frontend (Chrome)",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder:tecstock_front}/lib/main.dart",
+            "args": [
+                "-d",
+                "chrome"
+            ],
+            "cwd": "${workspaceFolder:tecstock_front}"
+        },
+        {
+            "name": "🎨 Flutter - Frontend (Windows)",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder:tecstock_front}/lib/main.dart",
+            "args": [
+                "-d",
+                "windows"
+            ],
+            "cwd": "${workspaceFolder:tecstock_front}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀 TecStock - Backend + Frontend (Chrome)",
+            "configurations": [
+                "⚙️ Spring Boot - Backend",
+                "🎨 Flutter - Frontend (Chrome)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "TecStock",
+                "order": 1
+            }
+        },
+        {
+            "name": "🚀 TecStock - Backend + Frontend (Windows)",
+            "configurations": [
+                "⚙️ Spring Boot - Backend",
+                "🎨 Flutter - Frontend (Windows)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "TecStock",
+                "order": 2
+            }
+        }
+    ]
+}
+

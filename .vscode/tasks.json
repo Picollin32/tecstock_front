@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "⚙️ TecStock - Backend (Spring)",
+            "type": "process",
+            "command": "${command:java.execute.workspaceCommand}",
+            "args": [
+                "java.projectConfiguration.update",
+                "${workspaceFolder:tecstock_spring}"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "🎨 TecStock - Frontend (Flutter)",
+            "type": "shell",
+            "command": "flutter run -d chrome",
+            "options": {
+                "cwd": "d:\\Projetos\\tecstock_front"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": false
+            },
+            "isBackground": true
+        }
+    ]
+}

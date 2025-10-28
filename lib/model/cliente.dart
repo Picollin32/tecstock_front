@@ -1,32 +1,20 @@
-class Cliente {
-  int? id;
-  String nome;
-  String telefone;
-  String email;
-  String cpf;
-  DateTime dataNascimento;
-  String? rua;
-  String? numeroCasa;
-  String? bairro;
-  String? cidade;
-  String? uf;
-  DateTime? createdAt;
-  DateTime? updatedAt;
+import 'pessoa.dart';
 
+class Cliente extends Pessoa {
   Cliente({
-    this.id,
-    required this.nome,
-    required this.telefone,
-    required this.email,
-    required this.cpf,
-    required this.dataNascimento,
-    this.rua,
-    this.numeroCasa,
-    this.bairro,
-    this.cidade,
-    this.uf,
-    this.createdAt,
-    this.updatedAt,
+    super.id,
+    required super.nome,
+    required super.telefone,
+    required super.email,
+    required super.cpf,
+    required super.dataNascimento,
+    super.rua,
+    super.numeroCasa,
+    super.bairro,
+    super.cidade,
+    super.uf,
+    super.createdAt,
+    super.updatedAt,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
@@ -48,23 +36,6 @@ class Cliente {
   }
 
   Map<String, dynamic> toJson() {
-    final map = {
-      'id': id,
-      'nome': nome,
-      'telefone': telefone,
-      'email': email,
-      'cpf': cpf,
-      'dataNascimento': dataNascimento.toIso8601String(),
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-    };
-
-    if (rua != null) map['rua'] = rua;
-    if (numeroCasa != null) map['numeroCasa'] = numeroCasa;
-    if (bairro != null) map['bairro'] = bairro;
-    if (cidade != null) map['cidade'] = cidade;
-    if (uf != null) map['uf'] = uf;
-
-    return map;
+    return super.toJsonBase();
   }
 }

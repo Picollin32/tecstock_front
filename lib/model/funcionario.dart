@@ -1,34 +1,24 @@
-class Funcionario {
-  int? id;
-  String nome;
-  String telefone;
-  String email;
-  String cpf;
-  DateTime dataNascimento;
-  int nivelAcesso;
-  String? rua;
-  String? numeroCasa;
-  String? bairro;
-  String? cidade;
-  String? uf;
-  DateTime? createdAt;
-  DateTime? updatedAt;
+import 'pessoa.dart';
 
-  Funcionario(
-      {this.id,
-      required this.nome,
-      required this.telefone,
-      required this.email,
-      required this.cpf,
-      required this.dataNascimento,
-      required this.nivelAcesso,
-      this.rua,
-      this.numeroCasa,
-      this.bairro,
-      this.cidade,
-      this.uf,
-      this.createdAt,
-      this.updatedAt});
+class Funcionario extends Pessoa {
+  int nivelAcesso;
+
+  Funcionario({
+    super.id,
+    required super.nome,
+    required super.telefone,
+    required super.email,
+    required super.cpf,
+    required super.dataNascimento,
+    required this.nivelAcesso,
+    super.rua,
+    super.numeroCasa,
+    super.bairro,
+    super.cidade,
+    super.uf,
+    super.createdAt,
+    super.updatedAt,
+  });
 
   factory Funcionario.fromJson(Map<String, dynamic> json) {
     return Funcionario(
@@ -50,24 +40,8 @@ class Funcionario {
   }
 
   Map<String, dynamic> toJson() {
-    final map = {
-      'id': id,
-      'nome': nome,
-      'telefone': telefone,
-      'email': email,
-      'cpf': cpf,
-      'dataNascimento': dataNascimento.toIso8601String(),
-      'nivelAcesso': nivelAcesso,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-    };
-
-    if (rua != null) map['rua'] = rua;
-    if (numeroCasa != null) map['numeroCasa'] = numeroCasa;
-    if (bairro != null) map['bairro'] = bairro;
-    if (cidade != null) map['cidade'] = cidade;
-    if (uf != null) map['uf'] = uf;
-
+    final map = super.toJsonBase();
+    map['nivelAcesso'] = nivelAcesso;
     return map;
   }
 

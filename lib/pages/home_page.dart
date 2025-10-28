@@ -1697,7 +1697,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     if (title == 'Tipos de Pagamento' ||
                         title == 'Gerenciar Usuários' ||
                         title == 'Auditoria' ||
-                        title == 'Gerenciar Fiados') {
+                        title == 'Gerenciar Fiados' ||
+                        title == 'Funcionarios') {
                       return false;
                     }
                   }

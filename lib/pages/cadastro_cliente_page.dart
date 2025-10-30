@@ -811,6 +811,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   controller: _numeroCasaController,
                   label: 'Número',
                   icon: Icons.numbers,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   validator: (v) => v!.isEmpty ? 'Informe o número' : null,
                 ),
               ),

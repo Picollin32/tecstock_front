@@ -3819,25 +3819,70 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             _buildPdfHeader(os, logoImage: _cachedLogoImage),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 8),
             _buildPdfClientVehicleData(os),
-            pw.SizedBox(height: 12),
-            _buildPdfSection(
-              'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
-              [],
-              content:
-                  os?.queixaPrincipal ?? (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
-              compact: true,
+            pw.SizedBox(height: 6),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  flex: 2,
+                  child: _buildPdfSection(
+                    'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
+                    [],
+                    content: os?.queixaPrincipal ??
+                        (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
+                    compact: true,
+                  ),
+                ),
+                pw.SizedBox(width: 6),
+                pw.Expanded(
+                  flex: 1,
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.grey300),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    ),
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('RESPONSÁVEIS',
+                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                        pw.SizedBox(height: 4),
+                        pw.Row(
+                          children: [
+                            pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                            pw.Expanded(
+                                child: pw.Text('${os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
+                                    style: pw.TextStyle(fontSize: 8))),
+                          ],
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Row(
+                          children: [
+                            pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                            pw.Expanded(
+                                child: pw.Text('${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
+                                    style: pw.TextStyle(fontSize: 8))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 6),
             _buildPdfServicesSection(os),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 6),
             _buildPdfPartsSection(os),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 6),
             _buildPdfPricingSection(os),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 6),
             _buildPdfSection(
               'OBSERVAÇÕES',
               [],
@@ -4224,13 +4269,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
+    // Calcular parcelas para cartão de crédito (código 4)
     double valorParcelaCalculado = 0.0;
-    double ultimaParcelaCalculada = 0.0;
-    if (numeroParcelas != null && numeroParcelas > 0) {
+    final bool mostrarParcelamento = (tipoPagamento?.codigo == 4 && numeroParcelas != null && numeroParcelas > 0);
+
+    if (mostrarParcelamento) {
       final raw = totalGeral / numeroParcelas;
       final rounded = double.parse(raw.toStringAsFixed(2));
       valorParcelaCalculado = rounded;
-      ultimaParcelaCalculada = double.parse((totalGeral - rounded * (numeroParcelas - 1)).toStringAsFixed(2));
     }
 
     return pw.Container(
@@ -4333,38 +4379,32 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.purple700)),
             ],
           ),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 6),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Forma de Pagamento:', style: pw.TextStyle(fontSize: 9)),
+              pw.Text('Forma de Pagamento:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
               pw.Text(tipoPagamento?.nome ?? 'Não informado', style: pw.TextStyle(fontSize: 9)),
             ],
           ),
-          if (tipoPagamento?.codigo == 3 && numeroParcelas != null) ...[
-            pw.SizedBox(height: 3),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Número de Parcelas:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('${numeroParcelas}x', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-            pw.SizedBox(height: 3),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Valor por Parcela:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('R\$ ${valorParcelaCalculado.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
-              ],
-            ),
-            if (ultimaParcelaCalculada != valorParcelaCalculado)
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(top: 4),
-                child: pw.Text('Última parcela: R\$ ${ultimaParcelaCalculada.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          if (mostrarParcelamento) ...[
+            pw.SizedBox(height: 4),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(6),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue50,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                border: pw.Border.all(color: PdfColors.blue200),
               ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('PARCELAMENTO:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                  pw.Text('${numeroParcelas}x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}',
+                      style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+                ],
+              ),
+            ),
           ],
           pw.SizedBox(height: 4),
           pw.Row(
@@ -4413,6 +4453,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         _buildResumoItem('Telefone:', os?.clienteTelefone ?? _clienteTelefoneController.text),
                         _buildResumoItem('Veículo:', os?.veiculoNome ?? _veiculoNomeController.text),
                         _buildResumoItem('Placa:', os?.veiculoPlaca ?? _veiculoPlacaController.text),
+                        _buildResumoItem('Consultor:', os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'Não informado'),
+                        _buildResumoItem('Mecânico:', os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Não informado'),
                       ],
                     ),
                   ),
@@ -4446,7 +4488,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         }(), isTotal: true),
                         if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
                           _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
-                        if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 &&
+                        if (((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 ||
+                                (os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 4) &&
                             (os?.numeroParcelas ?? _numeroParcelas) != null)
                           _buildResumoItem('Parcelas:', () {
                             final parcelas = (os?.numeroParcelas ?? _numeroParcelas)!;
@@ -4537,7 +4580,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Nome: _________________________ Data: ___/___/______',
+                    '${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${os?.mecanico?.cpf ?? _mecanicoSelecionado?.cpf ?? '_______________'}',
                     style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
                   ),
                 ],

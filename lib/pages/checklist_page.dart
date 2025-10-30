@@ -335,32 +335,36 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         margin: const pw.EdgeInsets.all(20),
         build: (pw.Context context) => [
           _buildPdfHeader(logoImage: _cachedLogoImage),
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 10),
           _buildPdfClientVehicleData(),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 6),
+          _buildPdfResponsibleSection(),
+          pw.SizedBox(height: 6),
           _buildPdfSection(
             'QUEIXA PRINCIPAL / SERVIÇO SOLICITADO',
             [],
             content: _queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado',
             compact: true,
           ),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 8),
           _buildPdfInspectionTable(),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 8),
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Expanded(child: _buildPdfTestsSection()),
               pw.SizedBox(width: 12),
               pw.Expanded(child: _buildPdfItemsSection()),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                child: _buildPdfSection(
+                  'NÍVEL DE COMBUSTÍVEL',
+                  [],
+                  content: '${(_fuelLevel * 25).toStringAsFixed(0)}% (${_getFuelDescription()})',
+                  compact: true,
+                ),
+              ),
             ],
-          ),
-          pw.SizedBox(height: 12),
-          _buildPdfSection(
-            'NÍVEL DE COMBUSTÍVEL',
-            [],
-            content: '${(_fuelLevel * 25).toStringAsFixed(0)}% (${_getFuelDescription()})',
-            compact: true,
           ),
         ],
       ),
@@ -456,23 +460,23 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
-            padding: const pw.EdgeInsets.all(10),
+            padding: const pw.EdgeInsets.all(6),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
               borderRadius: const pw.BorderRadius.only(
-                topLeft: pw.Radius.circular(8),
-                topRight: pw.Radius.circular(8),
+                topLeft: pw.Radius.circular(6),
+                topRight: pw.Radius.circular(6),
               ),
             ),
             child: pw.Text(
               'INSPEÇÃO VISUAL (AVARIAS)',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
             ),
           ),
           pw.Table(
@@ -487,33 +491,33 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 decoration: pw.BoxDecoration(color: PdfColors.grey50),
                 children: [
                   pw.Padding(
-                    padding: const pw.EdgeInsets.all(5),
-                    child: pw.Text('Item', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                    padding: const pw.EdgeInsets.all(3),
+                    child: pw.Text('Item', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
                   ),
                   pw.Padding(
-                    padding: const pw.EdgeInsets.all(5),
-                    child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                    padding: const pw.EdgeInsets.all(3),
+                    child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
                   ),
                   pw.Padding(
-                    padding: const pw.EdgeInsets.all(5),
-                    child: pw.Text('Observações', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+                    padding: const pw.EdgeInsets.all(3),
+                    child: pw.Text('Observações', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
                   ),
                 ],
               ),
               ...items.map((item) => pw.TableRow(
                     children: [
                       pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(item, style: pw.TextStyle(fontSize: 8)),
+                        padding: const pw.EdgeInsets.all(3),
+                        child: pw.Text(item, style: pw.TextStyle(fontSize: 7)),
                       ),
                       pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
+                        padding: const pw.EdgeInsets.all(3),
                         child:
-                            pw.Text(_inspecaoVisualStatus[item] ?? '-', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                            pw.Text(_inspecaoVisualStatus[item] ?? '-', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
                       ),
                       pw.Padding(
-                        padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text(_inspecaoVisualObs[item]?.text ?? '-', style: pw.TextStyle(fontSize: 8)),
+                        padding: const pw.EdgeInsets.all(3),
+                        child: pw.Text(_inspecaoVisualObs[item]?.text ?? '-', style: pw.TextStyle(fontSize: 7)),
                       ),
                     ],
                   )),
@@ -538,24 +542,24 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.all(6),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
             'TESTES DE FUNCIONAMENTO',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 4),
           ...tests.map((test) => pw.Padding(
                 padding: const pw.EdgeInsets.symmetric(vertical: 1),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Expanded(child: pw.Text(test, style: pw.TextStyle(fontSize: 8))),
-                    pw.Text(_testesFuncionamento[test] ?? '-', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    pw.Expanded(child: pw.Text(test, style: pw.TextStyle(fontSize: 7))),
+                    pw.Text(_testesFuncionamento[test] ?? '-', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
               )),
@@ -570,24 +574,24 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.all(6),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
             'ITENS NO VEÍCULO',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blue900),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 4),
           ...items.map((item) => pw.Padding(
                 padding: const pw.EdgeInsets.symmetric(vertical: 1),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Expanded(child: pw.Text(item, style: pw.TextStyle(fontSize: 8))),
-                    pw.Text(_itensVeiculo[item] ?? '-', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    pw.Expanded(child: pw.Text(item, style: pw.TextStyle(fontSize: 7))),
+                    pw.Text(_itensVeiculo[item] ?? '-', style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
               )),
@@ -604,14 +608,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           begin: pw.Alignment.topLeft,
           end: pw.Alignment.bottomRight,
         ),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
       ),
-      padding: const pw.EdgeInsets.all(16),
+      padding: const pw.EdgeInsets.all(12),
       child: pw.Row(
         children: [
           if (logoImage != null) ...[
-            pw.Image(logoImage, width: 60, height: 60, fit: pw.BoxFit.contain),
-            pw.SizedBox(width: 16),
+            pw.Image(logoImage, width: 50, height: 50, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 12),
           ],
           pw.Expanded(
             child: pw.Column(
@@ -621,16 +625,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   'CHECKLIST DE RECEPÇÃO DE VEÍCULO',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: PdfColors.white,
                   ),
                 ),
-                pw.SizedBox(height: 4),
+                pw.SizedBox(height: 3),
                 pw.Row(
                   children: [
-                    pw.Text('Data: ${_dateController.text}', style: pw.TextStyle(fontSize: 10, color: PdfColors.white)),
-                    pw.SizedBox(width: 20),
-                    pw.Text('Hora: ${_timeController.text}', style: pw.TextStyle(fontSize: 10, color: PdfColors.white)),
+                    pw.Text('Data: ${_dateController.text}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                    pw.SizedBox(width: 16),
+                    pw.Text('Hora: ${_timeController.text}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
                   ],
                 ),
               ],
@@ -638,15 +642,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           ),
           if (_editingChecklistId != null)
             pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: pw.BoxDecoration(
                 color: PdfColors.white,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
               child: pw.Text(
                 'Nº ${_checklistNumberController.text}',
                 style: pw.TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.purple600,
                 ),
@@ -684,12 +688,44 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ['Cor:', _veiculoCorController.text],
               ['Placa:', _veiculoPlacaController.text],
               ['Quilometragem:', _veiculoQuilometragemController.text],
-              ['Consultor:', _consultorSelecionado?.nome ?? ''],
             ],
             compact: true,
           ),
         ),
       ],
+    );
+  }
+
+  pw.Widget _buildPdfResponsibleSection() {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+      ),
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Row(
+        children: [
+          pw.Text(
+            'RESPONSÁVEL: ',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              _consultorSelecionado?.nome ?? 'Não informado',
+              style: pw.TextStyle(fontSize: 9),
+            ),
+          ),
+          pw.SizedBox(width: 12),
+          pw.Text(
+            'CPF: ',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
+          ),
+          pw.Text(
+            _consultorSelecionado?.cpf ?? 'Não informado',
+            style: pw.TextStyle(fontSize: 9),
+          ),
+        ],
+      ),
     );
   }
 
@@ -815,7 +851,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     ),
                     child: pw.Center(
                       child: pw.Text(
-                        'Assinatura do Consultor(a)',
+                        'Assinatura do Consultor Responsável',
                         style: pw.TextStyle(
                           fontSize: 12,
                           color: PdfColors.grey600,
@@ -825,7 +861,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Nome: _________________________ Data: ___/___/______',
+                    '${_consultorSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${_consultorSelecionado?.cpf ?? '_______________'}',
                     style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
                   ),
                 ],

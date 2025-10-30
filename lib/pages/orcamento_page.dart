@@ -1113,8 +1113,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     color: Colors.orange.shade600,
                     size: 20,
                   ),
-                  onPressed: () => _editOrcamento(orcamento),
-                  tooltip: 'Editar Orçamento',
+                  onPressed: orcamento.transformadoEmOS ? null : () => _editOrcamento(orcamento),
+                  tooltip: orcamento.transformadoEmOS ? 'Orçamento bloqueado' : 'Editar Orçamento',
                 ),
               ),
               const SizedBox(width: 8),
@@ -1151,9 +1151,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
           ],
         ),
-        onTap: () async {
-          _editOrcamento(orcamento);
-        },
       ),
     );
   }
@@ -1594,13 +1591,15 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
+    // Calcular parcelas para cartão de crédito (código 4) ou crediário (código 3)
     double valorParcelaCalculado = 0.0;
-    double ultimaParcelaCalculada = 0.0;
-    if (numeroParcelas != null && numeroParcelas > 0) {
+    final bool mostrarParcelamento =
+        ((tipoPagamento?.codigo == 3 || tipoPagamento?.codigo == 4) && numeroParcelas != null && numeroParcelas > 0);
+
+    if (mostrarParcelamento) {
       final raw = totalGeral / numeroParcelas;
       final rounded = double.parse(raw.toStringAsFixed(2));
       valorParcelaCalculado = rounded;
-      ultimaParcelaCalculada = double.parse((totalGeral - rounded * (numeroParcelas - 1)).toStringAsFixed(2));
     }
 
     return pw.Container(
@@ -1703,38 +1702,32 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.purple700)),
             ],
           ),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 6),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Forma de Pagamento:', style: pw.TextStyle(fontSize: 9)),
+              pw.Text('Forma de Pagamento:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
               pw.Text(tipoPagamento?.nome ?? 'Não informado', style: pw.TextStyle(fontSize: 9)),
             ],
           ),
-          if (tipoPagamento?.codigo == 3 && numeroParcelas != null) ...[
-            pw.SizedBox(height: 3),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Número de Parcelas:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('${numeroParcelas}x', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-            pw.SizedBox(height: 3),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Valor por Parcela:', style: pw.TextStyle(fontSize: 9)),
-                pw.Text('R\$ ${valorParcelaCalculado.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
-              ],
-            ),
-            if (ultimaParcelaCalculada != valorParcelaCalculado)
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(top: 4),
-                child: pw.Text('Última parcela: R\$ ${ultimaParcelaCalculada.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          if (mostrarParcelamento) ...[
+            pw.SizedBox(height: 4),
+            pw.Container(
+              padding: const pw.EdgeInsets.all(6),
+              decoration: pw.BoxDecoration(
+                color: PdfColors.blue50,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                border: pw.Border.all(color: PdfColors.blue200),
               ),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('PARCELAMENTO:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                  pw.Text('${numeroParcelas}x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}',
+                      style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+                ],
+              ),
+            ),
           ],
           pw.SizedBox(height: 4),
           pw.Row(
@@ -1750,6 +1743,26 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _editOrcamento(Orcamento orcamento) {
+    if (orcamento.transformadoEmOS) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.lock, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Orçamento bloqueado - Já foi transformado em OS ${orcamento.numeroOSGerado ?? ''}'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _editingOrcamentoId = orcamento.id;
       _showForm = true;

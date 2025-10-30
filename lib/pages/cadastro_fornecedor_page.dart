@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
+import '../utils/uppercase_text_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../model/fornecedor.dart';
 import '../services/fornecedor_service.dart';
@@ -151,13 +152,41 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() => _isLoading = true);
 
     try {
+      final cnpjLimpo = _cnpjController.text.replaceAll(RegExp(r'[^\d]'), '');
+
+      // Validar se o CNPJ já existe em outro fornecedor
+      if (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj != cnpjLimpo) {
+        // Buscar todos os fornecedores para validação completa
+        final todosFornecedores = await FornecedorService.listarFornecedores();
+
+        final fornecedorExistente = todosFornecedores.firstWhere(
+          (f) {
+            final cnpjFornecedor = f.cnpj.replaceAll(RegExp(r'[^\d]'), '');
+            return cnpjFornecedor == cnpjLimpo;
+          },
+          orElse: () => Fornecedor(
+            nome: '',
+            cnpj: '',
+            telefone: '',
+            email: '',
+            margemLucro: 0,
+          ),
+        );
+
+        if (fornecedorExistente.cnpj.isNotEmpty) {
+          ErrorUtils.showVisibleError(context, 'Este CNPJ já está cadastrado para outro fornecedor');
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
       final margemText = _margemLucroController.text.replaceAll(',', '.');
       final margemValue = double.tryParse(margemText) ?? 0;
 
       final fornecedor = Fornecedor(
         id: _fornecedorEmEdicao?.id,
         nome: _nomeController.text,
-        cnpj: _cnpjController.text.replaceAll(RegExp(r'[^\d]'), ''),
+        cnpj: cnpjLimpo,
         telefone: _telefoneController.text.replaceAll(RegExp(r'[^\d]'), ''),
         email: _emailController.text,
         margemLucro: margemValue / 100,
@@ -616,6 +645,17 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                       _buildInfoRow(Icons.badge, _maskCnpj.maskText(fornecedor.cnpj)),
                       _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
                       _buildInfoRow(Icons.email, fornecedor.email),
+                      if (fornecedor.rua != null && fornecedor.rua!.isNotEmpty)
+                        _buildInfoRow(
+                          Icons.location_on,
+                          '${fornecedor.rua}${fornecedor.numeroCasa != null && fornecedor.numeroCasa!.isNotEmpty ? ', ${fornecedor.numeroCasa}' : ''}',
+                        ),
+                      if (fornecedor.bairro != null && fornecedor.bairro!.isNotEmpty) _buildInfoRow(Icons.map, fornecedor.bairro!),
+                      if (fornecedor.cidade != null && fornecedor.cidade!.isNotEmpty)
+                        _buildInfoRow(
+                          Icons.location_city,
+                          '${fornecedor.cidade}${fornecedor.uf != null && fornecedor.uf!.isNotEmpty ? ' - ${fornecedor.uf}' : ''}',
+                        ),
                     ],
                   ),
                 ),
@@ -797,7 +837,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   controller: _numeroCasaController,
                   label: 'Número',
                   icon: Icons.home,
-                  keyboardType: TextInputType.text,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   validator: (v) => v!.isEmpty ? 'Informe o número' : null,
                 ),
               ),
@@ -818,16 +861,39 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: _buildTextField(
+                child: TextFormField(
                   controller: _ufController,
-                  label: 'UF',
-                  icon: Icons.map,
+                  maxLength: 2,
                   textCapitalization: TextCapitalization.characters,
                   inputFormatters: [
-                    LengthLimitingTextInputFormatter(2),
                     FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
+                    UpperCaseTextFormatter(),
                   ],
                   validator: (v) => v!.isEmpty ? 'Informe a UF' : null,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  decoration: InputDecoration(
+                    labelText: 'UF',
+                    prefixIcon: Icon(Icons.map, color: primaryColor),
+                    counterText: '',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 2),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: errorColor),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
                 ),
               ),
             ],

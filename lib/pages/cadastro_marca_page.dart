@@ -75,6 +75,20 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     setState(() => _isLoadingMarcas = true);
     try {
       final lista = await MarcaService.listarMarcas();
+
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
+      });
       setState(() {
         _marcas = lista;
         _filtrarMarcas();
@@ -93,6 +107,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
 
     try {
       final marca = Marca(
+        id: _marcaEmEdicao?.id,
         marca: _marcaController.text,
       );
 

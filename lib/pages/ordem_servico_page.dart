@@ -4799,7 +4799,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
-          print('🔍 DEBUG EDITAR: prazoFiadoDias=${osCompleta.prazoFiadoDias}, tipoPagamento=${osCompleta.tipoPagamento?.nome}');
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
             _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;

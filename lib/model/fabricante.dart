@@ -19,8 +19,6 @@ class Fabricante {
     return {
       'id': id,
       'nome': nome,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

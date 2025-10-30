@@ -24,8 +24,6 @@ class Marca {
     return {
       'id': id,
       'marca': marca,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

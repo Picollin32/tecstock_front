@@ -119,8 +119,20 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     setState(() => _isLoadingFuncionarios = true);
     try {
       final lista = await Funcionarioservice.listarFuncionarios();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
+      });
       setState(() {
         _funcionarios = lista;
         _filtrarFuncionarios();
@@ -196,6 +208,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       final dataNascimentoFormatada = DateFormat('dd/MM/yyyy').parse(_dataNascimentoController.text);
 
       final funcionario = Funcionario(
+        id: _funcionarioEmEdicao?.id,
         nome: _nomeController.text,
         telefone: _telefoneController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         email: _emailController.text,
@@ -824,6 +837,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                   controller: _numeroCasaController,
                   label: 'Número',
                   icon: Icons.numbers,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   validator: (v) => v!.isEmpty ? 'Informe o número' : null,
                 ),
               ),

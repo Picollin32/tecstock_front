@@ -112,8 +112,19 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     setState(() => _isLoadingClientes = true);
     try {
       final lista = await ClienteService.listarClientes();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
+      });
       setState(() {
         _clientes = lista;
         _filtrarClientes();

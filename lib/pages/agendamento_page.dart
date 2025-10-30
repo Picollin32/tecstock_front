@@ -1058,6 +1058,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         ? (agendamento.horaFim != null ? '${agendamento.horaInicio} - ${agendamento.horaFim}' : agendamento.horaInicio!)
         : '--:--';
 
+    // Verificar se a data já passou E se não é admin (apenas não-admin vê bloqueio visual)
+    final hoje = DateTime.now();
+    final dataAgendamento = agendamento.data;
+    final dataSemHora = DateTime(dataAgendamento.year, dataAgendamento.month, dataAgendamento.day);
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final dataPassou = dataSemHora.isBefore(hojeSemHora);
+    final mostrarBloqueio = dataPassou && !_isAdmin;
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1068,12 +1076,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: serviceInfo['color'],
+                  color: mostrarBloqueio ? Colors.grey : serviceInfo['color'],
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: serviceInfo['color'].withOpacity(0.3),
+                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.3),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -1095,212 +1103,254 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: serviceInfo['color'].withOpacity(0.3), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: serviceInfo['color'].withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                  BoxShadow(
-                    color: shadowColor,
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
+            child: Opacity(
+              opacity: mostrarBloqueio ? 0.6 : 1.0,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  onTap: () => _showAgendamentoDialog(horaDisplay, agendamento),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [serviceInfo['color'].withOpacity(0.1), serviceInfo['color'].withOpacity(0.05)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: serviceInfo['color'].withOpacity(0.2)),
-                          ),
-                          child: Row(
+                  border: Border.all(color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.3), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.15),
+                      blurRadius: 15,
+                      offset: const Offset(0, 5),
+                    ),
+                    BoxShadow(
+                      color: shadowColor,
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _showAgendamentoDialog(horaDisplay, agendamento),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: serviceInfo['color'],
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: serviceInfo['color'].withOpacity(0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
+                                  gradient: LinearGradient(
+                                    colors: [serviceInfo['color'].withOpacity(0.1), serviceInfo['color'].withOpacity(0.05)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: serviceInfo['color'].withOpacity(0.2)),
                                 ),
-                                child: Icon(
-                                  serviceInfo['icon'],
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.access_time_filled, size: 18, color: serviceInfo['color']),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          horaDisplay,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: serviceInfo['color'],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: serviceInfo['color'],
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
                                             color: serviceInfo['color'].withOpacity(0.3),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
                                           ),
                                         ],
                                       ),
-                                      child: Text(
-                                        agendamento.cor,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      child: Icon(
+                                        serviceInfo['icon'],
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(Icons.access_time_filled, size: 18, color: serviceInfo['color']),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                horaDisplay,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                  color: serviceInfo['color'],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: serviceInfo['color'],
+                                              borderRadius: BorderRadius.circular(20),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: serviceInfo['color'].withOpacity(0.3),
+                                                  blurRadius: 4,
+                                                  offset: const Offset(0, 2),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Text(
+                                              agendamento.cor,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: serviceInfo['color'].withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: serviceInfo['color'],
+                                        size: 16,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildEnhancedDetailItem(
+                                      Icons.directions_car_rounded,
+                                      'Veículo',
+                                      agendamento.placaVeiculo,
+                                      primaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildEnhancedDetailItem(
+                                      Icons.category_rounded,
+                                      'Categoria',
+                                      _getVeiculoCategoria(agendamento.placaVeiculo),
+                                      secondaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildEnhancedDetailItem(
+                                      Icons.engineering_rounded,
+                                      'Mecânico',
+                                      agendamento.nomeMecanico,
+                                      Colors.orange.shade600,
+                                    ),
+                                  ),
+                                  if (agendamento.nomeConsultor != null) ...[
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildEnhancedDetailItem(
+                                        Icons.support_agent_rounded,
+                                        'Consultor',
+                                        agendamento.nomeConsultor!,
+                                        Colors.teal.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 16),
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: serviceInfo['color'].withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade200),
                                 ),
-                                child: Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  color: serviceInfo['color'],
-                                  size: 16,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: mostrarBloqueio ? Colors.grey : serviceInfo['color'],
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      mostrarBloqueio ? 'Edição bloqueada - Data passada' : 'Toque para ver detalhes',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Icon(
+                                      mostrarBloqueio ? Icons.lock : Icons.info_outline_rounded,
+                                      size: 16,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildEnhancedDetailItem(
-                                Icons.directions_car_rounded,
-                                'Veículo',
-                                agendamento.placaVeiculo,
-                                primaryColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildEnhancedDetailItem(
-                                Icons.category_rounded,
-                                'Categoria',
-                                _getVeiculoCategoria(agendamento.placaVeiculo),
-                                secondaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildEnhancedDetailItem(
-                                Icons.engineering_rounded,
-                                'Mecânico',
-                                agendamento.nomeMecanico,
-                                Colors.orange.shade600,
-                              ),
-                            ),
-                            if (agendamento.nomeConsultor != null) ...[
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildEnhancedDetailItem(
-                                  Icons.support_agent_rounded,
-                                  'Consultor',
-                                  agendamento.nomeConsultor!,
-                                  Colors.teal.shade600,
-                                ),
+                      ),
+                    ),
+                    if (mostrarBloqueio)
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.red.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
                               ),
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: serviceInfo['color'],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
+                              Icon(Icons.lock, size: 14, color: Colors.red.shade700),
+                              const SizedBox(width: 4),
                               Text(
-                                'Toque para ver detalhes',
+                                'Bloqueado',
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
+                                  color: Colors.red.shade700,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                              const Spacer(),
-                              Icon(
-                                Icons.info_outline_rounded,
-                                size: 16,
-                                color: Colors.grey.shade500,
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -1763,6 +1813,79 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   void _showAgendamentoDialog(String horario, Agendamento? agendamentoExistente) async {
+    // Verificar se a data já passou (bloquear edição apenas para não-admin)
+    final hoje = DateTime.now();
+    final dataAgendamento = _selectedDay!;
+    final dataSemHora = DateTime(dataAgendamento.year, dataAgendamento.month, dataAgendamento.day);
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final dataPassou = dataSemHora.isBefore(hojeSemHora);
+
+    // Se está tentando editar um agendamento de data que já passou E não é admin, bloquear
+    if (agendamentoExistente != null && dataPassou && !_isAdmin) {
+      showDialog(
+        context: context,
+        builder: (context) => Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 8,
+            ),
+          ),
+          child: AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.lock, color: errorColor, size: 28),
+                const SizedBox(width: 12),
+                const Text("Edição Bloqueada"),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Não é possível editar agendamentos de datas que já passaram.",
+                  style: TextStyle(fontSize: 16, color: Colors.grey[800]),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: errorColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: errorColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: errorColor, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Esta restrição evita alterações em informações históricas importantes.",
+                          style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text("Entendido"),
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+
     final placaController = TextEditingController(text: agendamentoExistente?.placaVeiculo);
     String? selectedMecanico = agendamentoExistente?.nomeMecanico;
     String? selectedConsultor = agendamentoExistente?.nomeConsultor ?? await _obterConsultorPadrao();

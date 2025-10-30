@@ -73,8 +73,20 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     setState(() => _isLoadingFabricantes = true);
     try {
       final lista = await FabricanteService.listarFabricantes();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
+      });
       setState(() {
         _fabricantes = lista;
         _filtrarFabricantes();
@@ -92,7 +104,10 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     setState(() => _isLoading = true);
 
     try {
-      final fabricante = Fabricante(nome: _nomeController.text);
+      final fabricante = Fabricante(
+        id: _fabricanteEmEdicao?.id,
+        nome: _nomeController.text,
+      );
 
       final resultado = _fabricanteEmEdicao != null
           ? await FabricanteService.atualizarFabricante(_fabricanteEmEdicao!.id!, fabricante)

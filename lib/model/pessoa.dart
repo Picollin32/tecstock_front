@@ -37,8 +37,6 @@ abstract class Pessoa {
       'email': email,
       'cpf': cpf,
       'dataNascimento': dataNascimento.toIso8601String(),
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
 
     if (rua != null) map['rua'] = rua;

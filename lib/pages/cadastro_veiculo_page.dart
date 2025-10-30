@@ -108,8 +108,20 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     setState(() => _isLoadingVeiculos = true);
     try {
       final lista = await VeiculoService.listarVeiculos();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
+
+      lista.sort((a, b) {
+        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
+      });
       setState(() {
         _veiculos = lista;
         _filtrarVeiculos();

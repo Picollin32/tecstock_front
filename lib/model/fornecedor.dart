@@ -60,8 +60,6 @@ class Fornecedor {
       'bairro': bairro,
       'cidade': cidade,
       'uf': uf,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

@@ -57,8 +57,6 @@ class Veiculo {
       'categoria': categoria,
       'cor': cor,
       'quilometragem': quilometragem,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 }

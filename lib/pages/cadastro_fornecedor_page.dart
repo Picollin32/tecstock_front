@@ -129,10 +129,19 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() => _isLoadingFornecedores = true);
     try {
       final lista = await FornecedorService.listarFornecedores();
+
       lista.sort((a, b) {
         final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
+        final dateComparison = bDate.compareTo(aDate);
+
+        if (dateComparison == 0) {
+          final aId = a.id ?? 0;
+          final bId = b.id ?? 0;
+          return bId.compareTo(aId);
+        }
+
+        return dateComparison;
       });
 
       setState(() {
@@ -154,13 +163,13 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     try {
       final cnpjLimpo = _cnpjController.text.replaceAll(RegExp(r'[^\d]'), '');
 
-      if (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj != cnpjLimpo) {
+      if (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj.replaceAll(RegExp(r'[^\d]'), '') != cnpjLimpo) {
         final todosFornecedores = await FornecedorService.listarFornecedores();
 
         final fornecedorExistente = todosFornecedores.firstWhere(
           (f) {
             final cnpjFornecedor = f.cnpj.replaceAll(RegExp(r'[^\d]'), '');
-            return cnpjFornecedor == cnpjLimpo;
+            return cnpjFornecedor == cnpjLimpo && f.id != _fornecedorEmEdicao?.id;
           },
           orElse: () => Fornecedor(
             nome: '',

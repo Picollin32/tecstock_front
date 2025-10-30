@@ -154,9 +154,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     try {
       final cnpjLimpo = _cnpjController.text.replaceAll(RegExp(r'[^\d]'), '');
 
-      // Validar se o CNPJ já existe em outro fornecedor
       if (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj != cnpjLimpo) {
-        // Buscar todos os fornecedores para validação completa
         final todosFornecedores = await FornecedorService.listarFornecedores();
 
         final fornecedorExistente = todosFornecedores.firstWhere(

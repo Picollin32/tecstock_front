@@ -3815,91 +3815,208 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final doc = pw.Document();
 
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            _buildPdfHeader(os, logoImage: _cachedLogoImage),
-            pw.SizedBox(height: 8),
-            _buildPdfClientVehicleData(os),
-            pw.SizedBox(height: 6),
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+        header: (pw.Context context) {
+          if (context.pageNumber > 1) {
+            return pw.Column(
               children: [
-                pw.Expanded(
-                  flex: 2,
-                  child: _buildPdfSection(
-                    'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
-                    [],
-                    content: os?.queixaPrincipal ??
-                        (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
-                    compact: true,
-                  ),
-                ),
-                pw.SizedBox(width: 6),
-                pw.Expanded(
-                  flex: 1,
-                  child: pw.Container(
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey300),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    ),
-                    padding: const pw.EdgeInsets.all(6),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('RESPONSÁVEIS',
-                            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                        pw.SizedBox(height: 4),
-                        pw.Row(
-                          children: [
-                            pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.Expanded(
-                                child: pw.Text('${os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
-                                    style: pw.TextStyle(fontSize: 8))),
-                          ],
-                        ),
-                        pw.SizedBox(height: 2),
-                        pw.Row(
-                          children: [
-                            pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                            pw.Expanded(
-                                child: pw.Text('${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
-                                    style: pw.TextStyle(fontSize: 8))),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildPdfHeader(os, logoImage: _cachedLogoImage),
+                pw.SizedBox(height: 8),
               ],
-            ),
-            pw.SizedBox(height: 6),
-            _buildPdfServicesSection(os),
-            pw.SizedBox(height: 6),
-            _buildPdfPartsSection(os),
-            pw.SizedBox(height: 6),
-            _buildPdfPricingSection(os),
-            pw.SizedBox(height: 6),
-            _buildPdfSection(
-              'OBSERVAÇÕES',
-              [],
-              content: os?.observacoes ??
-                  (_observacoesController.text.isNotEmpty ? _observacoesController.text : 'Nenhuma observação adicional'),
-              compact: true,
-            ),
-          ],
-        ),
+            );
+          }
+          return pw.SizedBox();
+        },
+        footer: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Container(
+                height: 1,
+                color: PdfColors.grey300,
+                margin: const pw.EdgeInsets.only(bottom: 8),
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'TecStock - Sistema de Gerenciamento de Oficina',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Text(
+                    'Página ${context.pageNumber} de ${context.pagesCount}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                  pw.Text(
+                    'OS: ${os?.numeroOS ?? _osNumberController.text}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+        build: (pw.Context context) => [
+          _buildPdfHeader(os, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 8),
+          pw.Wrap(
+            children: [
+              _buildPdfClientVehicleData(os),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    flex: 2,
+                    child: _buildPdfSection(
+                      'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
+                      [],
+                      content: os?.queixaPrincipal ??
+                          (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
+                      compact: true,
+                    ),
+                  ),
+                  pw.SizedBox(width: 6),
+                  pw.Expanded(
+                    flex: 1,
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('RESPONSÁVEIS',
+                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                          pw.SizedBox(height: 4),
+                          pw.Row(
+                            children: [
+                              pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                              pw.Expanded(
+                                  child: pw.Text('${os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
+                                      style: pw.TextStyle(fontSize: 8))),
+                            ],
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Row(
+                            children: [
+                              pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                              pw.Expanded(
+                                  child: pw.Text('${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
+                                      style: pw.TextStyle(fontSize: 8))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              _buildPdfServicesSection(os),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              _buildPdfPartsSection(os),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              _buildPdfPricingSection(os),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              _buildPdfSection(
+                'OBSERVAÇÕES',
+                [],
+                content: os?.observacoes ??
+                    (_observacoesController.text.isNotEmpty ? _observacoesController.text : 'Nenhuma observação adicional'),
+                compact: true,
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => _buildSignaturePage(os, logoImage: _cachedLogoImage),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        build: (pw.Context context) {
+          return pw.Stack(
+            children: [
+              _buildSignaturePage(os, logoImage: _cachedLogoImage),
+              pw.Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: pw.Column(
+                  children: [
+                    pw.Container(
+                      height: 1,
+                      color: PdfColors.grey300,
+                      margin: const pw.EdgeInsets.only(bottom: 8),
+                    ),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'TecStock - Sistema de Gerenciamento Automotivo',
+                          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                        ),
+                        pw.Text(
+                          'Página de Assinaturas',
+                          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                        ),
+                        pw.Text(
+                          'OS: ${os?.numeroOS ?? _osNumberController.text}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
 
@@ -4269,7 +4386,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
-    // Calcular parcelas para cartão de crédito (código 4)
     double valorParcelaCalculado = 0.0;
     final bool mostrarParcelamento = (tipoPagamento?.codigo == 4 && numeroParcelas != null && numeroParcelas > 0);
 
@@ -4420,199 +4536,192 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   pw.Widget _buildSignaturePage(OrdemServico? os, {pw.MemoryImage? logoImage}) {
-    return pw.Column(
-      children: [
-        _buildPdfHeader(os, logoImage: logoImage),
-        pw.SizedBox(height: 24),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey300),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-          ),
-          padding: const pw.EdgeInsets.all(16),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'RESUMO DA ORDEM DE SERVIÇO',
-                style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 14,
-                  color: PdfColors.blue900,
-                ),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _buildResumoItem('Cliente:', os?.clienteNome ?? _clienteNomeController.text),
-                        _buildResumoItem('CPF:', os?.clienteCpf ?? _clienteCpfController.text),
-                        _buildResumoItem('Telefone:', os?.clienteTelefone ?? _clienteTelefoneController.text),
-                        _buildResumoItem('Veículo:', os?.veiculoNome ?? _veiculoNomeController.text),
-                        _buildResumoItem('Placa:', os?.veiculoPlaca ?? _veiculoPlacaController.text),
-                        _buildResumoItem('Consultor:', os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'Não informado'),
-                        _buildResumoItem('Mecânico:', os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Não informado'),
-                      ],
-                    ),
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 60),
+      child: pw.Column(
+        children: [
+          _buildPdfHeader(os, logoImage: logoImage),
+          pw.SizedBox(height: 24),
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+            ),
+            padding: const pw.EdgeInsets.all(16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'RESUMO DA ORDEM DE SERVIÇO',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 14,
+                    color: PdfColors.blue900,
                   ),
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _buildResumoItem('Serviços:', () {
-                          final servicosLength = os != null ? (os.servicosRealizados.length) : _servicosSelecionados.length;
-                          return '$servicosLength item${servicosLength != 1 ? 's' : ''}';
-                        }()),
-                        _buildResumoItem('Peças:', () {
-                          final pecasLength = os != null ? (os.pecasUtilizadas.length) : _pecasSelecionadas.length;
-                          return '$pecasLength item${pecasLength != 1 ? 's' : ''}';
-                        }()),
-                        _buildResumoItem('Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
-                        _buildResumoItem('Valor Peças:', 'R\$ ${_calcularTotalPecasOS(os).toStringAsFixed(2)}'),
-                        if ((os?.descontoServicos ?? _descontoServicos) > 0)
-                          _buildResumoItem('(-) Desc. Serviços:', '-R\$ ${(os?.descontoServicos ?? _descontoServicos).toStringAsFixed(2)}',
-                              isDesconto: true),
-                        if ((os?.descontoPecas ?? _descontoPecas) > 0)
-                          _buildResumoItem('(-) Desc. Peças:', '-R\$ ${(os?.descontoPecas ?? _descontoPecas).toStringAsFixed(2)}',
-                              isDesconto: true),
-                        _buildResumoItem('TOTAL GERAL:', () {
-                          final totalServicos = _calcularTotalServicosOS(os);
-                          final totalPecas = _calcularTotalPecasOS(os);
-                          final descontoServicos = os?.descontoServicos ?? _descontoServicos;
-                          final descontoPecas = os?.descontoPecas ?? _descontoPecas;
-                          final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
-                          return 'R\$ ${totalComDesconto.toStringAsFixed(2)}';
-                        }(), isTotal: true),
-                        if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
-                          _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
-                        if (((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 ||
-                                (os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 4) &&
-                            (os?.numeroParcelas ?? _numeroParcelas) != null)
-                          _buildResumoItem('Parcelas:', () {
-                            final parcelas = (os?.numeroParcelas ?? _numeroParcelas)!;
+                ),
+                pw.SizedBox(height: 12),
+                pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildResumoItem('Cliente:', os?.clienteNome ?? _clienteNomeController.text),
+                          _buildResumoItem('CPF:', os?.clienteCpf ?? _clienteCpfController.text),
+                          _buildResumoItem('Telefone:', os?.clienteTelefone ?? _clienteTelefoneController.text),
+                          _buildResumoItem('Veículo:', os?.veiculoNome ?? _veiculoNomeController.text),
+                          _buildResumoItem('Placa:', os?.veiculoPlaca ?? _veiculoPlacaController.text),
+                          _buildResumoItem('Consultor:', os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'Não informado'),
+                          _buildResumoItem('Mecânico:', os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Não informado'),
+                        ],
+                      ),
+                    ),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildResumoItem('Serviços:', () {
+                            final servicosLength = os != null ? (os.servicosRealizados.length) : _servicosSelecionados.length;
+                            return '$servicosLength item${servicosLength != 1 ? 's' : ''}';
+                          }()),
+                          _buildResumoItem('Peças:', () {
+                            final pecasLength = os != null ? (os.pecasUtilizadas.length) : _pecasSelecionadas.length;
+                            return '$pecasLength item${pecasLength != 1 ? 's' : ''}';
+                          }()),
+                          _buildResumoItem('Valor Serviços:', 'R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}'),
+                          _buildResumoItem('Valor Peças:', 'R\$ ${_calcularTotalPecasOS(os).toStringAsFixed(2)}'),
+                          if ((os?.descontoServicos ?? _descontoServicos) > 0)
+                            _buildResumoItem(
+                                '(-) Desc. Serviços:', '-R\$ ${(os?.descontoServicos ?? _descontoServicos).toStringAsFixed(2)}',
+                                isDesconto: true),
+                          if ((os?.descontoPecas ?? _descontoPecas) > 0)
+                            _buildResumoItem('(-) Desc. Peças:', '-R\$ ${(os?.descontoPecas ?? _descontoPecas).toStringAsFixed(2)}',
+                                isDesconto: true),
+                          _buildResumoItem('TOTAL GERAL:', () {
                             final totalServicos = _calcularTotalServicosOS(os);
                             final totalPecas = _calcularTotalPecasOS(os);
                             final descontoServicos = os?.descontoServicos ?? _descontoServicos;
                             final descontoPecas = os?.descontoPecas ?? _descontoPecas;
                             final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
-                            final raw = totalComDesconto / parcelas;
-                            final rounded = double.parse(raw.toStringAsFixed(2));
-                            final ultima = double.parse((totalComDesconto - rounded * (parcelas - 1)).toStringAsFixed(2));
-                            if (ultima != rounded) {
-                              return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)} (última R\$ ${ultima.toStringAsFixed(2)})';
-                            }
-                            return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)}';
-                          }()),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        pw.Spacer(),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey300),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-          ),
-          padding: const pw.EdgeInsets.all(24),
-          child: pw.Column(
-            children: [
-              pw.Text(
-                'ASSINATURAS',
-                style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 16,
-                  color: PdfColors.blue900,
-                ),
-              ),
-              pw.SizedBox(height: 40),
-              pw.Column(
-                children: [
-                  pw.Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey300),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    ),
-                    child: pw.Center(
-                      child: pw.Text(
-                        'Assinatura do Cliente',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          color: PdfColors.grey600,
-                        ),
+                            return 'R\$ ${totalComDesconto.toStringAsFixed(2)}';
+                          }(), isTotal: true),
+                          if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
+                            _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
+                          if (((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 ||
+                                  (os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 4) &&
+                              (os?.numeroParcelas ?? _numeroParcelas) != null)
+                            _buildResumoItem('Parcelas:', () {
+                              final parcelas = (os?.numeroParcelas ?? _numeroParcelas)!;
+                              final totalServicos = _calcularTotalServicosOS(os);
+                              final totalPecas = _calcularTotalPecasOS(os);
+                              final descontoServicos = os?.descontoServicos ?? _descontoServicos;
+                              final descontoPecas = os?.descontoPecas ?? _descontoPecas;
+                              final totalComDesconto = (totalServicos - descontoServicos) + (totalPecas - descontoPecas);
+                              final raw = totalComDesconto / parcelas;
+                              final rounded = double.parse(raw.toStringAsFixed(2));
+                              final ultima = double.parse((totalComDesconto - rounded * (parcelas - 1)).toStringAsFixed(2));
+                              if (ultima != rounded) {
+                                return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)} (última R\$ ${ultima.toStringAsFixed(2)})';
+                              }
+                              return '${parcelas}x de R\$ ${rounded.toStringAsFixed(2)}';
+                            }()),
+                        ],
                       ),
                     ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    '${os?.clienteNome ?? _clienteNomeController.text} - CPF: ${os?.clienteCpf ?? _clienteCpfController.text}',
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 32),
-              pw.Column(
-                children: [
-                  pw.Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey300),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    ),
-                    child: pw.Center(
-                      child: pw.Text(
-                        'Assinatura do Mecânico Responsável',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    '${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${os?.mecanico?.cpf ?? _mecanicoSelecionado?.cpf ?? '_______________'}',
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 24),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ],
                 ),
-                child: pw.Text(
-                  'Declaro que autorizo a execução dos serviços descritos nesta ordem de serviço, estando ciente dos valores e prazos acordados.',
-                  style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-        pw.SizedBox(height: 16),
-        pw.Center(
-          child: pw.Text(
-            'TecStock - Sistema de Gestão Automotiva',
-            style: pw.TextStyle(
-              fontSize: 10,
-              color: PdfColors.grey600,
-              fontStyle: pw.FontStyle.italic,
+              ],
             ),
           ),
-        ),
-      ],
+          pw.Spacer(),
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+            ),
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'ASSINATURAS',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+                pw.SizedBox(height: 40),
+                pw.Column(
+                  children: [
+                    pw.Container(
+                      width: double.infinity,
+                      height: 80,
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'Assinatura do Cliente',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      '${os?.clienteNome ?? _clienteNomeController.text} - CPF: ${os?.clienteCpf ?? _clienteCpfController.text}',
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 32),
+                pw.Column(
+                  children: [
+                    pw.Container(
+                      width: double.infinity,
+                      height: 80,
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'Assinatura do Mecânico Responsável',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      '${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${os?.mecanico?.cpf ?? _mecanicoSelecionado?.cpf ?? '_______________'}',
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Text(
+                    'Declaro que autorizo a execução dos serviços descritos nesta ordem de serviço, estando ciente dos valores e prazos acordados.',
+                    style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

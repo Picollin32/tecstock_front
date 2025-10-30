@@ -333,36 +333,105 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
+        footer: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Container(
+                height: 1,
+                color: PdfColors.grey300,
+                margin: const pw.EdgeInsets.only(bottom: 8),
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'TecStock - Sistema de Gerenciamento de Oficina',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Text(
+                    'Página ${context.pageNumber} de ${context.pagesCount}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                  pw.Text(
+                    'Checklist: ${_checklistNumberController.text}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
         build: (pw.Context context) => [
-          _buildPdfHeader(logoImage: _cachedLogoImage),
-          pw.SizedBox(height: 10),
-          _buildPdfClientVehicleData(),
-          pw.SizedBox(height: 6),
-          _buildPdfResponsibleSection(),
-          pw.SizedBox(height: 6),
-          _buildPdfSection(
-            'QUEIXA PRINCIPAL / SERVIÇO SOLICITADO',
-            [],
-            content: _queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado',
-            compact: true,
+          pw.Wrap(
+            children: [
+              _buildPdfHeader(logoImage: _cachedLogoImage),
+            ],
           ),
           pw.SizedBox(height: 8),
-          _buildPdfInspectionTable(),
-          pw.SizedBox(height: 8),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          pw.Wrap(
             children: [
-              pw.Expanded(child: _buildPdfTestsSection()),
-              pw.SizedBox(width: 12),
-              pw.Expanded(child: _buildPdfItemsSection()),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _buildPdfSection(
-                  'NÍVEL DE COMBUSTÍVEL',
-                  [],
-                  content: '${(_fuelLevel * 25).toStringAsFixed(0)}% (${_getFuelDescription()})',
-                  compact: true,
-                ),
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    flex: 2,
+                    child: _buildPdfClientVehicleData(),
+                  ),
+                  pw.SizedBox(width: 10),
+                  pw.Expanded(
+                    flex: 1,
+                    child: _buildPdfResponsibleSection(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Wrap(
+            children: [
+              _buildPdfSection(
+                'QUEIXA PRINCIPAL / SERVIÇO SOLICITADO',
+                [],
+                content: _queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado',
+                compact: true,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 7),
+          pw.Wrap(
+            children: [
+              _buildPdfInspectionTable(),
+            ],
+          ),
+          pw.SizedBox(height: 7),
+          pw.Wrap(
+            children: [
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(child: _buildPdfTestsSection()),
+                  pw.SizedBox(width: 10),
+                  pw.Expanded(child: _buildPdfItemsSection()),
+                  pw.SizedBox(width: 10),
+                  pw.Expanded(
+                    child: _buildPdfSection(
+                      'NÍVEL DE COMBUSTÍVEL',
+                      [],
+                      content: '${(_fuelLevel * 25).toStringAsFixed(0)}% (${_getFuelDescription()})',
+                      compact: true,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -373,8 +442,55 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => _buildSignaturePage(logoImage: _cachedLogoImage),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        build: (pw.Context context) {
+          return pw.Stack(
+            children: [
+              _buildSignaturePage(logoImage: _cachedLogoImage),
+              pw.Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: pw.Column(
+                  children: [
+                    pw.Container(
+                      height: 1,
+                      color: PdfColors.grey300,
+                      margin: const pw.EdgeInsets.only(bottom: 8),
+                    ),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'TecStock - Sistema de Gerenciamento Automotivo',
+                          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                        ),
+                        pw.Text(
+                          'Página de Assinaturas',
+                          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                        ),
+                        pw.Text(
+                          'Checklist: ${_checklistNumberController.text}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
 
@@ -399,15 +515,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   pw.Widget _buildPdfSection(String title, List<List<String>> data, {String? content, bool compact = false}) {
-    final paddingValue = compact ? 8.0 : 12.0;
-    final titleFontSize = compact ? 11.0 : 12.0;
-    final contentFontSize = compact ? 10.0 : 11.0;
-    final dataFontSize = compact ? 9.0 : 10.0;
+    final paddingValue = compact ? 6.0 : 8.0;
+    final titleFontSize = compact ? 9.0 : 10.0;
+    final contentFontSize = compact ? 8.5 : 9.0;
+    final dataFontSize = compact ? 8.0 : 8.5;
 
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
       padding: pw.EdgeInsets.all(paddingValue),
       child: pw.Column(
@@ -417,12 +533,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             title,
             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: titleFontSize, color: PdfColors.blue900),
           ),
-          pw.SizedBox(height: compact ? 6 : 8),
+          pw.SizedBox(height: compact ? 4 : 5),
           if (content != null)
-            pw.Text(content, style: pw.TextStyle(fontSize: contentFontSize))
+            pw.Text(content, style: pw.TextStyle(fontSize: contentFontSize, height: 1.2))
           else
             ...data.map((row) => pw.Padding(
-                  padding: pw.EdgeInsets.symmetric(vertical: compact ? 1 : 2),
+                  padding: pw.EdgeInsets.symmetric(vertical: compact ? 1 : 1.5),
                   child: pw.Row(
                     children: [
                       pw.SizedBox(
@@ -466,7 +582,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
-            padding: const pw.EdgeInsets.all(6),
+            padding: const pw.EdgeInsets.all(5),
             decoration: pw.BoxDecoration(
               color: PdfColors.grey100,
               borderRadius: const pw.BorderRadius.only(
@@ -492,15 +608,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(3),
-                    child: pw.Text('Item', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                    child: pw.Text('Item', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 7.5)),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(3),
-                    child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                    child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 7.5)),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(3),
-                    child: pw.Text('Observações', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                    child: pw.Text('Observações', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 7.5)),
                   ),
                 ],
               ),
@@ -517,7 +633,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(3),
-                        child: pw.Text(_inspecaoVisualObs[item]?.text ?? '-', style: pw.TextStyle(fontSize: 7)),
+                        child: pw.Text(_inspecaoVisualObs[item]?.text ?? '-', style: pw.TextStyle(fontSize: 6.5)),
                       ),
                     ],
                   )),
@@ -544,17 +660,17 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         border: pw.Border.all(color: PdfColors.grey300),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
-      padding: const pw.EdgeInsets.all(6),
+      padding: const pw.EdgeInsets.all(5),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
             'TESTES DE FUNCIONAMENTO',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.blue900),
           ),
           pw.SizedBox(height: 4),
           ...tests.map((test) => pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -576,17 +692,17 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         border: pw.Border.all(color: PdfColors.grey300),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
-      padding: const pw.EdgeInsets.all(6),
+      padding: const pw.EdgeInsets.all(5),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
             'ITENS NO VEÍCULO',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8, color: PdfColors.blue900),
           ),
           pw.SizedBox(height: 4),
           ...items.map((item) => pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -610,12 +726,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         ),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
       ),
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(10),
       child: pw.Row(
         children: [
           if (logoImage != null) ...[
-            pw.Image(logoImage, width: 50, height: 50, fit: pw.BoxFit.contain),
-            pw.SizedBox(width: 12),
+            pw.Image(logoImage, width: 45, height: 45, fit: pw.BoxFit.contain),
+            pw.SizedBox(width: 10),
           ],
           pw.Expanded(
             child: pw.Column(
@@ -625,16 +741,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   'CHECKLIST DE RECEPÇÃO DE VEÍCULO',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                     color: PdfColors.white,
                   ),
                 ),
                 pw.SizedBox(height: 3),
                 pw.Row(
                   children: [
-                    pw.Text('Data: ${_dateController.text}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
-                    pw.SizedBox(width: 16),
-                    pw.Text('Hora: ${_timeController.text}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                    pw.Text('Data: ${_dateController.text}', style: pw.TextStyle(fontSize: 8.5, color: PdfColors.white)),
+                    pw.SizedBox(width: 14),
+                    pw.Text('Hora: ${_timeController.text}', style: pw.TextStyle(fontSize: 8.5, color: PdfColors.white)),
                   ],
                 ),
               ],
@@ -650,7 +766,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               child: pw.Text(
                 'Nº ${_checklistNumberController.text}',
                 style: pw.TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.purple600,
                 ),
@@ -677,7 +793,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             compact: true,
           ),
         ),
-        pw.SizedBox(width: 12),
+        pw.SizedBox(width: 8),
         pw.Expanded(
           child: _buildPdfSection(
             'DADOS DO VEÍCULO',
@@ -703,26 +819,36 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
       ),
       padding: const pw.EdgeInsets.all(6),
-      child: pw.Row(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'RESPONSÁVEL: ',
+            'RESPONSÁVEL',
             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
           ),
-          pw.Expanded(
-            child: pw.Text(
-              _consultorSelecionado?.nome ?? 'Não informado',
-              style: pw.TextStyle(fontSize: 9),
-            ),
+          pw.SizedBox(height: 4),
+          pw.Row(
+            children: [
+              pw.Text('Nome: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+              pw.Expanded(
+                child: pw.Text(
+                  _consultorSelecionado?.nome ?? 'N/A',
+                  style: pw.TextStyle(fontSize: 8),
+                ),
+              ),
+            ],
           ),
-          pw.SizedBox(width: 12),
-          pw.Text(
-            'CPF: ',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: PdfColors.blue900),
-          ),
-          pw.Text(
-            _consultorSelecionado?.cpf ?? 'Não informado',
-            style: pw.TextStyle(fontSize: 9),
+          pw.SizedBox(height: 3),
+          pw.Row(
+            children: [
+              pw.Text('CPF: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+              pw.Expanded(
+                child: pw.Text(
+                  _consultorSelecionado?.cpf ?? 'N/A',
+                  style: pw.TextStyle(fontSize: 8),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -730,170 +856,162 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   pw.Widget _buildSignaturePage({pw.MemoryImage? logoImage}) {
-    return pw.Column(
-      children: [
-        _buildPdfHeader(logoImage: logoImage),
-        pw.SizedBox(height: 24),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey300),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-          ),
-          padding: const pw.EdgeInsets.all(16),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'RESUMO DO CHECKLIST',
-                style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 14,
-                  color: PdfColors.blue900,
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 60),
+      child: pw.Column(
+        children: [
+          _buildPdfHeader(logoImage: logoImage),
+          pw.SizedBox(height: 24),
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+            ),
+            padding: const pw.EdgeInsets.all(16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'RESUMO DO CHECKLIST',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 14,
+                    color: PdfColors.blue900,
+                  ),
                 ),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _buildResumoItem('Cliente:', _clienteNomeController.text),
-                        _buildResumoItem('CPF:', _clienteCpfController.text),
-                        _buildResumoItem('Telefone:', _clienteTelefoneController.text),
-                        _buildResumoItem('Data/Hora:', '${_dateController.text} - ${_timeController.text}'),
-                      ],
-                    ),
-                  ),
-                  pw.SizedBox(width: 24),
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        _buildResumoItem('Veículo:', _veiculoNomeController.text),
-                        _buildResumoItem('Marca:', _veiculoMarcaController.text),
-                        _buildResumoItem('Placa:', _veiculoPlacaController.text),
-                        _buildResumoItem('Quilometragem:', _veiculoQuilometragemController.text),
-                        _buildResumoItem('Consultor:', _consultorSelecionado?.nome ?? ''),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (_queixaPrincipalController.text.isNotEmpty) ...[
                 pw.SizedBox(height: 12),
-                pw.Text(
-                  'Queixa Principal:',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildResumoItem('Cliente:', _clienteNomeController.text),
+                          _buildResumoItem('CPF:', _clienteCpfController.text),
+                          _buildResumoItem('Telefone:', _clienteTelefoneController.text),
+                          _buildResumoItem('Data/Hora:', '${_dateController.text} - ${_timeController.text}'),
+                          _buildResumoItem('Consultor:', _consultorSelecionado?.nome ?? ''),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(width: 24),
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildResumoItem('Veículo:', _veiculoNomeController.text),
+                          _buildResumoItem('Marca:', _veiculoMarcaController.text),
+                          _buildResumoItem('Placa:', _veiculoPlacaController.text),
+                          _buildResumoItem('Quilometragem:', _veiculoQuilometragemController.text),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                pw.SizedBox(height: 4),
-                pw.Text(
-                  _queixaPrincipalController.text,
-                  style: pw.TextStyle(fontSize: 10),
-                ),
+                if (_queixaPrincipalController.text.isNotEmpty) ...[
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    'Queixa Principal:',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    _queixaPrincipalController.text,
+                    style: pw.TextStyle(fontSize: 10),
+                  ),
+                ],
               ],
-            ],
-          ),
-        ),
-        pw.Spacer(),
-        pw.Container(
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey300),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-          ),
-          padding: const pw.EdgeInsets.all(24),
-          child: pw.Column(
-            children: [
-              pw.Text(
-                'ASSINATURAS',
-                style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 16,
-                  color: PdfColors.blue900,
-                ),
-              ),
-              pw.SizedBox(height: 40),
-              pw.Column(
-                children: [
-                  pw.Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey300),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    ),
-                    child: pw.Center(
-                      child: pw.Text(
-                        'Assinatura do Cliente',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    '${_clienteNomeController.text} - CPF: ${_clienteCpfController.text}',
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 32),
-              pw.Column(
-                children: [
-                  pw.Container(
-                    width: double.infinity,
-                    height: 80,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey300),
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                    ),
-                    child: pw.Center(
-                      child: pw.Text(
-                        'Assinatura do Consultor Responsável',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    '${_consultorSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${_consultorSelecionado?.cpf ?? '_______________'}',
-                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 24),
-              pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: pw.Text(
-                  'Declaro que recebi meu veículo nas condições descritas neste checklist e autorizo a execução dos serviços solicitados.',
-                  style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-        pw.SizedBox(height: 16),
-        pw.Center(
-          child: pw.Text(
-            'TecStock - Sistema de Gestão Automotiva',
-            style: pw.TextStyle(
-              fontSize: 10,
-              color: PdfColors.grey600,
-              fontStyle: pw.FontStyle.italic,
             ),
           ),
-        ),
-      ],
+          pw.Spacer(),
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+            ),
+            padding: const pw.EdgeInsets.all(24),
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'ASSINATURAS',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+                pw.SizedBox(height: 40),
+                pw.Column(
+                  children: [
+                    pw.Container(
+                      width: double.infinity,
+                      height: 80,
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'Assinatura do Cliente',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      '${_clienteNomeController.text} - CPF: ${_clienteCpfController.text}',
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 32),
+                pw.Column(
+                  children: [
+                    pw.Container(
+                      width: double.infinity,
+                      height: 80,
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'Assinatura do Consultor Responsável',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      '${_consultorSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${_consultorSelecionado?.cpf ?? '_______________'}',
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Text(
+                    'Declaro que recebi meu veículo nas condições descritas neste checklist e autorizo a execução dos serviços solicitados.',
+                    style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

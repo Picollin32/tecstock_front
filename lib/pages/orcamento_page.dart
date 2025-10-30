@@ -1176,38 +1176,153 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     final doc = pw.Document();
 
     doc.addPage(
-      pw.Page(
+      pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) => pw.Column(
-          children: [
-            _buildPdfHeaderOrcamento(orcamento, logoImage: _cachedLogoImage),
-            pw.SizedBox(height: 16),
-            _buildPdfClientVehicleDataOrcamento(orcamento),
-            pw.SizedBox(height: 12),
-            _buildPdfSectionOrcamento(
-              'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
-              [],
-              content: orcamento?.queixaPrincipal ??
-                  (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
-              compact: true,
-            ),
-            pw.SizedBox(height: 12),
-            _buildPdfServicesSectionOrcamento(orcamento),
-            pw.SizedBox(height: 12),
-            _buildPdfPartsSectionOrcamento(orcamento),
-            pw.SizedBox(height: 12),
-            _buildPdfPricingSectionOrcamento(orcamento),
-            pw.SizedBox(height: 12),
-            _buildPdfSectionOrcamento(
-              'OBSERVAÇÕES',
-              [],
-              content: orcamento?.observacoes ??
-                  (_observacoesController.text.isNotEmpty ? _observacoesController.text : 'Nenhuma observação adicional'),
-              compact: true,
-            ),
-          ],
-        ),
+        header: (pw.Context context) {
+          if (context.pageNumber > 1) {
+            return pw.Column(
+              children: [
+                _buildPdfHeaderOrcamento(orcamento, logoImage: _cachedLogoImage),
+                pw.SizedBox(height: 10),
+              ],
+            );
+          }
+          return pw.SizedBox();
+        },
+        footer: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Container(
+                height: 1,
+                color: PdfColors.grey300,
+                margin: const pw.EdgeInsets.only(bottom: 8),
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'TecStock - Sistema de Gerenciamento de Oficina',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                  pw.Text(
+                    'Página ${context.pageNumber} de ${context.pagesCount}',
+                    style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 4),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                  pw.Text(
+                    'Orçamento: ${orcamento?.numeroOrcamento ?? _orcamentoNumberController.text}',
+                    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+        build: (pw.Context context) => [
+          _buildPdfHeaderOrcamento(orcamento, logoImage: _cachedLogoImage),
+          pw.SizedBox(height: 16),
+          pw.Wrap(
+            children: [
+              _buildPdfClientVehicleDataOrcamento(orcamento),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Wrap(
+            children: [
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    flex: 2,
+                    child: _buildPdfSectionOrcamento(
+                      'QUEIXA PRINCIPAL / PROBLEMA RELATADO',
+                      [],
+                      content: orcamento?.queixaPrincipal ??
+                          (_queixaPrincipalController.text.isNotEmpty ? _queixaPrincipalController.text : 'Não informado'),
+                      compact: true,
+                    ),
+                  ),
+                  pw.SizedBox(width: 6),
+                  pw.Expanded(
+                    flex: 1,
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey300),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      padding: const pw.EdgeInsets.all(6),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('RESPONSÁVEIS',
+                              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                          pw.SizedBox(height: 4),
+                          pw.Row(
+                            children: [
+                              pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                              pw.Expanded(
+                                  child: pw.Text('${orcamento?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
+                                      style: pw.TextStyle(fontSize: 8))),
+                            ],
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Row(
+                            children: [
+                              pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                              pw.Expanded(
+                                  child: pw.Text('${orcamento?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
+                                      style: pw.TextStyle(fontSize: 8))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Wrap(
+            children: [
+              _buildPdfServicesSectionOrcamento(orcamento),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Wrap(
+            children: [
+              _buildPdfPartsSectionOrcamento(orcamento),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Wrap(
+            children: [
+              _buildPdfPricingSectionOrcamento(orcamento),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Wrap(
+            children: [
+              _buildPdfSectionOrcamento(
+                'OBSERVAÇÕES',
+                [],
+                content: orcamento?.observacoes ??
+                    (_observacoesController.text.isNotEmpty ? _observacoesController.text : 'Nenhuma observação adicional'),
+                compact: true,
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
@@ -1591,10 +1706,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
-    // Calcular parcelas para cartão de crédito (código 4) ou crediário (código 3)
     double valorParcelaCalculado = 0.0;
-    final bool mostrarParcelamento =
-        ((tipoPagamento?.codigo == 3 || tipoPagamento?.codigo == 4) && numeroParcelas != null && numeroParcelas > 0);
+    final bool mostrarParcelamento = (tipoPagamento?.codigo == 4 && numeroParcelas != null && numeroParcelas > 0);
 
     if (mostrarParcelamento) {
       final raw = totalGeral / numeroParcelas;

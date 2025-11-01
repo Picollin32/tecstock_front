@@ -326,6 +326,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   void _filtrarChecklists() {
     setState(() {
+      if (_clienteCpfController.text.isEmpty && _veiculoPlacaController.text.isEmpty) {
+        _checklistsFiltrados = [];
+        return;
+      }
+
       _checklistsFiltrados = _checklists.where((checklist) {
         bool matchCliente = true;
         bool matchVeiculo = true;
@@ -1852,17 +1857,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         const SizedBox(height: 8),
         Autocomplete<Checklist>(
           optionsBuilder: (TextEditingValue textEditingValue) {
-            final bool hasFiltros = _clienteCpfController.text.isNotEmpty || _veiculoPlacaController.text.isNotEmpty;
-            final baseList = hasFiltros ? _checklistsFiltrados : _checklists;
-
-            final availableList =
-                _isViewMode ? baseList : baseList.where((checklist) => checklist.status.toUpperCase() != 'FECHADO').toList();
+            final baseList = _isViewMode ? _checklists : _checklistsFiltrados;
 
             if (textEditingValue.text.isEmpty) {
-              return availableList;
+              return baseList;
             }
 
-            final filtered = availableList.where((checklist) {
+            final filtered = baseList.where((checklist) {
               final searchText = textEditingValue.text.toLowerCase();
               return checklist.numeroChecklist.toLowerCase().contains(searchText) ||
                   (checklist.clienteNome?.toLowerCase().contains(searchText) ?? false) ||
@@ -1905,6 +1906,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           setState(() {
                             _checklistSelecionado = null;
                             _checklistController.clear();
+                            _queixaPrincipalController.clear();
                           });
                         },
                       )
@@ -2294,7 +2296,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
           const SizedBox(height: 12),
-          if (_checklistsFiltrados.isEmpty)
+          if (_checklistsFiltrados.isEmpty && _checklistSelecionado == null)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -3910,7 +3912,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             children: [
                               pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                               pw.Expanded(
-                                  child: pw.Text('${os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
+                                  child: pw.Text(os?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A',
                                       style: pw.TextStyle(fontSize: 8))),
                             ],
                           ),
@@ -3919,8 +3921,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             children: [
                               pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                               pw.Expanded(
-                                  child: pw.Text('${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
-                                      style: pw.TextStyle(fontSize: 8))),
+                                  child:
+                                      pw.Text(os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A', style: pw.TextStyle(fontSize: 8))),
                             ],
                           ),
                         ],
@@ -4639,23 +4641,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               border: pw.Border.all(color: PdfColors.grey300),
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
             ),
-            padding: const pw.EdgeInsets.all(24),
+            padding: const pw.EdgeInsets.all(20),
             child: pw.Column(
               children: [
                 pw.Text(
                   'ASSINATURAS',
                   style: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 14,
                     color: PdfColors.blue900,
                   ),
                 ),
-                pw.SizedBox(height: 40),
+                pw.SizedBox(height: 24),
                 pw.Column(
                   children: [
                     pw.Container(
                       width: double.infinity,
-                      height: 80,
+                      height: 60,
                       decoration: pw.BoxDecoration(
                         border: pw.Border.all(color: PdfColors.grey300),
                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
@@ -4664,25 +4666,25 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         child: pw.Text(
                           'Assinatura do Cliente',
                           style: pw.TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: PdfColors.grey600,
                           ),
                         ),
                       ),
                     ),
-                    pw.SizedBox(height: 8),
+                    pw.SizedBox(height: 6),
                     pw.Text(
                       '${os?.clienteNome ?? _clienteNomeController.text} - CPF: ${os?.clienteCpf ?? _clienteCpfController.text}',
-                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
                     ),
                   ],
                 ),
-                pw.SizedBox(height: 32),
+                pw.SizedBox(height: 20),
                 pw.Column(
                   children: [
                     pw.Container(
                       width: double.infinity,
-                      height: 80,
+                      height: 60,
                       decoration: pw.BoxDecoration(
                         border: pw.Border.all(color: PdfColors.grey300),
                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
@@ -4691,29 +4693,29 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         child: pw.Text(
                           'Assinatura do Mecânico Responsável',
                           style: pw.TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             color: PdfColors.grey600,
                           ),
                         ),
                       ),
                     ),
-                    pw.SizedBox(height: 8),
+                    pw.SizedBox(height: 6),
                     pw.Text(
                       '${os?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'Nome: _________________________'} - CPF: ${os?.mecanico?.cpf ?? _mecanicoSelecionado?.cpf ?? '_______________'}',
-                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
                     ),
                   ],
                 ),
-                pw.SizedBox(height: 24),
+                pw.SizedBox(height: 16),
                 pw.Container(
-                  padding: const pw.EdgeInsets.all(12),
+                  padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
                     color: PdfColors.grey100,
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                   ),
                   child: pw.Text(
                     'Declaro que autorizo a execução dos serviços descritos nesta ordem de serviço, estando ciente dos valores e prazos acordados.',
-                    style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic),
+                    style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic),
                     textAlign: pw.TextAlign.center,
                   ),
                 ),
@@ -4816,13 +4818,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
           _filtrarChecklists();
 
-          if (osCompleta.checklistId != null) {
-            _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;
-            if (_checklistSelecionado != null) {
-              _checklistController.text = 'Checklist ${_checklistSelecionado!.numeroChecklist}';
-            }
-          }
-
           if (osCompleta.tipoPagamento != null) {
             _tipoPagamentoSelecionado = _tiposPagamento.where((tp) => tp.id == osCompleta.tipoPagamento!.id).firstOrNull;
           }
@@ -4869,6 +4864,20 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
         _calcularPrecoTotal();
         _slideController.forward();
+
+        if (osCompleta.checklistId != null) {
+          try {
+            final checklistBuscado = await ChecklistService.buscarChecklistPorId(osCompleta.checklistId!);
+            if (checklistBuscado != null && mounted) {
+              setState(() {
+                _checklistSelecionado = checklistBuscado;
+                _checklistController.text = 'Checklist ${_checklistSelecionado!.numeroChecklist}';
+              });
+            }
+          } catch (e) {
+            print('Erro ao buscar checklist: $e');
+          }
+        }
       }
     } catch (e) {
       print('Erro ao carregar OS para edição: $e');
@@ -4973,13 +4982,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
           _filtrarChecklists();
 
-          if (osCompleta.checklistId != null) {
-            _checklistSelecionado = _checklists.where((c) => c.id == osCompleta.checklistId).firstOrNull;
-            if (_checklistSelecionado != null) {
-              _checklistController.text = 'Checklist ${_checklistSelecionado!.numeroChecklist}';
-            }
-          }
-
           if (osCompleta.tipoPagamento != null) {
             _tipoPagamentoSelecionado = _tiposPagamento.where((tp) => tp.id == osCompleta.tipoPagamento!.id).firstOrNull;
           }
@@ -5024,6 +5026,20 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
           _showForm = true;
         });
+
+        if (osCompleta.checklistId != null) {
+          try {
+            final checklistBuscado = await ChecklistService.buscarChecklistPorId(osCompleta.checklistId!);
+            if (checklistBuscado != null && mounted) {
+              setState(() {
+                _checklistSelecionado = checklistBuscado;
+                _checklistController.text = 'Checklist ${_checklistSelecionado!.numeroChecklist}';
+              });
+            }
+          } catch (e) {
+            print('Erro ao buscar checklist: $e');
+          }
+        }
 
         _calcularPrecoTotal();
         _slideController.forward();

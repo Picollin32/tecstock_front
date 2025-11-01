@@ -1271,7 +1271,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                             children: [
                               pw.Text('Consultor: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                               pw.Expanded(
-                                  child: pw.Text('${orcamento?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A'}',
+                                  child: pw.Text(orcamento?.consultor?.nome ?? _consultorSelecionado?.nome ?? 'N/A',
                                       style: pw.TextStyle(fontSize: 8))),
                             ],
                           ),
@@ -1280,7 +1280,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                             children: [
                               pw.Text('Mecânico: ', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                               pw.Expanded(
-                                  child: pw.Text('${orcamento?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A'}',
+                                  child: pw.Text(orcamento?.mecanico?.nome ?? _mecanicoSelecionado?.nome ?? 'N/A',
                                       style: pw.TextStyle(fontSize: 8))),
                             ],
                           ),

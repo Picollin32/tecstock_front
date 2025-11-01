@@ -1903,6 +1903,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       final checklist = await ChecklistService.buscarChecklistPorId(checklistId);
       if (checklist != null) {
         setState(() {
+          _checklistNumberController.text = checklist.numeroChecklist;
           _dateController.text = checklist.data ?? '';
           _timeController.text = checklist.hora ?? '';
 

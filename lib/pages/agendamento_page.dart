@@ -1058,7 +1058,6 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         ? (agendamento.horaFim != null ? '${agendamento.horaInicio} - ${agendamento.horaFim}' : agendamento.horaInicio!)
         : '--:--';
 
-    // Verificar se a data já passou E se não é admin (apenas não-admin vê bloqueio visual)
     final hoje = DateTime.now();
     final dataAgendamento = agendamento.data;
     final dataSemHora = DateTime(dataAgendamento.year, dataAgendamento.month, dataAgendamento.day);
@@ -1813,14 +1812,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   void _showAgendamentoDialog(String horario, Agendamento? agendamentoExistente) async {
-    // Verificar se a data já passou (bloquear edição apenas para não-admin)
     final hoje = DateTime.now();
     final dataAgendamento = _selectedDay!;
     final dataSemHora = DateTime(dataAgendamento.year, dataAgendamento.month, dataAgendamento.day);
     final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
     final dataPassou = dataSemHora.isBefore(hojeSemHora);
 
-    // Se está tentando editar um agendamento de data que já passou E não é admin, bloquear
     if (agendamentoExistente != null && dataPassou && !_isAdmin) {
       showDialog(
         context: context,

@@ -469,11 +469,11 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.2;
+          childAspectRatio = 4.5;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.2;
+          childAspectRatio = 3.0;
         } else {
-          childAspectRatio = 1.4;
+          childAspectRatio = 2.0;
         }
 
         return GridView.builder(

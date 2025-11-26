@@ -794,11 +794,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 2.6;
+          childAspectRatio = 3.8;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 1.6;
+          childAspectRatio = 2.2;
         } else {
-          childAspectRatio = 1.1;
+          childAspectRatio = 1.5;
         }
 
         return GridView.builder(

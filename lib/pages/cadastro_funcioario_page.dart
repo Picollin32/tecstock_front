@@ -520,11 +520,11 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 2.8;
+          childAspectRatio = 4.0;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.0;
+          childAspectRatio = 2.8;
         } else {
-          childAspectRatio = 1.2;
+          childAspectRatio = 1.8;
         }
 
         return GridView.builder(

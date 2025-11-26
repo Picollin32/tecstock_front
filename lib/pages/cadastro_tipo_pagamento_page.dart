@@ -301,7 +301,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.5,
+        childAspectRatio: 3.5,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),

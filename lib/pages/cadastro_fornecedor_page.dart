@@ -512,11 +512,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.2;
+          childAspectRatio = 3.5;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.2;
+          childAspectRatio = 2.3;
         } else {
-          childAspectRatio = 1.4;
+          childAspectRatio = 1.6;
         }
 
         return GridView.builder(
@@ -563,22 +563,25 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarFornecedor(fornecedor),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: primaryColor.withOpacity(0.1),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Icon(
                         Icons.store,
                         color: primaryColor,
-                        size: 20,
+                        size: 18,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -587,7 +590,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                             fornecedor.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -603,7 +606,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                               'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
                               style: TextStyle(
                                 color: margemColor,
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -644,7 +647,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

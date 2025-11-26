@@ -498,11 +498,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.2;
+          childAspectRatio = 3.5;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.2;
+          childAspectRatio = 2.3;
         } else {
-          childAspectRatio = 1.4;
+          childAspectRatio = 1.6;
         }
 
         return GridView.builder(
@@ -524,15 +524,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   Widget _buildClientCard(Cliente cliente) {
     final idade = DateTime.now().difference(cliente.dataNascimento).inDays ~/ 365;
 
-    String initials = cliente.nome.isNotEmpty ? cliente.nome.substring(0, 1).toUpperCase() : '?';
-
-    if (cliente.nome.contains(' ')) {
-      final words = cliente.nome.split(' ');
-      if (words.length >= 2) {
-        initials = words[0].substring(0, 1).toUpperCase() + words[1].substring(0, 1).toUpperCase();
-      }
-    }
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -551,25 +542,25 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarCliente(cliente),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: primaryColor.withOpacity(0.1),
-                      child: Text(
-                        initials,
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.person,
+                        color: primaryColor,
+                        size: 18,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +569,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                             cliente.nome,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -594,7 +585,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                               '$idade anos',
                               style: TextStyle(
                                 color: primaryColor,
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -635,7 +626,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,7 +634,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                       _buildInfoRow(Icons.badge, _maskCpf.maskText(cliente.cpf)),
                       _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
                       _buildInfoRow(Icons.email, cliente.email),
-                      _buildInfoRow(Icons.cake, DateFormat('dd/MM/yyyy').format(cliente.dataNascimento)),
+                      _buildInfoRow(Icons.cake, '$idade anos'),
                       if (cliente.rua != null && cliente.rua!.isNotEmpty)
                         _buildInfoRow(
                           Icons.location_on,

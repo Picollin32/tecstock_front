@@ -24,6 +24,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   List<Funcionario> _consultores = [];
   Usuario? _usuarioEmEdicao;
   Funcionario? _consultorSelecionado;
+  int _nivelAcessoSelecionado = 1; // 0 = Admin, 1 = Consultor
 
   bool _isLoading = false;
   bool _isLoadingUsuarios = true;
@@ -114,8 +115,9 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    if (_consultorSelecionado == null) {
-      ErrorUtils.showVisibleError(context, 'Selecione um consultor');
+    // Consultor é obrigatório para nivelAcesso = 1 (Consultor)
+    if (_nivelAcessoSelecionado == 1 && _consultorSelecionado == null) {
+      ErrorUtils.showVisibleError(context, 'Selecione um consultor para usuário do tipo Consultor');
       return;
     }
 
@@ -127,11 +129,14 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor?.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
+    // Validar se consultor já possui usuário apenas se consultor foi selecionado
+    if (_consultorSelecionado != null) {
+      final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor?.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
 
-    if (consultorJaPossuiUsuario) {
-      ErrorUtils.showVisibleError(context, 'Este consultor já possui um usuário cadastrado');
-      return;
+      if (consultorJaPossuiUsuario) {
+        ErrorUtils.showVisibleError(context, 'Este consultor já possui um usuário cadastrado');
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -141,8 +146,8 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         id: _usuarioEmEdicao?.id,
         nomeUsuario: _nomeUsuarioController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
-        nivelAcesso: _consultorSelecionado != null ? 1 : 0,
-        consultor: _consultorSelecionado!,
+        nivelAcesso: _nivelAcessoSelecionado,
+        consultor: _consultorSelecionado,
       );
 
       Map<String, dynamic> result;
@@ -188,6 +193,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _usuarioEmEdicao = null;
       _senhaVisivel = false;
       _confirmarSenhaVisivel = false;
+      _nivelAcessoSelecionado = 1;
       if (_consultores.isNotEmpty) {
         _consultorSelecionado = _consultores.first;
       }
@@ -218,13 +224,22 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _nomeUsuarioController.text = usuario.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
+      // Garantir que o nível de acesso correto seja carregado
+      // Se tem consultor, é nivelAcesso 1, senão é 0
+      if (usuario.nivelAcesso != null) {
+        _nivelAcessoSelecionado = usuario.nivelAcesso!;
+      } else {
+        // Fallback: se tem consultor atrelado, é Consultor (1), senão é Admin (0)
+        _nivelAcessoSelecionado = usuario.consultor != null ? 1 : 0;
+      }
+
       if (usuario.consultor != null) {
         _consultorSelecionado = _consultores.firstWhere(
           (c) => c.id == usuario.consultor!.id,
           orElse: () => _consultores.first,
         );
       } else {
-        _consultorSelecionado = _consultores.isNotEmpty ? _consultores.first : null;
+        _consultorSelecionado = null;
       }
     });
     _showFormModal();
@@ -417,18 +432,56 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
             },
           ),
           const SizedBox(height: 16),
+          _buildDropdownField<int>(
+            value: _nivelAcessoSelecionado,
+            label: 'Nível de Acesso',
+            icon: Icons.admin_panel_settings,
+            items: const [
+              DropdownMenuItem<int>(
+                value: 0,
+                child: Text('Admin'),
+              ),
+              DropdownMenuItem<int>(
+                value: 1,
+                child: Text('Consultor'),
+              ),
+            ],
+            onChanged: (value) {
+              setModalState(() {
+                _nivelAcessoSelecionado = value!;
+                // Se for Admin (0), permitir consultor nulo
+                if (_nivelAcessoSelecionado == 0) {
+                  _consultorSelecionado = null;
+                }
+              });
+            },
+            validator: (value) => value == null ? 'Selecione o nível de acesso' : null,
+          ),
+          const SizedBox(height: 16),
           _buildDropdownField<Funcionario>(
             value: _consultorSelecionado,
-            label: 'Consultor Responsável',
+            label: _nivelAcessoSelecionado == 0 ? 'Consultor Responsável (Opcional)' : 'Consultor Responsável',
             icon: Icons.support_agent,
-            items: _consultores
-                .map((consultor) => DropdownMenuItem<Funcionario>(
-                      value: consultor,
-                      child: Text(consultor.nome),
-                    ))
-                .toList(),
+            items: [
+              if (_nivelAcessoSelecionado == 0)
+                const DropdownMenuItem<Funcionario>(
+                  value: null,
+                  child: Text('Nenhum'),
+                ),
+              ..._consultores
+                  .map((consultor) => DropdownMenuItem<Funcionario>(
+                        value: consultor,
+                        child: Text(consultor.nome),
+                      ))
+                  .toList(),
+            ],
             onChanged: (value) => setModalState(() => _consultorSelecionado = value),
-            validator: (value) => value == null ? 'Selecione um consultor' : null,
+            validator: (value) {
+              if (_nivelAcessoSelecionado == 1 && value == null) {
+                return 'Selecione um consultor';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 32),
           SizedBox(

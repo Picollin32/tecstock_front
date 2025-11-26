@@ -428,7 +428,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.2,
+            childAspectRatio: 1.8,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

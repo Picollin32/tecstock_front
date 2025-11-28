@@ -24,7 +24,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   List<Funcionario> _consultores = [];
   Usuario? _usuarioEmEdicao;
   Funcionario? _consultorSelecionado;
-  int _nivelAcessoSelecionado = 1; // 0 = Admin, 1 = Consultor
+  int _nivelAcessoSelecionado = 1;
 
   bool _isLoading = false;
   bool _isLoadingUsuarios = true;
@@ -115,7 +115,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    // Consultor é obrigatório para nivelAcesso = 1 (Consultor)
     if (_nivelAcessoSelecionado == 1 && _consultorSelecionado == null) {
       ErrorUtils.showVisibleError(context, 'Selecione um consultor para usuário do tipo Consultor');
       return;
@@ -129,7 +128,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    // Validar se consultor já possui usuário apenas se consultor foi selecionado
     if (_consultorSelecionado != null) {
       final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor?.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
 
@@ -224,12 +222,9 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _nomeUsuarioController.text = usuario.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
-      // Garantir que o nível de acesso correto seja carregado
-      // Se tem consultor, é nivelAcesso 1, senão é 0
       if (usuario.nivelAcesso != null) {
         _nivelAcessoSelecionado = usuario.nivelAcesso!;
       } else {
-        // Fallback: se tem consultor atrelado, é Consultor (1), senão é Admin (0)
         _nivelAcessoSelecionado = usuario.consultor != null ? 1 : 0;
       }
 
@@ -449,7 +444,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
             onChanged: (value) {
               setModalState(() {
                 _nivelAcessoSelecionado = value!;
-                // Se for Admin (0), permitir consultor nulo
                 if (_nivelAcessoSelecionado == 0) {
                   _consultorSelecionado = null;
                 }
@@ -468,12 +462,10 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                   value: null,
                   child: Text('Nenhum'),
                 ),
-              ..._consultores
-                  .map((consultor) => DropdownMenuItem<Funcionario>(
-                        value: consultor,
-                        child: Text(consultor.nome),
-                      ))
-                  .toList(),
+              ..._consultores.map((consultor) => DropdownMenuItem<Funcionario>(
+                    value: consultor,
+                    child: Text(consultor.nome),
+                  )),
             ],
             onChanged: (value) => setModalState(() => _consultorSelecionado = value),
             validator: (value) {

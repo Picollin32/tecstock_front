@@ -12,7 +12,7 @@ RUN flutter pub get
 COPY . .
 
 # Build para web com release mode
-RUN flutter build web --release --web-renderer html
+RUN flutter build web --release
 
 # Stage 2: Servidor Nginx
 FROM nginx:alpine

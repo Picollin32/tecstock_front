@@ -48,7 +48,7 @@ services:
     networks:
       - tecstock-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -76,7 +76,7 @@ services:
       - "traefik.http.routers.tecstock-app.service=tecstock-app"
       - "traefik.http.services.tecstock-app.loadbalancer.server.port=80"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

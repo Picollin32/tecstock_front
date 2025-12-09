@@ -1,0 +1,38 @@
+# Arquivos e diretórios gerais
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+README.md
+LICENSE
+*.md
+
+# Logs
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+!build/web
+.metadata
+
+# Windows
+windows/
+
+# Tests
+test/

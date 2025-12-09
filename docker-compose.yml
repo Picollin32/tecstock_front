@@ -67,6 +67,14 @@ services:
       - backend
     networks:
       - tecstock-network
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.tecstock-app.rule=Host(`tecstock.app`) || Host(`www.tecstock.app`)"
+      - "traefik.http.routers.tecstock-app.entrypoints=web"
+      - "traefik.http.routers.tecstock-app.service=tecstock-app"
+      - "traefik.http.services.tecstock-app.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -76,6 +84,8 @@ services:
 networks:
   tecstock-network:
     driver: bridge
+  dokploy-network:
+    external: true
 
 volumes:
   postgres_data:

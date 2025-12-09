@@ -61,13 +61,12 @@ services:
       dockerfile: Dockerfile
     container_name: tecstock-frontend
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "3001:80"
     depends_on:
       - backend
     networks:
       - tecstock-network
-      - dokploy-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -77,8 +76,6 @@ services:
 networks:
   tecstock-network:
     driver: bridge
-  dokploy-network:
-    external: true
 
 volumes:
   postgres_data:

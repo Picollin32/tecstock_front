@@ -85,8 +85,6 @@ networks:
     driver: bridge
   dokploy-network:
     external: true
-  dokploy-network:
-    external: true
 
 volumes:
   postgres_data:

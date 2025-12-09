@@ -1,0 +1,4 @@
+[submodule "tecstock_spring"]
+	path = tecstock_spring
+	url = https://github.com/Picollin32/tecstock_spring.git
+	branch = main

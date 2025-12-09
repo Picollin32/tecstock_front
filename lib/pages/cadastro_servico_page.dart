@@ -188,7 +188,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
       context: context,
       builder: (_) => Theme(
         data: Theme.of(context).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 8,
           ),

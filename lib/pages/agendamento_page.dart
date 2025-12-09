@@ -239,7 +239,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           builder: (context, setDialogState) {
             return Theme(
               data: Theme.of(context).copyWith(
-                dialogTheme: DialogTheme(
+                dialogTheme: DialogThemeData(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 8,
                 ),
@@ -1726,7 +1726,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
 
           return Theme(
             data: Theme.of(context).copyWith(
-              dialogTheme: DialogTheme(
+              dialogTheme: DialogThemeData(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 8,
               ),
@@ -1823,7 +1823,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         context: context,
         builder: (context) => Theme(
           data: Theme.of(context).copyWith(
-            dialogTheme: DialogTheme(
+            dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               elevation: 8,
             ),
@@ -1913,7 +1913,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           builder: (context, setDialogState) {
             return Theme(
               data: Theme.of(context).copyWith(
-                dialogTheme: DialogTheme(
+                dialogTheme: DialogThemeData(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 8,
                 ),
@@ -2229,7 +2229,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       context: context,
       builder: (context) => Theme(
         data: Theme.of(context).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 8,
           ),

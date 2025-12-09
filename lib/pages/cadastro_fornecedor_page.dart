@@ -264,7 +264,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       context: context,
       builder: (_) => Theme(
         data: Theme.of(context).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 8,
           ),

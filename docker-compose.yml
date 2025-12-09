@@ -61,12 +61,19 @@ services:
       dockerfile: Dockerfile
     container_name: tecstock-frontend
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "3001:80"
     depends_on:
       - backend
     networks:
       - tecstock-network
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.frontend.rule=Host(`tecstock.app`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/ || exit 1"]
       interval: 30s
@@ -76,6 +83,8 @@ services:
 networks:
   tecstock-network:
     driver: bridge
+  dokploy-network:
+    external: true
   dokploy-network:
     external: true
 

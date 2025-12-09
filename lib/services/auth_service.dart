@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:TecStock/config/api_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://localhost:8081/api/auth';
+  static String get baseUrl => ApiConfig.authUrl;
   static const _secureStorage = FlutterSecureStorage();
 
   static Future<Map<String, dynamic>> login(String nomeUsuario, String senha) async {

@@ -1,15 +1,17 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 import '../model/fornecedor.dart';
 
 class FornecedorService {
   static Future<Map<String, dynamic>> salvarFornecedor(Fornecedor fornecedor) async {
-    String baseUrl = 'http://localhost:8081/api/fornecedores/salvar';
+    String baseUrl = '${ApiConfig.fornecedoresUrl}/salvar';
 
     try {
       final response = await http.post(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(fornecedor.toJson()),
       );
 
@@ -38,7 +40,7 @@ class FornecedorService {
   }
 
   static Future<List<Fornecedor>> listarFornecedores() async {
-    String baseUrl = 'http://localhost:8081/api/fornecedores/listarTodos';
+    String baseUrl = '${ApiConfig.fornecedoresUrl}/listarTodos';
 
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -56,11 +58,12 @@ class FornecedorService {
   }
 
   static Future<Map<String, dynamic>> atualizarFornecedor(int id, Fornecedor fornecedor) async {
-    String baseUrl = 'http://localhost:8081/api/fornecedores/atualizar/$id';
+    String baseUrl = '${ApiConfig.fornecedoresUrl}/atualizar/$id';
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(fornecedor.toJson()),
       );
 
@@ -89,7 +92,7 @@ class FornecedorService {
   }
 
   static Future<Map<String, dynamic>> excluirFornecedor(int id) async {
-    String baseUrl = 'http://localhost:8081/api/fornecedores/deletar/$id';
+    String baseUrl = '${ApiConfig.fornecedoresUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());

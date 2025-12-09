@@ -664,7 +664,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         String errorMessage = 'Erro ao carregar dados. ';
         if (e.toString().contains('Connection')) {
-          errorMessage += 'Verifique se o servidor está rodando na porta 8081.';
+          errorMessage += 'Verifique se o servidor backend está rodando.';
         } else if (e.toString().contains('timeout')) {
           errorMessage += 'Tempo limite excedido. Tente novamente.';
         } else {

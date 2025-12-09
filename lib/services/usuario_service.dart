@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/model/usuario.dart';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class UsuarioService {
   static Future<Map<String, dynamic>> salvarUsuario(Usuario usuario) async {
-    String baseUrl = 'http://localhost:8081/api/usuarios/salvar';
+    String baseUrl = '${ApiConfig.usuariosUrl}/salvar';
 
     try {
       final headers = await AuthService.getAuthHeaders();
@@ -42,7 +43,7 @@ class UsuarioService {
   }
 
   static Future<List<Usuario>> listarUsuarios() async {
-    String baseUrl = 'http://localhost:8081/api/usuarios/listarTodos';
+    String baseUrl = '${ApiConfig.usuariosUrl}/listarTodos';
     try {
       final response = await http.get(
         Uri.parse(baseUrl),
@@ -60,7 +61,7 @@ class UsuarioService {
   }
 
   static Future<bool> excluirUsuario(int id) async {
-    String baseUrl = 'http://localhost:8081/api/usuarios/deletar/$id';
+    String baseUrl = '${ApiConfig.usuariosUrl}/deletar/$id';
 
     try {
       final response = await http.delete(
@@ -75,7 +76,7 @@ class UsuarioService {
   }
 
   static Future<Map<String, dynamic>> atualizarUsuario(int id, Usuario usuario) async {
-    String baseUrl = 'http://localhost:8081/api/usuarios/atualizar/$id';
+    String baseUrl = '${ApiConfig.usuariosUrl}/atualizar/$id';
 
     try {
       final headers = await AuthService.getAuthHeaders();

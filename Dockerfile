@@ -12,7 +12,9 @@ RUN flutter pub get
 COPY . .
 
 # Build para web com release mode
-RUN flutter build web --release
+# A variável API_BASE_URL pode ser passada no build-time
+ARG API_BASE_URL=http://localhost:8081
+RUN flutter build web --release --dart-define=API_BASE_URL=$API_BASE_URL
 
 # Stage 2: Servidor Nginx
 FROM nginx:alpine

@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:TecStock/model/ordem_servico.dart';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class OrdemServicoService {
-  static const String baseUrl = 'http://localhost:8081/api/ordens-servico';
+  static String get baseUrl => ApiConfig.ordensServicoUrl;
 
   static Future<Map<String, dynamic>> salvarOrdemServico(OrdemServico ordemServico) async {
     try {

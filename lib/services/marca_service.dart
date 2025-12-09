@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/marca.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class MarcaService {
   static Future<Map<String, dynamic>> salvarMarca(Marca marca) async {
-    String baseUrl = 'http://localhost:8081/api/marcas/salvar';
+    String baseUrl = '${ApiConfig.marcasUrl}/salvar';
 
     try {
       final response = await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(marca.toJson()));
@@ -35,7 +36,7 @@ class MarcaService {
   }
 
   static Future<List<Marca>> listarMarcas() async {
-    String baseUrl = 'http://localhost:8081/api/marcas/listarTodos';
+    String baseUrl = '${ApiConfig.marcasUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -50,7 +51,7 @@ class MarcaService {
   }
 
   static Future<Map<String, dynamic>> excluirMarca(int id) async {
-    String baseUrl = 'http://localhost:8081/api/marcas/deletar/$id';
+    String baseUrl = '${ApiConfig.marcasUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -80,7 +81,7 @@ class MarcaService {
   }
 
   static Future<Map<String, dynamic>> atualizarMarca(int id, Marca marca) async {
-    String baseUrl = 'http://localhost:8081/api/marcas/atualizar/$id';
+    String baseUrl = '${ApiConfig.marcasUrl}/atualizar/$id';
 
     try {
       final response = await http.put(

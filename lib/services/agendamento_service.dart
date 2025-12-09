@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import '../model/agendamento.dart';
 
 class AgendamentoService {
   static Future<bool> salvarAgendamento(Agendamento agendamento) async {
-    String baseUrl = 'http://localhost:8081/api/agendamentos/salvar';
+    String baseUrl = '${ApiConfig.agendamentosUrl}/salvar';
 
     try {
       final headers = await AuthService.getAuthHeaders();
@@ -24,7 +25,7 @@ class AgendamentoService {
   }
 
   static Future<bool> atualizarAgendamento(int id, Agendamento agendamento) async {
-    String baseUrl = 'http://localhost:8081/api/agendamentos/atualizar/$id';
+    String baseUrl = '${ApiConfig.agendamentosUrl}/atualizar/$id';
 
     try {
       final jsonData = agendamento.toJson();
@@ -47,7 +48,7 @@ class AgendamentoService {
   }
 
   static Future<List<Agendamento>> listarAgendamentos() async {
-    String baseUrl = 'http://localhost:8081/api/agendamentos/listarTodos';
+    String baseUrl = '${ApiConfig.agendamentosUrl}/listarTodos';
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.get(Uri.parse(baseUrl), headers: headers);
@@ -63,7 +64,7 @@ class AgendamentoService {
   }
 
   static Future<bool> excluirAgendamento(int id) async {
-    String baseUrl = 'http://localhost:8081/api/agendamentos/deletar/$id';
+    String baseUrl = '${ApiConfig.agendamentosUrl}/deletar/$id';
 
     try {
       final headers = await AuthService.getAuthHeaders();

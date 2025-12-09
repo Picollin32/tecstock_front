@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/model/fabricante.dart';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class FabricanteService {
   static Future<Map<String, dynamic>> salvarFabricante(Fabricante fabricante) async {
-    String baseUrl = 'http://localhost:8081/api/fabricantes/salvar';
+    String baseUrl = '${ApiConfig.fabricantesUrl}/salvar';
 
     try {
       final response =
@@ -36,7 +37,7 @@ class FabricanteService {
   }
 
   static Future<List<Fabricante>> listarFabricantes() async {
-    String baseUrl = 'http://localhost:8081/api/fabricantes/listarTodos';
+    String baseUrl = '${ApiConfig.fabricantesUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -51,7 +52,7 @@ class FabricanteService {
   }
 
   static Future<Map<String, dynamic>> excluirFabricante(int id) async {
-    String baseUrl = 'http://localhost:8081/api/fabricantes/deletar/$id';
+    String baseUrl = '${ApiConfig.fabricantesUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -81,7 +82,7 @@ class FabricanteService {
   }
 
   static Future<Map<String, dynamic>> atualizarFabricante(int id, Fabricante fabricante) async {
-    String baseUrl = 'http://localhost:8081/api/fabricantes/atualizar/$id';
+    String baseUrl = '${ApiConfig.fabricantesUrl}/atualizar/$id';
 
     try {
       final response = await http.put(

@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 import '../model/peca.dart';
 
 class PecaService {
-  static const String baseUrl = 'http://localhost:8081/api/pecas';
+  static String get baseUrl => ApiConfig.pecasUrl;
 
   static Future<List<Peca>> listarPecas() async {
-    String baseUrl = 'http://localhost:8081/api/pecas/listarTodas';
+    String baseUrl = '${ApiConfig.pecasUrl}/listarTodas';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -22,7 +23,7 @@ class PecaService {
   }
 
   static Future<List<Peca>> listarPecasEmUso() async {
-    String baseUrl = 'http://localhost:8081/api/pecas/em-uso';
+    String baseUrl = '${ApiConfig.pecasUrl}/em-uso';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -37,7 +38,7 @@ class PecaService {
   }
 
   static Future<bool> atualizarUnidadesUsadas() async {
-    String baseUrl = 'http://localhost:8081/api/pecas/atualizar-unidades-usadas';
+    String baseUrl = '${ApiConfig.pecasUrl}/atualizar-unidades-usadas';
     try {
       final response = await http.post(Uri.parse(baseUrl));
       return response.statusCode == 200;
@@ -117,7 +118,7 @@ class PecaService {
     final headers = await AuthService.getAuthHeaders();
     headers['Content-Type'] = 'application/json; charset=UTF-8';
 
-    final url = Uri.parse('http://localhost:8081/api/descontos/aplicar');
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/descontos/aplicar');
     final response = await http.post(
       url,
       headers: headers,

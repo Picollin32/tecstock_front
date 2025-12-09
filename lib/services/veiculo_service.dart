@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/veiculo.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class VeiculoService {
   static Future<Map<String, dynamic>> salvarVeiculo(Veiculo veiculo) async {
-    String baseUrl = 'http://localhost:8081/api/veiculos/salvar';
+    String baseUrl = '${ApiConfig.veiculosUrl}/salvar';
 
     try {
-      final response =
-          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(veiculo.toJson()));
+      final response = await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(veiculo.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Veículo salvo com sucesso'};
@@ -36,7 +36,7 @@ class VeiculoService {
   }
 
   static Future<List<Veiculo>> listarVeiculos() async {
-    String baseUrl = 'http://localhost:8081/api/veiculos/listarTodos';
+    String baseUrl = '${ApiConfig.veiculosUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -51,7 +51,7 @@ class VeiculoService {
   }
 
   static Future<Map<String, dynamic>> excluirVeiculo(int id) async {
-    String baseUrl = 'http://localhost:8081/api/veiculos/deletar/$id';
+    String baseUrl = '${ApiConfig.veiculosUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -81,11 +81,12 @@ class VeiculoService {
   }
 
   static Future<Map<String, dynamic>> atualizarVeiculo(int id, Veiculo veiculo) async {
-    String baseUrl = 'http://localhost:8081/api/veiculos/atualizar/$id';
+    String baseUrl = '${ApiConfig.veiculosUrl}/atualizar/$id';
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(veiculo.toJson()),
       );
 

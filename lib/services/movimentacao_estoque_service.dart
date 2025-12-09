@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 import '../model/movimentacao_estoque.dart';
 
 class MovimentacaoEstoqueService {
-  static const String baseUrl = 'http://localhost:8081/api/movimentacao-estoque';
+  static String get baseUrl => ApiConfig.movimentacoesUrl;
 
   static Future<Map<String, dynamic>> registrarEntrada({
     required String codigoPeca,
@@ -85,7 +86,8 @@ class MovimentacaoEstoqueService {
       };
 
       final response = await http.post(
-        Uri.parse('$baseUrl/entrada-multipla'), headers: await AuthService.getAuthHeaders(),
+        Uri.parse('$baseUrl/entrada-multipla'),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(body),
       );
 

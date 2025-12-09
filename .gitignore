@@ -18,6 +18,9 @@ migrate_working_dir/
 .env.production
 .env.*.local
 
+# Docker volumes
+postgres_data/
+
 # IntelliJ related
 *.iml
 *.ipr

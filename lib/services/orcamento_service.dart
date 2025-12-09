@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/orcamento.dart';
 import 'package:TecStock/model/ordem_servico.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class OrcamentoService {
-  static const String baseUrl = 'http://localhost:8081/api/orcamentos';
+  static String get baseUrl => ApiConfig.orcamentosUrl;
 
   static Future<bool> salvarOrcamento(Orcamento orcamento) async {
     try {

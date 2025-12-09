@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:TecStock/config/api_config.dart';
 import '../model/auditoria_log.dart';
 
 class AuditoriaService {
-  static const String baseUrl = 'http://localhost:8081/api/auditoria';
+  static String get baseUrl => ApiConfig.auditoriaUrl;
 
   static Map<String, String> _getHeaders(String? token) {
     return {

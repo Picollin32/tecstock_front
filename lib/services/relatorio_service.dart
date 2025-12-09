@@ -3,10 +3,10 @@ import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../model/relatorio.dart';
-import '../utils/api_config.dart';
+import 'package:TecStock/config/api_config.dart';
 
 class RelatorioService {
-  final String baseUrl = ApiConfig.baseUrl;
+  final String baseUrl = ApiConfig.relatoriosUrl;
 
   Future<RelatorioAgendamentos> getRelatorioAgendamentos(DateTime dataInicio, DateTime dataFim) async {
     try {
@@ -14,7 +14,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/agendamentos?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/agendamentos?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -34,7 +34,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/servicos?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/servicos?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -54,7 +54,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/estoque?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/estoque?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -74,7 +74,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/financeiro?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/financeiro?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -94,7 +94,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/comissao?dataInicio=$inicio&dataFim=$fim&mecanicoId=$mecanicoId'),
+        Uri.parse('$baseUrl/comissao?dataInicio=$inicio&dataFim=$fim&mecanicoId=$mecanicoId'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -114,7 +114,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/garantias?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/garantias?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -134,7 +134,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/fiado?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/fiado?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 
@@ -154,7 +154,7 @@ class RelatorioService {
       final fim = DateFormat('yyyy-MM-dd').format(dataFim);
 
       final response = await http.get(
-        Uri.parse('$baseUrl/relatorios/consultores?dataInicio=$inicio&dataFim=$fim'),
+        Uri.parse('$baseUrl/consultores?dataInicio=$inicio&dataFim=$fim'),
         headers: await AuthService.getAuthHeaders(),
       );
 

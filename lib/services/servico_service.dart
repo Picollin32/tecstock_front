@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/servico.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class ServicoService {
   static Future<Map<String, dynamic>> salvarServico(Servico servico) async {
-    String baseUrl = 'http://localhost:8081/api/servicos/salvar';
+    String baseUrl = '${ApiConfig.servicosUrl}/salvar';
 
     try {
-      final response =
-          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(servico.toJson()));
+      final response = await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(servico.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Serviço salvo com sucesso'};
@@ -36,7 +36,7 @@ class ServicoService {
   }
 
   static Future<List<Servico>> listarServicos() async {
-    String baseUrl = 'http://localhost:8081/api/servicos/listarTodos';
+    String baseUrl = '${ApiConfig.servicosUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -51,7 +51,7 @@ class ServicoService {
   }
 
   static Future<List<Servico>> listarServicosPendentes() async {
-    String baseUrl = 'http://localhost:8081/api/servicos/pendentes';
+    String baseUrl = '${ApiConfig.servicosUrl}/pendentes';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -66,7 +66,7 @@ class ServicoService {
   }
 
   static Future<bool> atualizarUnidadesUsadas() async {
-    String baseUrl = 'http://localhost:8081/api/servicos/atualizar-unidades-usadas';
+    String baseUrl = '${ApiConfig.servicosUrl}/atualizar-unidades-usadas';
     try {
       final response = await http.post(Uri.parse(baseUrl));
       return response.statusCode == 200;
@@ -77,7 +77,7 @@ class ServicoService {
   }
 
   static Future<bool> excluirServico(int id) async {
-    String baseUrl = 'http://localhost:8081/api/servicos/deletar/$id';
+    String baseUrl = '${ApiConfig.servicosUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -89,11 +89,12 @@ class ServicoService {
   }
 
   static Future<Map<String, dynamic>> atualizarServico(int id, Servico servico) async {
-    String baseUrl = 'http://localhost:8081/api/servicos/atualizar/$id';
+    String baseUrl = '${ApiConfig.servicosUrl}/atualizar/$id';
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(servico.toJson()),
       );
 

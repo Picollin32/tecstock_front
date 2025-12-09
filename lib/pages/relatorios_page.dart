@@ -10,6 +10,7 @@ import '../model/relatorio.dart';
 import '../model/funcionario.dart';
 import '../services/relatorio_service.dart';
 import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class RelatoriosPage extends StatefulWidget {
   const RelatoriosPage({super.key});
@@ -64,7 +65,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     });
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/funcionarios/listarMecanicos'),
+        Uri.parse('${ApiConfig.funcionariosUrl}/listarMecanicos'),
         headers: await AuthService.getAuthHeaders(),
       );
       if (response.statusCode == 200) {

@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/funcionario.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class Funcionarioservice {
   static Future<Map<String, dynamic>> salvarFuncionario(Funcionario funcionario) async {
-    String baseUrl = 'http://localhost:8081/api/funcionarios/salvar';
+    String baseUrl = '${ApiConfig.funcionariosUrl}/salvar';
 
     try {
       final response =
@@ -36,7 +37,7 @@ class Funcionarioservice {
   }
 
   static Future<List<Funcionario>> listarFuncionarios() async {
-    String baseUrl = 'http://localhost:8081/api/funcionarios/listarTodos';
+    String baseUrl = '${ApiConfig.funcionariosUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -51,7 +52,7 @@ class Funcionarioservice {
   }
 
   static Future<Map<String, dynamic>> excluirFuncionario(int id) async {
-    String baseUrl = 'http://localhost:8081/api/funcionarios/deletar/$id';
+    String baseUrl = '${ApiConfig.funcionariosUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -81,7 +82,7 @@ class Funcionarioservice {
   }
 
   static Future<Map<String, dynamic>> atualizarFuncionario(int id, Funcionario funcionario) async {
-    String baseUrl = 'http://localhost:8081/api/funcionarios/atualizar/$id';
+    String baseUrl = '${ApiConfig.funcionariosUrl}/atualizar/$id';
 
     try {
       final response = await http.put(

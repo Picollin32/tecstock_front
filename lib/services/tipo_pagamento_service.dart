@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/model/tipo_pagamento.dart';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class TipoPagamentoService {
   static Future<Map<String, dynamic>> salvarTipoPagamento(TipoPagamento tipoPagamento) async {
-    String baseUrl = 'http://localhost:8081/api/tipos-pagamento/salvar';
+    String baseUrl = '${ApiConfig.tiposPagamentoUrl}/salvar';
 
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
@@ -45,7 +46,7 @@ class TipoPagamentoService {
   }
 
   static Future<List<TipoPagamento>> listarTiposPagamento() async {
-    String baseUrl = 'http://localhost:8081/api/tipos-pagamento/listarTodos';
+    String baseUrl = '${ApiConfig.tiposPagamentoUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -60,7 +61,7 @@ class TipoPagamentoService {
   }
 
   static Future<Map<String, dynamic>> excluirTipoPagamento(int id) async {
-    String baseUrl = 'http://localhost:8081/api/tipos-pagamento/deletar/$id';
+    String baseUrl = '${ApiConfig.tiposPagamentoUrl}/deletar/$id';
 
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
@@ -99,7 +100,7 @@ class TipoPagamentoService {
   }
 
   static Future<Map<String, dynamic>> atualizarTipoPagamento(int id, TipoPagamento tipoPagamento) async {
-    String baseUrl = 'http://localhost:8081/api/tipos-pagamento/atualizar/$id';
+    String baseUrl = '${ApiConfig.tiposPagamentoUrl}/atualizar/$id';
 
     try {
       final nivelAcesso = await AuthService.getNivelAcesso();
@@ -139,7 +140,7 @@ class TipoPagamentoService {
   }
 
   static Future<TipoPagamento?> buscarTipoPagamentoPorId(int id) async {
-    String baseUrl = 'http://localhost:8081/api/tipos-pagamento/buscar/$id';
+    String baseUrl = '${ApiConfig.tiposPagamentoUrl}/buscar/$id';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {

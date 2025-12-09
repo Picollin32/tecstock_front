@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:TecStock/services/auth_service.dart';
 import 'package:TecStock/model/checklist.dart';
+import 'package:TecStock/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class ChecklistService {
   static Future<bool> salvarChecklist(Checklist checklist) async {
-    String baseUrl = 'http://localhost:8081/api/checklists/salvar';
+    String baseUrl = '${ApiConfig.checklistUrl}/salvar';
 
     try {
       final response =
@@ -18,7 +19,7 @@ class ChecklistService {
   }
 
   static Future<Checklist?> buscarChecklistPorId(int id) async {
-    String baseUrl = 'http://localhost:8081/api/checklists/buscar/$id';
+    String baseUrl = '${ApiConfig.checklistUrl}/buscar/$id';
 
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -34,7 +35,7 @@ class ChecklistService {
   }
 
   static Future<List<Checklist>> listarChecklists() async {
-    String baseUrl = 'http://localhost:8081/api/checklists/listarTodos';
+    String baseUrl = '${ApiConfig.checklistUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       if (response.statusCode == 200) {
@@ -49,7 +50,7 @@ class ChecklistService {
   }
 
   static Future<bool> excluirChecklist(int id) async {
-    String baseUrl = 'http://localhost:8081/api/checklists/deletar/$id';
+    String baseUrl = '${ApiConfig.checklistUrl}/deletar/$id';
 
     try {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
@@ -61,11 +62,12 @@ class ChecklistService {
   }
 
   static Future<bool> atualizarChecklist(int id, Checklist checklist) async {
-    String baseUrl = 'http://localhost:8081/api/checklists/atualizar/$id';
+    String baseUrl = '${ApiConfig.checklistUrl}/atualizar/$id';
 
     try {
       final response = await http.put(
-        Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(),
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
         body: jsonEncode(checklist.toJson()),
       );
       return response.statusCode == 200;
@@ -76,7 +78,7 @@ class ChecklistService {
   }
 
   static Future<bool> fecharChecklist(int id) async {
-    String baseUrl = 'http://localhost:8081/api/checklists/fechar/$id';
+    String baseUrl = '${ApiConfig.checklistUrl}/fechar/$id';
 
     try {
       final response = await http.put(Uri.parse(baseUrl));

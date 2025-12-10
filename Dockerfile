@@ -1,40 +1,37 @@
-# Multi-stage build para Flutter Web
+# Dockerfile para Flutter Web
+# Stage 1: Build da aplicação Flutter
+FROM ghcr.io/cirruslabs/flutter:stable AS build-env
 
-# Stage 1: Build do Flutter Web
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+# Define o diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copia os arquivos de configuração do projeto
 COPY pubspec.yaml pubspec.lock ./
-RUN flutter pub get
 
-# Copiar o resto do código
+# Baixa as dependências
+RUN flutter pub get --no-example
+
+# Copia todo o código fonte
 COPY . .
 
-# Build para web com release mode
-# A variável API_BASE_URL pode ser passada no build-time
-ARG API_BASE_URL=http://localhost:8081
-RUN flutter build web --release --dart-define=API_BASE_URL=$API_BASE_URL
+# Build da aplicação web para produção (sem símbolos de debug)
+RUN flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.37.0/bin/ && \
+    rm -rf .dart_tool .git .gitignore
 
-# Stage 2: Servidor Nginx
-FROM nginx:alpine
-WORKDIR /usr/share/nginx/html
+# Stage 2: Servidor Node.js leve para servir arquivos estáticos
+FROM node:20-alpine
 
-# Remover conteúdo padrão do nginx
-RUN rm -rf ./*
+# Define o diretório de trabalho
+WORKDIR /app
 
-# Copiar build do Flutter
-COPY --from=build /app/build/web .
+# Instala um servidor HTTP simples e rápido
+RUN npm install -g serve
 
-# Copiar configuração customizada do nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copia os arquivos buildados do stage anterior
+COPY --from=build-env /app/build/web ./build/web
 
-# Expor porta
-EXPOSE 80
+# Expõe a porta 3000
+EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
-
-# Comando para iniciar nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Inicia o servidor
+CMD ["serve", "-s", "build/web", "-l", "3000"]

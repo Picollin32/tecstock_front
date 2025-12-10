@@ -14,8 +14,14 @@ RUN flutter pub get --no-example
 # Copia todo o código fonte
 COPY . .
 
+# Argumento para a URL da API (pode ser sobrescrito no build)
+ARG API_BASE_URL=http://localhost:8081
+
 # Build da aplicação web para produção (sem símbolos de debug)
-RUN flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.37.0/bin/ && \
+# Passa a URL da API como variável de ambiente em tempo de compilação
+RUN flutter build web --release \
+    --dart-define=API_BASE_URL=${API_BASE_URL} \
+    --dart-define=FLUTTER_WEB_CANVASKIT_URL=https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.37.0/bin/ && \
     rm -rf .dart_tool .git .gitignore
 
 # Stage 2: Servidor Node.js leve para servir arquivos estáticos

@@ -98,6 +98,24 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   pw.MemoryImage? _cachedLogoImage;
 
+  Future<void> _ensureLogoLoaded() async {
+    if (_cachedLogoImage != null) return;
+    
+    try {
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final bytes = logoBytes.buffer.asUint8List();
+      if (bytes.isNotEmpty && bytes.length > 1000) {
+        _cachedLogoImage = pw.MemoryImage(bytes);
+      } else {
+        print('Logo muito pequeno ou vazio');
+        _cachedLogoImage = null;
+      }
+    } catch (e) {
+      print('Erro ao carregar logo: $e');
+      _cachedLogoImage = null;
+    }
+  }
+
   bool _showForm = false;
   List<OrdemServico> _recent = [];
   List<OrdemServico> _recentFiltrados = [];
@@ -3810,9 +3828,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   void _printOS(OrdemServico? os) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 

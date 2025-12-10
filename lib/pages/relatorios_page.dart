@@ -52,10 +52,35 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   Future<void> _preloadLogo() async {
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
-      _cachedLogoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final bytes = logoBytes.buffer.asUint8List();
+      if (bytes.isNotEmpty && bytes.length > 1000) {
+        _cachedLogoImage = pw.MemoryImage(bytes);
+      } else {
+        print('Logo muito pequeno ou vazio');
+        _cachedLogoImage = null;
+      }
     } catch (e) {
       print('Erro ao pré-carregar logo: $e');
+      _cachedLogoImage = null;
+    }
+  }
+
+  Future<void> _ensureLogoLoaded() async {
+    if (_cachedLogoImage != null) return;
+    
+    try {
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final bytes = logoBytes.buffer.asUint8List();
+      if (bytes.isNotEmpty && bytes.length > 1000) {
+        _cachedLogoImage = pw.MemoryImage(bytes);
+      } else {
+        print('Logo muito pequeno ou vazio');
+        _cachedLogoImage = null;
+      }
+    } catch (e) {
+      print('Erro ao carregar logo: $e');
+      _cachedLogoImage = null;
     }
   }
 
@@ -763,9 +788,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioAgendamentos(RelatorioAgendamentos relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -819,9 +842,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioServicos(RelatorioServicos relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -874,9 +895,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioEstoque(RelatorioEstoque relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -939,9 +958,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioFinanceiro(RelatorioFinanceiro relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -1020,9 +1037,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioComissao(RelatorioComissao relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -1138,9 +1153,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioGarantias(RelatorioGarantias relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -1216,9 +1229,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioFiado(RelatorioFiado relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final doc = pw.Document();
 
@@ -3968,9 +3979,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioConsultores(RelatorioConsultores relatorio) async {
-    _cachedLogoImage ??= pw.MemoryImage(
-      (await rootBundle.load('assets/images/TecStock_logo.png')).buffer.asUint8List(),
-    );
+    await _ensureLogoLoaded();
 
     final consultoresOrdenados = List<ConsultorMetricas>.from(relatorio.consultores)
       ..sort((a, b) => b.valorTotalOS.compareTo(a.valorTotalOS));

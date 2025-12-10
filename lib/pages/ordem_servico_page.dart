@@ -100,7 +100,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   Future<void> _ensureLogoLoaded() async {
     if (_cachedLogoImage != null) return;
-    
+
     try {
       final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
       final bytes = logoBytes.buffer.asUint8List();

@@ -96,6 +96,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
+  bool _clientePreenchidoAutomaticamente = false;
+  bool _veiculoPreenchidoAutomaticamente = false;
+  int _cpfAutocompleteRebuildKey = 0;
+  int _placaAutocompleteRebuildKey = 0;
 
   pw.MemoryImage? _cachedLogoImage;
 
@@ -351,6 +355,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _clearForm() {
+    _clienteCpfController.removeListener(_onClienteCpfChanged);
+    _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
+
     _dateController.text = DateFormat('dd/MM/yyyy').format(DateTime.now());
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
     _orcamentoNumberController.clear();
@@ -380,11 +387,17 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _prazoFiadoDias = null;
       _mecanicoSelecionado = null;
       _consultorSelecionado = null;
+      _categoriaSelecionada = null;
+      _clientePreenchidoAutomaticamente = false;
+      _veiculoPreenchidoAutomaticamente = false;
       _precoTotal = 0.0;
       _precoTotalServicos = 0.0;
       _descontoServicos = 0.0;
       _descontoPecas = 0.0;
     });
+
+    _clienteCpfController.addListener(_onClienteCpfChanged);
+    _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
   }
 
   @override
@@ -2065,6 +2078,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _clienteCpfController.text = orcamento.clienteCpf;
       _clienteTelefoneController.text = orcamento.clienteTelefone ?? '';
       _clienteEmailController.text = orcamento.clienteEmail ?? '';
+      _clientePreenchidoAutomaticamente = true;
+      _cpfAutocompleteRebuildKey++;
 
       _veiculoNomeController.text = orcamento.veiculoNome;
       _veiculoMarcaController.text = orcamento.veiculoMarca;
@@ -2073,6 +2088,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _veiculoPlacaController.text = orcamento.veiculoPlaca;
       _veiculoQuilometragemController.text = orcamento.veiculoQuilometragem;
       _categoriaSelecionada = orcamento.veiculoCategoria ?? '';
+      _veiculoPreenchidoAutomaticamente = true;
+      _placaAutocompleteRebuildKey++;
 
       _queixaPrincipalController.text = orcamento.queixaPrincipal;
       _observacoesController.text = orcamento.observacoes ?? '';
@@ -3721,7 +3738,17 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   void _calcularPrecoTotal() {
     setState(() {
-      _precoTotalServicos = _servicosSelecionados.fold(0.0, (total, servico) => total + _getPrecoServicoPorCategoria(servico));
+      _precoTotalServicos = 0.0;
+
+      if (_categoriaSelecionada != null) {
+        for (var servico in _servicosSelecionados) {
+          if (_categoriaSelecionada == 'Caminhonete') {
+            _precoTotalServicos += servico.precoCaminhonete ?? 0.0;
+          } else if (_categoriaSelecionada == 'Passeio') {
+            _precoTotalServicos += servico.precoPasseio ?? 0.0;
+          }
+        }
+      }
 
       final totalPecas = _calcularTotalPecas();
       _precoTotal = _precoTotalServicos + totalPecas - _descontoServicos - _descontoPecas;
@@ -3734,7 +3761,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     } else if (_categoriaSelecionada == 'Passeio') {
       return servico.precoPasseio ?? 0.0;
     } else {
-      return servico.precoPasseio ?? 0.0;
+      return 0.0;
     }
   }
 
@@ -3882,13 +3909,21 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   void _onClienteCpfChanged() {
     final cpf = _clienteCpfController.text.trim();
-    if (cpf.length >= 11) {
+    if (cpf.isEmpty) {
+      setState(() {
+        _clienteNomeController.clear();
+        _clienteTelefoneController.clear();
+        _clienteEmailController.clear();
+        _clientePreenchidoAutomaticamente = false;
+      });
+    } else if (cpf.length >= 11) {
       final cliente = _clienteByCpf[cpf];
       if (cliente != null) {
         setState(() {
           _clienteNomeController.text = cliente.nome ?? '';
           _clienteTelefoneController.text = _maskTelefone.maskText(cliente.telefone ?? '');
           _clienteEmailController.text = cliente.email ?? '';
+          _clientePreenchidoAutomaticamente = true;
         });
       }
     }
@@ -3896,7 +3931,18 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   void _onVeiculoPlacaChanged() {
     final placa = _veiculoPlacaController.text.trim().toUpperCase();
-    if (placa.length >= 7) {
+    if (placa.isEmpty) {
+      setState(() {
+        _veiculoNomeController.clear();
+        _veiculoMarcaController.clear();
+        _veiculoAnoController.clear();
+        _veiculoCorController.clear();
+        _veiculoQuilometragemController.clear();
+        _categoriaSelecionada = null;
+        _veiculoPreenchidoAutomaticamente = false;
+      });
+      _calcularPrecoTotal();
+    } else if (placa.length >= 7) {
       final veiculo = _veiculoByPlaca[placa];
       if (veiculo != null) {
         setState(() {
@@ -3906,6 +3952,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           _veiculoCorController.text = veiculo.cor ?? '';
           _veiculoQuilometragemController.text = veiculo.quilometragem?.toString() ?? '';
           _categoriaSelecionada = veiculo.categoria;
+          _veiculoPreenchidoAutomaticamente = true;
         });
         _calcularPrecoTotal();
       }
@@ -3927,6 +3974,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -3951,6 +3999,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             if (controller.text.isEmpty && _clienteCpfController.text.isNotEmpty) {
               controller.text = _clienteCpfController.text;
             }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -3978,6 +4027,22 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _clientePreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            controller.clear();
+                            _clienteNomeController.clear();
+                            _clienteTelefoneController.clear();
+                            _clienteEmailController.clear();
+                            _clienteCpfController.clear();
+                            _clientePreenchidoAutomaticamente = false;
+                            _cpfAutocompleteRebuildKey++;
+                          });
+                        },
+                      )
+                    : null,
               ),
             );
           },
@@ -4013,6 +4078,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildLabeledController(String label, TextEditingController controller, {FocusNode? focusNode}) {
+    bool isReadOnly = true;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4028,7 +4095,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         TextField(
           controller: controller,
           focusNode: focusNode,
-          readOnly: _isViewMode,
+          readOnly: isReadOnly,
           inputFormatters: label == 'Telefone/WhatsApp' ? [_maskTelefone] : null,
           onChanged: _isViewMode ? null : (value) {},
           decoration: InputDecoration(
@@ -4045,7 +4112,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: _isViewMode ? Colors.white : Colors.grey[100],
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
@@ -4068,6 +4135,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
@@ -4091,6 +4159,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             if (controller.text.isEmpty && _veiculoPlacaController.text.isNotEmpty) {
               controller.text = _veiculoPlacaController.text;
             }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -4117,6 +4186,25 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _veiculoPreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            _veiculoNomeController.clear();
+                            _veiculoMarcaController.clear();
+                            _veiculoAnoController.clear();
+                            _veiculoCorController.clear();
+                            _veiculoQuilometragemController.clear();
+                            _veiculoPlacaController.clear();
+                            _categoriaSelecionada = null;
+                            _veiculoPreenchidoAutomaticamente = false;
+                            _placaAutocompleteRebuildKey++;
+                            _calcularPrecoTotal();
+                          });
+                        },
+                      )
+                    : null,
               ),
             );
           },

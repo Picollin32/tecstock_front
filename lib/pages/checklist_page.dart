@@ -124,6 +124,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
 
+  bool _clientePreenchidoAutomaticamente = false;
+  bool _veiculoPreenchidoAutomaticamente = false;
+  int _cpfAutocompleteRebuildKey = 0;
+  int _placaAutocompleteRebuildKey = 0;
+  final _maskTelefone = MaskTextInputFormatter(mask: '(##) # ####-####', filter: {"#": RegExp(r'[0-9]')});
+
   pw.MemoryImage? _cachedLogoImage;
 
   Future<void> _ensureLogoLoaded() async {
@@ -151,6 +157,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   int? _editingChecklistId;
 
   void _clearFormFields() {
+    _clienteCpfController.removeListener(_onClienteCpfChanged);
+    _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
+
     _clienteNomeController.clear();
     _clienteCpfController.clear();
     _clienteTelefoneController.clear();
@@ -167,6 +176,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _consultorSelecionado = null;
     _categoriaSelecionada = null;
     _isViewMode = false;
+    _clientePreenchidoAutomaticamente = false;
+    _veiculoPreenchidoAutomaticamente = false;
 
     _inspecaoVisualStatus.updateAll((key, value) => '');
 
@@ -175,6 +186,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _testesFuncionamento.updateAll((key, value) => '');
 
     _itensVeiculo.updateAll((key, value) => '');
+
+    _clienteCpfController.addListener(_onClienteCpfChanged);
+    _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
   }
 
   Future<void> _loadRecentChecklists() async {
@@ -256,6 +270,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _loadClientesVeiculos();
     _loadRecentChecklists();
     _searchController.addListener(_filtrarRecentes);
+    _clienteCpfController.addListener(_onClienteCpfChanged);
+    _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
 
     _fadeController.forward();
     _slideController.forward();
@@ -285,6 +301,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       _slideController.dispose();
       _dateController.dispose();
       _timeController.dispose();
+      _clienteCpfController.removeListener(_onClienteCpfChanged);
+      _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
       _clienteNomeController.dispose();
       _clienteCpfController.dispose();
       _clienteTelefoneController.dispose();
@@ -1927,12 +1945,16 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           _clienteCpfController.text = checklist.clienteCpf ?? '';
           _clienteTelefoneController.text = checklist.clienteTelefone ?? '';
           _clienteEmailController.text = checklist.clienteEmail ?? '';
+          _clientePreenchidoAutomaticamente = true;
+          _cpfAutocompleteRebuildKey++;
           _veiculoNomeController.text = checklist.veiculoNome ?? '';
           _veiculoMarcaController.text = checklist.veiculoMarca ?? '';
           _veiculoAnoController.text = checklist.veiculoAno ?? '';
           _veiculoCorController.text = checklist.veiculoCor ?? '';
           _veiculoPlacaController.text = checklist.veiculoPlaca ?? '';
           _veiculoQuilometragemController.text = checklist.veiculoQuilometragem ?? '';
+          _veiculoPreenchidoAutomaticamente = true;
+          _placaAutocompleteRebuildKey++;
           _queixaPrincipalController.text = checklist.queixaPrincipal ?? '';
           _fuelLevel = (checklist.nivelCombustivel ?? 0) / 25.0;
 
@@ -2235,6 +2257,17 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildLabeledController(String label, TextEditingController controller) {
+    bool isReadOnly = false;
+    if (controller == _clienteNomeController || controller == _clienteTelefoneController || controller == _clienteEmailController) {
+      isReadOnly = true;
+    } else if (controller == _veiculoNomeController ||
+        controller == _veiculoMarcaController ||
+        controller == _veiculoAnoController ||
+        controller == _veiculoCorController ||
+        controller == _veiculoQuilometragemController) {
+      isReadOnly = true;
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2249,6 +2282,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          readOnly: isReadOnly || _isViewMode,
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -2263,7 +2297,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: isReadOnly && !_isViewMode ? Colors.grey[100] : Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
@@ -2373,6 +2407,33 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
+  void _onClienteCpfChanged() {
+    final cpf = _clienteCpfController.text.trim();
+    if (cpf.isEmpty) {
+      setState(() {
+        _clienteNomeController.clear();
+        _clienteTelefoneController.clear();
+        _clienteEmailController.clear();
+        _clientePreenchidoAutomaticamente = false;
+      });
+    }
+  }
+
+  void _onVeiculoPlacaChanged() {
+    final placa = _veiculoPlacaController.text.trim().toUpperCase();
+    if (placa.isEmpty) {
+      setState(() {
+        _veiculoNomeController.clear();
+        _veiculoMarcaController.clear();
+        _veiculoAnoController.clear();
+        _veiculoCorController.clear();
+        _veiculoQuilometragemController.clear();
+        _categoriaSelecionada = null;
+        _veiculoPreenchidoAutomaticamente = false;
+      });
+    }
+  }
+
   Widget _buildCpfAutocomplete({required double fieldWidth}) {
     final options = _clienteByCpf.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
@@ -2388,6 +2449,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -2399,28 +2461,41 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           onSelected: (String selection) {
             final pessoa = _clienteByCpf[selection];
             if (pessoa is Cliente) {
+              final telefone = pessoa.telefone.toString();
               setState(() {
                 _clienteNomeController.text = pessoa.nome;
                 _clienteCpfController.text = pessoa.cpf;
-                _clienteTelefoneController.text = pessoa.telefone;
+                _clienteTelefoneController.text = telefone.isNotEmpty ? _maskTelefone.maskText(telefone) : '';
                 _clienteEmailController.text = pessoa.email;
+                _clientePreenchidoAutomaticamente = true;
               });
             } else if (pessoa is Funcionario) {
+              final telefone = pessoa.telefone.toString();
               setState(() {
                 _clienteNomeController.text = pessoa.nome;
                 _clienteCpfController.text = pessoa.cpf;
-                _clienteTelefoneController.text = pessoa.telefone;
+                _clienteTelefoneController.text = telefone.isNotEmpty ? _maskTelefone.maskText(telefone) : '';
                 _clienteEmailController.text = pessoa.email;
+                _clientePreenchidoAutomaticamente = true;
               });
             }
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            controller.text = _clienteCpfController.text;
+            if (controller.text.isEmpty && _clienteCpfController.text.isNotEmpty) {
+              controller.text = _clienteCpfController.text;
+            }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              keyboardType: TextInputType.number,
+              readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly],
+              keyboardType: _isViewMode ? null : TextInputType.number,
+              onChanged: _isViewMode
+                  ? null
+                  : (value) {
+                      _clienteCpfController.text = value;
+                    },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -2437,6 +2512,22 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _clientePreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            controller.clear();
+                            _clienteNomeController.clear();
+                            _clienteTelefoneController.clear();
+                            _clienteEmailController.clear();
+                            _clienteCpfController.clear();
+                            _clientePreenchidoAutomaticamente = false;
+                            _cpfAutocompleteRebuildKey++;
+                          });
+                        },
+                      )
+                    : null,
               ),
             );
           },
@@ -2487,6 +2578,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
@@ -2502,18 +2594,25 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 _veiculoPlacaController.text = v.placa;
                 _veiculoQuilometragemController.text = v.quilometragem.toString();
                 _categoriaSelecionada = v.categoria;
+                _veiculoPreenchidoAutomaticamente = true;
               });
             }
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            controller.text = _veiculoPlacaController.text;
+            if (controller.text.isEmpty && _veiculoPlacaController.text.isNotEmpty) {
+              controller.text = _veiculoPlacaController.text;
+            }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
-              inputFormatters: [_maskPlaca, _upperCaseFormatter],
-              onChanged: (value) {
-                _veiculoPlacaController.text = value;
-              },
+              readOnly: _isViewMode,
+              inputFormatters: _isViewMode ? null : [_maskPlaca, _upperCaseFormatter],
+              onChanged: _isViewMode
+                  ? null
+                  : (value) {
+                      _veiculoPlacaController.text = value;
+                    },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -2530,6 +2629,25 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _veiculoPreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            controller.clear();
+                            _veiculoNomeController.clear();
+                            _veiculoMarcaController.clear();
+                            _veiculoAnoController.clear();
+                            _veiculoCorController.clear();
+                            _veiculoQuilometragemController.clear();
+                            _veiculoPlacaController.clear();
+                            _categoriaSelecionada = null;
+                            _veiculoPreenchidoAutomaticamente = false;
+                            _placaAutocompleteRebuildKey++;
+                          });
+                        },
+                      )
+                    : null,
               ),
             );
           },

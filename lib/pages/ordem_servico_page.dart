@@ -95,6 +95,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
+  bool _clientePreenchidoAutomaticamente = false;
+  bool _veiculoPreenchidoAutomaticamente = false;
+  int _cpfAutocompleteRebuildKey = 0;
+  int _placaAutocompleteRebuildKey = 0;
 
   pw.MemoryImage? _cachedLogoImage;
 
@@ -168,6 +172,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _initializeData();
     _searchController.addListener(_filtrarRecentes);
     _servicoSearchController.addListener(_filtrarServicos);
+    _clienteCpfController.addListener(_onClienteCpfChanged);
+    _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
 
     _fadeController.forward();
     _slideController.forward();
@@ -215,6 +221,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _searchController.dispose();
       _servicoSearchController.removeListener(_filtrarServicos);
       _servicoSearchController.dispose();
+      _clienteCpfController.removeListener(_onClienteCpfChanged);
+      _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
       _descontoServicosController.dispose();
       _descontoPecasController.dispose();
     } catch (e) {
@@ -367,6 +375,36 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         return matchCliente && matchVeiculo && matchStatus;
       }).toList();
     });
+  }
+
+  void _onClienteCpfChanged() {
+    final cpf = _clienteCpfController.text.trim();
+    if (cpf.isEmpty) {
+      setState(() {
+        _clienteNomeController.clear();
+        _clienteTelefoneController.clear();
+        _clienteEmailController.clear();
+        _clientePreenchidoAutomaticamente = false;
+      });
+      _filtrarChecklists();
+    }
+  }
+
+  void _onVeiculoPlacaChanged() {
+    final placa = _veiculoPlacaController.text.trim();
+    if (placa.isEmpty) {
+      setState(() {
+        _veiculoNomeController.clear();
+        _veiculoMarcaController.clear();
+        _veiculoAnoController.clear();
+        _veiculoCorController.clear();
+        _veiculoQuilometragemController.clear();
+        _categoriaSelecionada = null;
+        _veiculoPreenchidoAutomaticamente = false;
+      });
+      _filtrarChecklists();
+      _calcularPrecoTotal();
+    }
   }
 
   void _onServicoToggled(Servico servico) {
@@ -580,6 +618,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Future<void> _clearFormFields() async {
+    _clienteCpfController.removeListener(_onClienteCpfChanged);
+    _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
+
     _clienteNomeController.clear();
     _clienteCpfController.clear();
     _clienteTelefoneController.clear();
@@ -612,12 +653,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _precoTotal = 0.0;
       _precoTotalServicos = 0.0;
       _categoriaSelecionada = null;
+      _clientePreenchidoAutomaticamente = false;
+      _veiculoPreenchidoAutomaticamente = false;
       _pecaEncontrada = null;
       _checklistsFiltrados = _checklists;
       _isViewMode = false;
       _descontoServicos = 0.0;
       _descontoPecas = 0.0;
     });
+    _clienteCpfController.addListener(_onClienteCpfChanged);
+    _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
   }
 
   @override
@@ -1619,6 +1664,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildLabeledController(String label, TextEditingController controller) {
+    bool isReadOnly = true;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1633,7 +1680,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          readOnly: _isViewMode,
+          readOnly: isReadOnly,
           inputFormatters: label == 'Telefone/WhatsApp' ? [_maskTelefone] : null,
           onChanged: _isViewMode
               ? null
@@ -1656,7 +1703,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: _isViewMode ? Colors.white : Colors.grey[100],
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
         ),
@@ -1679,6 +1726,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -1696,6 +1744,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 _clienteCpfController.text = pessoa.cpf ?? '';
                 _clienteTelefoneController.text = telefone.isNotEmpty ? _maskTelefone.maskText(telefone) : '';
                 _clienteEmailController.text = pessoa.email ?? '';
+                _clientePreenchidoAutomaticamente = true;
               });
               _filtrarChecklists();
             }
@@ -1704,6 +1753,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             if (controller.text.isEmpty && _clienteCpfController.text.isNotEmpty) {
               controller.text = _clienteCpfController.text;
             }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -1732,6 +1782,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _clientePreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            controller.clear();
+                            _clienteNomeController.clear();
+                            _clienteTelefoneController.clear();
+                            _clienteEmailController.clear();
+                            _clienteCpfController.clear();
+                            _clientePreenchidoAutomaticamente = false;
+                            _cpfAutocompleteRebuildKey++;
+                          });
+                          _filtrarChecklists();
+                        },
+                      )
+                    : null,
               ),
             );
           },
@@ -1781,6 +1848,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         ),
         const SizedBox(height: 8),
         Autocomplete<String>(
+          key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
             return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
@@ -1796,6 +1864,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 _veiculoPlacaController.text = v.placa;
                 _veiculoQuilometragemController.text = v.quilometragem.toString();
                 _categoriaSelecionada = v.categoria;
+                _veiculoPreenchidoAutomaticamente = true;
               });
               _filtrarChecklists();
               _calcularPrecoTotal();
@@ -1805,6 +1874,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             if (controller.text.isEmpty && _veiculoPlacaController.text.isNotEmpty) {
               controller.text = _veiculoPlacaController.text;
             }
+
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -1832,6 +1902,26 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                suffixIcon: _veiculoPreenchidoAutomaticamente && !_isViewMode
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            _veiculoNomeController.clear();
+                            _veiculoMarcaController.clear();
+                            _veiculoAnoController.clear();
+                            _veiculoCorController.clear();
+                            _veiculoQuilometragemController.clear();
+                            _veiculoPlacaController.clear();
+                            _categoriaSelecionada = null;
+                            _veiculoPreenchidoAutomaticamente = false;
+                            _placaAutocompleteRebuildKey++;
+                            _calcularPrecoTotal();
+                          });
+                          _filtrarChecklists();
+                        },
+                      )
+                    : null,
               ),
             );
           },
@@ -4807,12 +4897,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _clienteCpfController.text = osCompleta.clienteCpf;
           _clienteTelefoneController.text = _maskTelefone.maskText(osCompleta.clienteTelefone);
           _clienteEmailController.text = osCompleta.clienteEmail ?? '';
+          _clientePreenchidoAutomaticamente = true;
+          _cpfAutocompleteRebuildKey++;
           _veiculoNomeController.text = osCompleta.veiculoNome;
           _veiculoMarcaController.text = osCompleta.veiculoMarca;
           _veiculoAnoController.text = osCompleta.veiculoAno;
           _veiculoCorController.text = osCompleta.veiculoCor;
           _veiculoPlacaController.text = osCompleta.veiculoPlaca;
           _veiculoQuilometragemController.text = osCompleta.veiculoQuilometragem;
+          _veiculoPreenchidoAutomaticamente = true;
+          _placaAutocompleteRebuildKey++;
           _queixaPrincipalController.text = osCompleta.queixaPrincipal;
           _observacoesController.text = osCompleta.observacoes ?? '';
           _garantiaMeses = osCompleta.garantiaMeses;
@@ -4971,12 +5065,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _clienteCpfController.text = osCompleta.clienteCpf;
           _clienteTelefoneController.text = osCompleta.clienteTelefone ?? '';
           _clienteEmailController.text = osCompleta.clienteEmail ?? '';
+          _clientePreenchidoAutomaticamente = true;
+          _cpfAutocompleteRebuildKey++;
           _veiculoNomeController.text = osCompleta.veiculoNome;
           _veiculoMarcaController.text = osCompleta.veiculoMarca;
           _veiculoAnoController.text = osCompleta.veiculoAno;
           _veiculoCorController.text = osCompleta.veiculoCor;
           _veiculoPlacaController.text = osCompleta.veiculoPlaca;
           _veiculoQuilometragemController.text = osCompleta.veiculoQuilometragem;
+          _veiculoPreenchidoAutomaticamente = true;
+          _placaAutocompleteRebuildKey++;
           _queixaPrincipalController.text = osCompleta.queixaPrincipal;
           _observacoesController.text = osCompleta.observacoes ?? '';
           _garantiaMeses = osCompleta.garantiaMeses;

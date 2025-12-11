@@ -591,7 +591,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       validator: validator,
       decoration: InputDecoration(

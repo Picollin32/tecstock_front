@@ -1,17 +1,11 @@
 class ApiConfig {
-  // Por padrão, usa localhost para desenvolvimento
-  // Em produção, você deve definir a variável de ambiente API_BASE_URL no Dokploy
   static const String _defaultBaseUrl = 'http://localhost:8081';
 
-  // Obtém a URL base da API
   static String get baseUrl {
-    // Em Flutter Web, você pode usar const String.fromEnvironment
-    // que é definida em tempo de compilação
     const apiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl);
     return apiUrl;
   }
 
-  // URLs completas para os diferentes endpoints
   static String get authUrl => '$baseUrl/api/auth';
   static String get agendamentosUrl => '$baseUrl/api/agendamentos';
   static String get auditoriaUrl => '$baseUrl/api/auditoria';

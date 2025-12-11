@@ -103,7 +103,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     if (_cachedLogoImage != null) return;
 
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final bytes = logoBytes.buffer.asUint8List();
       if (bytes.isNotEmpty && bytes.length > 1000) {
         _cachedLogoImage = pw.MemoryImage(bytes);
@@ -2189,7 +2189,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
+                  initialValue:
+                      _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -2243,7 +2244,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
+                  initialValue:
+                      _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3330,7 +3332,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: _garantiaMeses,
+                  initialValue: _garantiaMeses,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3379,7 +3381,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int?>(
-                  value: _tipoPagamentoSelecionado?.id,
+                  initialValue: _tipoPagamentoSelecionado?.id,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3438,7 +3440,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _numeroParcelas,
+                    initialValue: _numeroParcelas,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3482,7 +3484,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
+                    initialValue: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),

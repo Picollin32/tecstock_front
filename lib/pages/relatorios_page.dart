@@ -52,7 +52,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   Future<void> _preloadLogo() async {
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final bytes = logoBytes.buffer.asUint8List();
       if (bytes.isNotEmpty && bytes.length > 1000) {
         _cachedLogoImage = pw.MemoryImage(bytes);
@@ -70,7 +70,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     if (_cachedLogoImage != null) return;
 
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final bytes = logoBytes.buffer.asUint8List();
       if (bytes.isNotEmpty && bytes.length > 1000) {
         _cachedLogoImage = pw.MemoryImage(bytes);
@@ -404,7 +404,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             icon: Icons.assessment,
             color: Colors.purple,
             child: DropdownButtonFormField<String>(
-              value: _tipoRelatorio,
+              initialValue: _tipoRelatorio,
               decoration: InputDecoration(
                 filled: true,
                 fillColor: Colors.grey[50],
@@ -524,7 +524,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       ),
                     )
                   : DropdownButtonFormField<int>(
-                      value: _mecanicoSelecionadoId,
+                      initialValue: _mecanicoSelecionadoId,
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Colors.grey[50],

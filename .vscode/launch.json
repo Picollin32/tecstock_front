@@ -15,22 +15,22 @@
             "type": "dart",
             "request": "launch",
             "program": "${workspaceFolder:tecstock_front}/lib/main.dart",
+            "cwd": "${workspaceFolder:tecstock_front}",
             "args": [
                 "-d",
                 "chrome"
-            ],
-            "cwd": "${workspaceFolder:tecstock_front}"
+            ]
         },
         {
             "name": "🎨 Flutter - Frontend (Windows)",
             "type": "dart",
             "request": "launch",
             "program": "${workspaceFolder:tecstock_front}/lib/main.dart",
+            "cwd": "${workspaceFolder:tecstock_front}",
             "args": [
                 "-d",
                 "windows"
-            ],
-            "cwd": "${workspaceFolder:tecstock_front}"
+            ]
         }
     ],
     "compounds": [

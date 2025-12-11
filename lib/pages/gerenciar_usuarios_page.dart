@@ -601,7 +601,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       validator: validator,
       decoration: InputDecoration(

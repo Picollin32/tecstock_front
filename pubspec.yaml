@@ -1,5 +1,5 @@
 name: TecStock
-description: "A new Flutter project."
+description: "Sistema de Gerenciamento de Oficina"
 publish_to: "none"
 version: 0.1.0
 
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.6
+  http: ^1.0.0
   intl: ^0.20.2
   mask_text_input_formatter: ^2.9.0
   cpf_cnpj_validator: ^2.0.0
@@ -18,7 +18,7 @@ dependencies:
     sdk: flutter
   printing: ^5.14.2
   pdf: ^3.11.3
-  google_fonts: ^4.0.4
+  google_fonts: ^6.0.0
   shared_preferences: ^2.2.2
   flutter_secure_storage: ^9.0.0
 

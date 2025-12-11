@@ -262,7 +262,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonFormField<int>(
-                        value: selectedMonth,
+                        initialValue: selectedMonth,
                         decoration: const InputDecoration(
                           labelText: 'Mês',
                           border: InputBorder.none,
@@ -297,7 +297,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: DropdownButtonFormField<int>(
-                        value: selectedYear,
+                        initialValue: selectedYear,
                         decoration: const InputDecoration(
                           labelText: 'Ano',
                           border: InputBorder.none,
@@ -2003,7 +2003,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: selectedMecanico,
+                        initialValue: selectedMecanico,
                         hint: const Text("Selecione o Mecânico"),
                         onChanged: (value) => setDialogState(() => selectedMecanico = value),
                         decoration: InputDecoration(
@@ -2025,7 +2025,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: selectedConsultor,
+                        initialValue: selectedConsultor,
                         hint: const Text("Selecione o Consultor (Opcional)"),
                         onChanged: _isAdmin ? (value) => setDialogState(() => selectedConsultor = value) : null,
                         decoration: InputDecoration(
@@ -2083,7 +2083,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: selectedService,
+                        initialValue: selectedService,
                         hint: const Text("Selecione o tipo de serviço"),
                         onChanged: (value) => setDialogState(() => selectedService = value),
                         decoration: InputDecoration(

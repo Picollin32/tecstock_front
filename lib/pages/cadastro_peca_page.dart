@@ -1398,7 +1398,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       validator: validator,
       decoration: InputDecoration(

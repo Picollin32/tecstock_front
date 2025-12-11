@@ -130,7 +130,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     if (_cachedLogoImage != null) return;
 
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final bytes = logoBytes.buffer.asUint8List();
       if (bytes.isNotEmpty && bytes.length > 1000) {
         _cachedLogoImage = pw.MemoryImage(bytes);
@@ -2287,7 +2287,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<Funcionario>(
-          value: consultorAtual,
+          initialValue: consultorAtual,
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

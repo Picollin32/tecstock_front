@@ -1673,7 +1673,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             decoration: const InputDecoration(
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),

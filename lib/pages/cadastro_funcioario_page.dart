@@ -1015,7 +1015,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     String? Function(T?)? validator,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       validator: validator,
       decoration: InputDecoration(

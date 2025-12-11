@@ -102,7 +102,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     if (_cachedLogoImage != null) return;
 
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.PNG');
+      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final bytes = logoBytes.buffer.asUint8List();
       if (bytes.isNotEmpty && bytes.length > 1000) {
         _cachedLogoImage = pw.MemoryImage(bytes);
@@ -385,11 +385,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   void _calcularPrecoTotal() {
     double totalServicos = 0.0;
 
-    for (var servico in _servicosSelecionados) {
-      if (_categoriaSelecionada == 'Caminhonete') {
-        totalServicos += servico.precoCaminhonete ?? 0.0;
-      } else if (_categoriaSelecionada == 'Passeio') {
-        totalServicos += servico.precoPasseio ?? 0.0;
+    if (_categoriaSelecionada != null) {
+      for (var servico in _servicosSelecionados) {
+        if (_categoriaSelecionada == 'Caminhonete') {
+          totalServicos += servico.precoCaminhonete ?? 0.0;
+        } else if (_categoriaSelecionada == 'Passeio') {
+          totalServicos += servico.precoPasseio ?? 0.0;
+        }
       }
     }
 
@@ -483,11 +485,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       return totalServicos;
     } else {
       double totalServicos = 0.0;
-      for (var servico in _servicosSelecionados) {
-        if (_categoriaSelecionada == 'Caminhonete') {
-          totalServicos += servico.precoCaminhonete ?? 0.0;
-        } else if (_categoriaSelecionada == 'Passeio') {
-          totalServicos += servico.precoPasseio ?? 0.0;
+
+      if (_categoriaSelecionada != null) {
+        for (var servico in _servicosSelecionados) {
+          if (_categoriaSelecionada == 'Caminhonete') {
+            totalServicos += servico.precoCaminhonete ?? 0.0;
+          } else if (_categoriaSelecionada == 'Passeio') {
+            totalServicos += servico.precoPasseio ?? 0.0;
+          }
         }
       }
       return totalServicos;
@@ -2991,7 +2996,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
+                  initialValue:
+                      _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3045,7 +3051,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<Funcionario>(
-                  value: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
+                  initialValue:
+                      _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3113,7 +3120,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  value: _garantiaMeses,
+                  initialValue: _garantiaMeses,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3162,7 +3169,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<TipoPagamento>(
-                  value: _tipoPagamentoSelecionado,
+                  initialValue: _tipoPagamentoSelecionado,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -3213,7 +3220,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _numeroParcelas,
+                    initialValue: _numeroParcelas,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -3257,7 +3264,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<int>(
-                    value: _prazoFiadoDias != null && _prazoFiadoDias! > 0
+                    initialValue: _prazoFiadoDias != null && _prazoFiadoDias! > 0
                         ? () {
                             int meses = _prazoFiadoDias! ~/ 30;
                             if (meses < 1) meses = 1;

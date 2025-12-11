@@ -1,3 +1,3 @@
 # TecStock
 
-A new Flutter project.
+Sistema de Gerenciamento de Oficina.

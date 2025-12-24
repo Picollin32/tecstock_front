@@ -23,6 +23,8 @@ RUN flutter build web --release \
     --base-href=/ \
     --dart-define=API_BASE_URL=${API_BASE_URL} \
     --dart-define=FLUTTER_WEB_CANVASKIT_URL=https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.37.0/bin/ && \
+    mkdir -p build/web/assets/images && \
+    cp -r build/web/assets/assets/images/* build/web/assets/images/ 2>/dev/null || true && \
     rm -rf .dart_tool .git .gitignore
 
 # Stage 2: Servidor Node.js leve para servir arquivos estáticos

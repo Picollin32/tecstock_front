@@ -23,6 +23,7 @@ import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
 import '../model/funcionario.dart';
 import '../model/veiculo.dart';
+import '../utils/pdf_logo_helper.dart';
 
 class OrdemServicoPage extends StatelessWidget {
   const OrdemServicoPage({super.key});
@@ -100,24 +101,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   int _cpfAutocompleteRebuildKey = 0;
   int _placaAutocompleteRebuildKey = 0;
 
-  pw.MemoryImage? _cachedLogoImage;
-
   Future<void> _ensureLogoLoaded() async {
-    if (_cachedLogoImage != null) return;
-
-    try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
-      final bytes = logoBytes.buffer.asUint8List();
-      if (bytes.isNotEmpty && bytes.length > 1000) {
-        _cachedLogoImage = pw.MemoryImage(bytes);
-      } else {
-        print('Logo muito pequeno ou vazio');
-        _cachedLogoImage = null;
-      }
-    } catch (e) {
-      print('Erro ao carregar logo: $e');
-      _cachedLogoImage = null;
-    }
+    await PdfLogoHelper.preloadLogo();
   }
 
   bool _showForm = false;
@@ -3937,7 +3922,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           if (context.pageNumber > 1) {
             return pw.Column(
               children: [
-                _buildPdfHeader(os, logoImage: _cachedLogoImage),
+                _buildPdfHeader(os, logoImage: PdfLogoHelper.getCachedLogo()),
                 pw.SizedBox(height: 8),
               ],
             );
@@ -3983,7 +3968,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           );
         },
         build: (pw.Context context) => [
-          _buildPdfHeader(os, logoImage: _cachedLogoImage),
+          _buildPdfHeader(os, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 8),
           pw.Wrap(
             children: [
@@ -4087,7 +4072,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         build: (pw.Context context) {
           return pw.Stack(
             children: [
-              _buildSignaturePage(os, logoImage: _cachedLogoImage),
+              _buildSignaturePage(os, logoImage: PdfLogoHelper.getCachedLogo()),
               pw.Positioned(
                 bottom: 0,
                 left: 0,

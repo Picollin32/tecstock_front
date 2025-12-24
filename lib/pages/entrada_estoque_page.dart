@@ -792,7 +792,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '⚠️ $quantidadeEmOS unid. em OS abertas',
+                            '$quantidadeEmOS unid. em OS abertas',
                             style: TextStyle(
                               fontSize: 11,
                               color: warningColor,

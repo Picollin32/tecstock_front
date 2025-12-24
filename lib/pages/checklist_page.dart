@@ -14,6 +14,7 @@ import '../model/veiculo.dart';
 import '../model/funcionario.dart';
 import '../services/checklist_service.dart';
 import '../model/checklist.dart';
+import '../utils/pdf_logo_helper.dart';
 
 class ChecklistPage extends StatelessWidget {
   const ChecklistPage({super.key});
@@ -130,24 +131,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   int _placaAutocompleteRebuildKey = 0;
   final _maskTelefone = MaskTextInputFormatter(mask: '(##) # ####-####', filter: {"#": RegExp(r'[0-9]')});
 
-  pw.MemoryImage? _cachedLogoImage;
-
   Future<void> _ensureLogoLoaded() async {
-    if (_cachedLogoImage != null) return;
-
-    try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
-      final bytes = logoBytes.buffer.asUint8List();
-      if (bytes.isNotEmpty && bytes.length > 1000) {
-        _cachedLogoImage = pw.MemoryImage(bytes);
-      } else {
-        print('Logo muito pequeno ou vazio');
-        _cachedLogoImage = null;
-      }
-    } catch (e) {
-      print('Erro ao carregar logo: $e');
-      _cachedLogoImage = null;
-    }
+    await PdfLogoHelper.preloadLogo();
   }
 
   bool _showForm = false;
@@ -408,7 +393,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         build: (pw.Context context) => [
           pw.Wrap(
             children: [
-              _buildPdfHeader(logoImage: _cachedLogoImage),
+              _buildPdfHeader(logoImage: PdfLogoHelper.getCachedLogo()),
             ],
           ),
           pw.SizedBox(height: 8),
@@ -480,7 +465,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         build: (pw.Context context) {
           return pw.Stack(
             children: [
-              _buildSignaturePage(logoImage: _cachedLogoImage),
+              _buildSignaturePage(logoImage: PdfLogoHelper.getCachedLogo()),
               pw.Positioned(
                 bottom: 0,
                 left: 0,

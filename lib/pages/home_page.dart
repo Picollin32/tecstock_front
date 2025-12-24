@@ -1585,7 +1585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('✅ Todos os dados foram carregados com sucesso!'),
+                              content: Text('Todos os dados foram carregados com sucesso!'),
                               backgroundColor: Colors.green,
                               duration: Duration(seconds: 2),
                             ),
@@ -1595,7 +1595,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('❌ Erro ao carregar dados completos. Tente novamente.'),
+                              content: Text('Erro ao carregar dados completos. Tente novamente.'),
                               backgroundColor: Colors.red,
                               duration: const Duration(seconds: 3),
                               action: SnackBarAction(

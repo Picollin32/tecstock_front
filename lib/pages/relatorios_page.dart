@@ -11,6 +11,7 @@ import '../model/funcionario.dart';
 import '../services/relatorio_service.dart';
 import '../services/auth_service.dart';
 import '../config/api_config.dart';
+import '../utils/pdf_logo_helper.dart';
 
 class RelatoriosPage extends StatefulWidget {
   const RelatoriosPage({super.key});
@@ -32,8 +33,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   dynamic _relatorioAtual;
 
-  pw.MemoryImage? _cachedLogoImage;
-
   List<Funcionario> _funcionarios = [];
   int? _mecanicoSelecionadoId;
   bool _isLoadingFuncionarios = false;
@@ -51,37 +50,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _preloadLogo() async {
-    try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
-      final bytes = logoBytes.buffer.asUint8List();
-      if (bytes.isNotEmpty && bytes.length > 1000) {
-        _cachedLogoImage = pw.MemoryImage(bytes);
-      } else {
-        print('Logo muito pequeno ou vazio');
-        _cachedLogoImage = null;
-      }
-    } catch (e) {
-      print('Erro ao pré-carregar logo: $e');
-      _cachedLogoImage = null;
-    }
-  }
-
-  Future<void> _ensureLogoLoaded() async {
-    if (_cachedLogoImage != null) return;
-
-    try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
-      final bytes = logoBytes.buffer.asUint8List();
-      if (bytes.isNotEmpty && bytes.length > 1000) {
-        _cachedLogoImage = pw.MemoryImage(bytes);
-      } else {
-        print('Logo muito pequeno ou vazio');
-        _cachedLogoImage = null;
-      }
-    } catch (e) {
-      print('Erro ao carregar logo: $e');
-      _cachedLogoImage = null;
-    }
+    await PdfLogoHelper.preloadLogo();
   }
 
   Future<void> _carregarFuncionarios() async {
@@ -788,8 +757,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioAgendamentos(RelatorioAgendamentos relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -797,7 +764,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Agendamentos', Icons.calendar_month, PdfColors.blue600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Agendamentos', Icons.calendar_month, PdfColors.blue600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -842,8 +809,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioServicos(RelatorioServicos relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -851,7 +816,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Serviços', Icons.build, PdfColors.indigo600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Serviços', Icons.build, PdfColors.indigo600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -895,8 +860,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioEstoque(RelatorioEstoque relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -904,7 +867,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Estoque', Icons.inventory, PdfColors.purple600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Estoque', Icons.inventory, PdfColors.purple600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -958,8 +921,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioFinanceiro(RelatorioFinanceiro relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -967,7 +928,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório Financeiro', Icons.attach_money, PdfColors.green600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório Financeiro', Icons.attach_money, PdfColors.green600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -1037,8 +998,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioComissao(RelatorioComissao relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -1046,7 +1005,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Comissão', Icons.account_balance_wallet, PdfColors.cyan600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Comissão', Icons.account_balance_wallet, PdfColors.cyan600,
+              logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -1153,8 +1113,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioGarantias(RelatorioGarantias relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -1162,7 +1120,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Garantias', Icons.verified_user, PdfColors.teal600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Garantias', Icons.verified_user, PdfColors.teal600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -1229,8 +1187,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioFiado(RelatorioFiado relatorio) async {
-    await _ensureLogoLoaded();
-
     final doc = pw.Document();
 
     doc.addPage(
@@ -1238,7 +1194,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Relatório de Fiado', Icons.credit_card, PdfColors.orange600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Relatório de Fiado', Icons.credit_card, PdfColors.orange600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
@@ -3979,8 +3935,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _printRelatorioConsultores(RelatorioConsultores relatorio) async {
-    await _ensureLogoLoaded();
-
     final consultoresOrdenados = List<ConsultorMetricas>.from(relatorio.consultores)
       ..sort((a, b) => b.valorTotalOS.compareTo(a.valorTotalOS));
 
@@ -3991,7 +3945,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) => [
-          _buildPdfHeader('Desempenho Consultores', Icons.people_alt, PdfColors.deepPurple600, logoImage: _cachedLogoImage),
+          _buildPdfHeader('Desempenho Consultores', Icons.people_alt, PdfColors.deepPurple600, logoImage: PdfLogoHelper.getCachedLogo()),
           pw.SizedBox(height: 16),
           _buildPdfInfoRow('Período',
               '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),

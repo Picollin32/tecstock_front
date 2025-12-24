@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:async';
+import 'package:image/image.dart' as img;
 
 class PdfLogoHelper {
   static pw.MemoryImage? _cachedLogoImage;
@@ -45,13 +46,29 @@ class PdfLogoHelper {
       final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
       final originalBytes = logoBytes.buffer.asUint8List();
 
-      if (originalBytes.isEmpty) {
-        print('Logo bytes is empty');
+      if (originalBytes.isEmpty || originalBytes.length < 100) {
         return null;
       }
 
-      // Retornando a imagem original sem processamento para evitar erros de decodificação em produção
-      return pw.MemoryImage(originalBytes);
+      final image = img.decodeImage(originalBytes);
+      if (image == null) {
+        print('Não foi possível decodificar a imagem');
+        return null;
+      }
+
+      final resized = img.copyResize(
+        image,
+        width: 120,
+        height: 120,
+        interpolation: img.Interpolation.linear,
+      );
+
+      final optimizedBytes = img.encodePng(resized, level: 6);
+
+      print(
+          'Logo otimizado: ${originalBytes.length} bytes → ${optimizedBytes.length} bytes (${((1 - optimizedBytes.length / originalBytes.length) * 100).toStringAsFixed(1)}% redução)');
+
+      return pw.MemoryImage(Uint8List.fromList(optimizedBytes));
     } catch (e) {
       print('Falha ao carregar logo: $e');
     }

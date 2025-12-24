@@ -40,5 +40,5 @@ COPY --from=build-env /app/build/web ./build/web
 # Expõe a porta 3000
 EXPOSE 3000
 
-# Inicia o servidor
-CMD ["serve", "-s", "build/web", "-l", "3000"]
+# Inicia o servidor com rewrite para assets
+CMD ["serve", "-s", "build/web", "-l", "3000", "--single"]

@@ -20,6 +20,7 @@ ARG API_BASE_URL=http://localhost:8081
 # Build da aplicação web para produção (sem símbolos de debug)
 # Passa a URL da API como variável de ambiente em tempo de compilação
 RUN flutter build web --release \
+    --base-href=/ \
     --dart-define=API_BASE_URL=${API_BASE_URL} \
     --dart-define=FLUTTER_WEB_CANVASKIT_URL=https://cdn.jsdelivr.net/npm/canvaskit-wasm@0.37.0/bin/ && \
     rm -rf .dart_tool .git .gitignore

@@ -850,7 +850,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Image.asset(
-                  'assets/images/TecStock_icone.png',
+                  'images/TecStock_icone.png',
                   width: 100,
                   height: 100,
                   fit: BoxFit.contain,
@@ -1656,7 +1656,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Image.asset(
-                              'assets/images/TecStock_icone.png',
+                              'images/TecStock_icone.png',
                               width: 64,
                               height: 64,
                               fit: BoxFit.contain,

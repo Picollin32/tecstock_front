@@ -43,7 +43,7 @@ class PdfLogoHelper {
 
   static Future<pw.MemoryImage?> _loadLogoInternal() async {
     try {
-      final logoBytes = await rootBundle.load('assets/images/TecStock_logo.png');
+      final logoBytes = await rootBundle.load('images/TecStock_logo.png');
       final originalBytes = logoBytes.buffer.asUint8List();
 
       if (originalBytes.isEmpty || originalBytes.length < 100) {

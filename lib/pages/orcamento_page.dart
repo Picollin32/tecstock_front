@@ -253,7 +253,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         if (tp.id != null) tpById[tp.id!] = tp;
       }
 
-      orcamentos.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+      orcamentos.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
 
       final clienteByCpf = <String, dynamic>{};
       for (var cliente in clientes) {
@@ -274,7 +274,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         final consultorId = await AuthService.getConsultorId();
 
         if (consultorId != null) {
-          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
         }
       }
 
@@ -526,7 +526,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     if (!_isAdmin && _consultorSelecionado == null) {
                       final consultorId = await AuthService.getConsultorId();
                       if (consultorId != null && mounted) {
-                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
                         if (consultor != null && mounted) {
                           setState(() {
                             _consultorSelecionado = consultor;
@@ -2098,13 +2098,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _prazoFiadoDias = orcamento.prazoFiadoDias;
 
       if (orcamento.mecanico != null && orcamento.mecanico!.id != null) {
-        _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+        _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 3).firstOrNull;
       } else {
         _mecanicoSelecionado = null;
       }
 
       if (orcamento.consultor != null && orcamento.consultor!.id != null) {
-        _consultorSelecionado = _funcionarios.where((f) => f.id == orcamento.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+        _consultorSelecionado = _funcionarios.where((f) => f.id == orcamento.consultor!.id && f.nivelAcesso == 2).firstOrNull;
       } else {
         _consultorSelecionado = null;
       }
@@ -2212,7 +2212,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   hint: const Text('Selecione um mecânico'),
                   items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
                     return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
                       return DropdownMenuItem<Funcionario>(
@@ -2267,7 +2267,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ),
                   hint: const Text('Selecione um consultor'),
                   items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
                     return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
                       return DropdownMenuItem<Funcionario>(

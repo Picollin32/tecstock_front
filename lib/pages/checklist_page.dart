@@ -179,9 +179,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   Future<void> _loadRecentChecklists() async {
     try {
       final all = await ChecklistService.listarChecklists();
+      all.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
       setState(() {
-        final reversed = all.reversed.toList();
-        _recent = reversed.take(3).toList();
+        _recent = all.take(3).toList();
         _recentFiltrados = _recent;
       });
     } catch (e) {
@@ -192,7 +192,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   Future<void> _loadFuncionarios() async {
     try {
       final todosFuncionarios = await Funcionarioservice.listarFuncionarios();
-      final consultores = todosFuncionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+      final consultores = todosFuncionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
 
       Funcionario? consultorParaSelecionar;
 

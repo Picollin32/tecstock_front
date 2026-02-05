@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:TecStock/config/api_config.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthService {
   static String get baseUrl => ApiConfig.authUrl;
@@ -38,15 +39,29 @@ class AuthService {
           await prefs.remove('consultorId');
         }
 
+        if (userData['empresa'] != null) {
+          await prefs.setInt('empresaId', userData['empresa']['id']);
+          await prefs.setString('nomeEmpresa', userData['empresa']['nomeFantasia'] ?? '');
+        } else {
+          await prefs.remove('empresaId');
+          await prefs.remove('nomeEmpresa');
+        }
+
         return {'success': true, 'data': userData};
       } else {
         String errorMessage = 'Credenciais inválidas';
         try {
-          final errorBody = response.body;
-          if (errorBody.isNotEmpty) {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody is Map && errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody is String) {
             errorMessage = errorBody;
           }
-        } catch (e) {}
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
@@ -77,7 +92,46 @@ class AuthService {
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('isLoggedIn') ?? false;
+    final isLogged = prefs.getBool('isLoggedIn') ?? false;
+
+    if (isLogged) {
+      final token = await getToken();
+      if (token == null || token.isEmpty) {
+        await logout();
+        return false;
+      }
+
+      if (await isTokenExpired()) {
+        print('Token expirado, fazendo logout automático');
+        await logout();
+        return false;
+      }
+    }
+
+    return isLogged;
+  }
+
+  static Future<bool> isTokenExpired() async {
+    try {
+      final token = await getToken();
+      if (token == null || token.isEmpty) {
+        return true;
+      }
+
+      return JwtDecoder.isExpired(token);
+    } catch (e) {
+      print('Erro ao verificar expiração do token: $e');
+      return true;
+    }
+  }
+
+  static Future<bool> validateToken() async {
+    final token = await getToken();
+    if (token == null || token.isEmpty || await isTokenExpired()) {
+      await logout();
+      return false;
+    }
+    return true;
   }
 
   static Future<int?> getNivelAcesso() async {
@@ -114,8 +168,30 @@ class AuthService {
     return consultorId;
   }
 
+  static Future<String?> getNomeEmpresa() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('nomeEmpresa');
+  }
+
+  static Future<int?> getEmpresaId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('empresaId');
+  }
+
   static Future<bool> isAdmin() async {
     final nivelAcesso = await getNivelAcesso();
-    return nivelAcesso == 0;
+    return nivelAcesso == 1;
+  }
+
+  static Future<void> printSessionDebug() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = await getToken();
+    print('=== DEBUG SESSÃO ===');
+    print('isLoggedIn: ${prefs.getBool('isLoggedIn')}');
+    print('userId: ${prefs.getInt('userId')}');
+    print('nomeUsuario: ${prefs.getString('nomeUsuario')}');
+    print('nivelAcesso: ${prefs.getInt('nivelAcesso')}');
+    print('token exists: ${token != null && token.isNotEmpty}');
+    print('==================');
   }
 }

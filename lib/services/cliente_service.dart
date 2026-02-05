@@ -41,9 +41,17 @@ class ClienteService {
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.get(Uri.parse(baseUrl), headers: headers);
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        return jsonList.map((e) => Cliente.fromJson(e)).toList();
+        print('JSON List length: ${jsonList.length}');
+        print('JSON List: $jsonList');
+
+        final clientes = jsonList.map((e) => Cliente.fromJson(e)).toList();
+        print('Clientes parsed: ${clientes.length}');
+        return clientes;
       }
       return [];
     } catch (e) {

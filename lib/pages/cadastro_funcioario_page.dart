@@ -29,8 +29,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   final TextEditingController _numeroCasaController = TextEditingController();
   final TextEditingController _bairroController = TextEditingController();
   final TextEditingController _cidadeController = TextEditingController();
-  final TextEditingController _ufController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  String _ufSelecionada = 'GO';
   int? _nivelAcessoSelecionado;
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
@@ -57,9 +57,39 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   static const Color shadowColor = Color(0x1A000000);
 
   final Map<int, Map<String, dynamic>> _niveisAcesso = {
-    1: {'label': 'Consultor(a)', 'icon': Icons.support_agent, 'color': const Color(0xFF3B82F6)},
-    2: {'label': 'Mecânico(a)', 'icon': Icons.build, 'color': const Color(0xFF059669)},
+    2: {'label': 'Consultor(a)', 'icon': Icons.support_agent, 'color': const Color(0xFF3B82F6)},
+    3: {'label': 'Mecânico(a)', 'icon': Icons.build, 'color': const Color(0xFF059669)},
   };
+
+  final List<String> _ufs = [
+    'AC',
+    'AL',
+    'AP',
+    'AM',
+    'BA',
+    'CE',
+    'DF',
+    'ES',
+    'GO',
+    'MA',
+    'MT',
+    'MS',
+    'MG',
+    'PA',
+    'PB',
+    'PR',
+    'PE',
+    'PI',
+    'RJ',
+    'RN',
+    'RS',
+    'RO',
+    'RR',
+    'SC',
+    'SP',
+    'SE',
+    'TO'
+  ];
 
   @override
   void initState() {
@@ -93,7 +123,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     _numeroCasaController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
-    _ufController.dispose();
     super.dispose();
   }
 
@@ -214,12 +243,12 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         email: _emailController.text,
         cpf: _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         dataNascimento: dataNascimentoFormatada,
-        nivelAcesso: _nivelAcessoSelecionado ?? 0,
+        nivelAcesso: _nivelAcessoSelecionado ?? 2,
         rua: _ruaController.text.isNotEmpty ? _ruaController.text : null,
         numeroCasa: _numeroCasaController.text.isNotEmpty ? _numeroCasaController.text : null,
         bairro: _bairroController.text.isNotEmpty ? _bairroController.text : null,
         cidade: _cidadeController.text.isNotEmpty ? _cidadeController.text : null,
-        uf: _ufController.text.isNotEmpty ? _ufController.text : null,
+        uf: _ufSelecionada,
       );
 
       final resultado = _funcionarioEmEdicao != null
@@ -265,7 +294,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       _numeroCasaController.text = funcionario.numeroCasa ?? '';
       _bairroController.text = funcionario.bairro ?? '';
       _cidadeController.text = funcionario.cidade ?? '';
-      _ufController.text = funcionario.uf ?? '';
+      _ufSelecionada = funcionario.uf ?? 'GO';
       _nivelAcessoSelecionado = funcionario.nivelAcesso;
       _funcionarioEmEdicao = funcionario;
     });
@@ -341,7 +370,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     _numeroCasaController.clear();
     _bairroController.clear();
     _cidadeController.clear();
-    _ufController.clear();
+    _ufSelecionada = 'GO';
     _nivelAcessoSelecionado = null;
     _funcionarioEmEdicao = null;
   }
@@ -868,20 +897,11 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: TextFormField(
-                  controller: _ufController,
-                  maxLength: 2,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
-                    UpperCaseTextFormatter(),
-                  ],
-                  validator: (v) => v!.isEmpty ? 'Informe a UF' : null,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: DropdownButtonFormField<String>(
+                  value: _ufSelecionada,
                   decoration: InputDecoration(
                     labelText: 'UF',
                     prefixIcon: Icon(Icons.map, color: primaryColor),
-                    counterText: '',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -894,13 +914,16 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: primaryColor, width: 2),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: errorColor),
-                    ),
                     filled: true,
                     fillColor: Colors.grey[50],
                   ),
+                  items: _ufs
+                      .map((uf) => DropdownMenuItem(
+                            value: uf,
+                            child: Text(uf),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _ufSelecionada = value!),
                 ),
               ),
             ],

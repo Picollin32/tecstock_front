@@ -1,4 +1,5 @@
 import 'package:TecStock/model/funcionario.dart';
+import 'package:TecStock/model/empresa.dart';
 
 class Usuario {
   int? id;
@@ -7,6 +8,7 @@ class Usuario {
   String? nomeCompleto;
   int? nivelAcesso;
   Funcionario? consultor;
+  Empresa? empresa;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -17,6 +19,7 @@ class Usuario {
     this.nomeCompleto,
     this.nivelAcesso,
     this.consultor,
+    this.empresa,
     this.createdAt,
     this.updatedAt,
   });
@@ -29,6 +32,7 @@ class Usuario {
       nomeCompleto: json['nomeCompleto'],
       nivelAcesso: json['nivelAcesso'],
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
+      empresa: json['empresa'] != null ? Empresa.fromJson(json['empresa']) : null,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -52,6 +56,10 @@ class Usuario {
 
     if (consultor != null && consultor!.id != null) {
       data['consultor'] = {'id': consultor!.id};
+    }
+
+    if (empresa != null && empresa!.id != null) {
+      data['empresa'] = {'id': empresa!.id};
     }
 
     if (senha != null && senha!.isNotEmpty) {

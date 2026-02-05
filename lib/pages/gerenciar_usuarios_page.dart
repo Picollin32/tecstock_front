@@ -24,7 +24,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   List<Funcionario> _consultores = [];
   Usuario? _usuarioEmEdicao;
   Funcionario? _consultorSelecionado;
-  int _nivelAcessoSelecionado = 1;
 
   bool _isLoading = false;
   bool _isLoadingUsuarios = true;
@@ -86,17 +85,19 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     setState(() => _isLoadingUsuarios = true);
     try {
       final todosFuncionarios = await Funcionarioservice.listarFuncionarios();
-      _consultores = todosFuncionarios.where((f) => f.nivelAcesso == 1).toList();
+      _consultores = todosFuncionarios.where((f) => f.nivelAcesso == 2).toList();
 
       if (_consultores.isNotEmpty) {
         _consultorSelecionado = _consultores.first;
       }
 
       final lista = await UsuarioService.listarUsuarios();
-      lista.sort((a, b) =>
+
+      final listaFiltrada = lista.where((u) => u.nivelAcesso != 0).toList();
+      listaFiltrada.sort((a, b) =>
           (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
       setState(() {
-        _usuarios = lista;
+        _usuarios = listaFiltrada;
         _filtrarUsuarios();
       });
     } catch (e) {
@@ -115,8 +116,8 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       return;
     }
 
-    if (_nivelAcessoSelecionado == 1 && _consultorSelecionado == null) {
-      ErrorUtils.showVisibleError(context, 'Selecione um consultor para usuário do tipo Consultor');
+    if (_consultorSelecionado == null) {
+      ErrorUtils.showVisibleError(context, 'Selecione um consultor');
       return;
     }
 
@@ -144,7 +145,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         id: _usuarioEmEdicao?.id,
         nomeUsuario: _nomeUsuarioController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
-        nivelAcesso: _nivelAcessoSelecionado,
+        nivelAcesso: 2,
         consultor: _consultorSelecionado,
       );
 
@@ -191,7 +192,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _usuarioEmEdicao = null;
       _senhaVisivel = false;
       _confirmarSenhaVisivel = false;
-      _nivelAcessoSelecionado = 1;
       if (_consultores.isNotEmpty) {
         _consultorSelecionado = _consultores.first;
       }
@@ -222,11 +222,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _nomeUsuarioController.text = usuario.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
-      if (usuario.nivelAcesso != null) {
-        _nivelAcessoSelecionado = usuario.nivelAcesso!;
-      } else {
-        _nivelAcessoSelecionado = usuario.consultor != null ? 1 : 0;
-      }
 
       if (usuario.consultor != null) {
         _consultorSelecionado = _consultores.firstWhere(
@@ -234,7 +229,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
           orElse: () => _consultores.first,
         );
       } else {
-        _consultorSelecionado = null;
+        _consultorSelecionado = _consultores.isNotEmpty ? _consultores.first : null;
       }
     });
     _showFormModal();
@@ -427,49 +422,19 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
             },
           ),
           const SizedBox(height: 16),
-          _buildDropdownField<int>(
-            value: _nivelAcessoSelecionado,
-            label: 'Nível de Acesso',
-            icon: Icons.admin_panel_settings,
-            items: const [
-              DropdownMenuItem<int>(
-                value: 0,
-                child: Text('Admin'),
-              ),
-              DropdownMenuItem<int>(
-                value: 1,
-                child: Text('Consultor'),
-              ),
-            ],
-            onChanged: (value) {
-              setModalState(() {
-                _nivelAcessoSelecionado = value!;
-                if (_nivelAcessoSelecionado == 0) {
-                  _consultorSelecionado = null;
-                }
-              });
-            },
-            validator: (value) => value == null ? 'Selecione o nível de acesso' : null,
-          ),
-          const SizedBox(height: 16),
           _buildDropdownField<Funcionario>(
             value: _consultorSelecionado,
-            label: _nivelAcessoSelecionado == 0 ? 'Consultor Responsável (Opcional)' : 'Consultor Responsável',
+            label: 'Consultor Responsável',
             icon: Icons.support_agent,
-            items: [
-              if (_nivelAcessoSelecionado == 0)
-                const DropdownMenuItem<Funcionario>(
-                  value: null,
-                  child: Text('Nenhum'),
-                ),
-              ..._consultores.map((consultor) => DropdownMenuItem<Funcionario>(
-                    value: consultor,
-                    child: Text(consultor.nome),
-                  )),
-            ],
+            items: _consultores
+                .map((consultor) => DropdownMenuItem<Funcionario>(
+                      value: consultor,
+                      child: Text(consultor.nome),
+                    ))
+                .toList(),
             onChanged: (value) => setModalState(() => _consultorSelecionado = value),
             validator: (value) {
-              if (_nivelAcessoSelecionado == 1 && value == null) {
+              if (value == null) {
                 return 'Selecione um consultor';
               }
               return null;
@@ -757,7 +722,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _editarUsuario(usuario),
+          onTap: usuario.nivelAcesso == 1 ? null : () => _editarUsuario(usuario),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -789,39 +754,45 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _editarUsuario(usuario);
-                        } else if (value == 'delete') {
-                          _confirmarExclusao(usuario);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 18),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
+                    if (usuario.nivelAcesso != 1)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _editarUsuario(usuario);
+                          } else if (value == 'delete') {
+                            _confirmarExclusao(usuario);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(width: 8),
+                                Text('Editar'),
+                              ],
+                            ),
                           ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 18, color: errorColor),
-                              SizedBox(width: 8),
-                              Text('Excluir', style: TextStyle(color: errorColor)),
-                            ],
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 18, color: errorColor),
+                                SizedBox(width: 8),
+                                Text('Excluir', style: TextStyle(color: errorColor)),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(Icons.admin_panel_settings, color: Colors.grey[400], size: 24),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),

@@ -175,8 +175,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       final lista = await Funcionarioservice.listarFuncionarios();
       setState(() {
         _funcionarios = lista.reversed.toList();
-        _consultores = _funcionarios.where((f) => f.nivelAcesso == 1).toList()..sort((a, b) => a.nome.compareTo(b.nome));
-        _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 2).toList()..sort((a, b) => a.nome.compareTo(b.nome));
+        _consultores = _funcionarios.where((f) => f.nivelAcesso == 2).toList()..sort((a, b) => a.nome.compareTo(b.nome));
+        _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 3).toList()..sort((a, b) => a.nome.compareTo(b.nome));
       });
     } catch (e) {
       print('Erro ao carregar funcionários: $e');

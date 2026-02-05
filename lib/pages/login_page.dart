@@ -41,9 +41,15 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (result['success']) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
+        final nivelAcesso = await AuthService.getNivelAcesso();
+
+        if (nivelAcesso == 0) {
+          Navigator.of(context).pushReplacementNamed('/empresas');
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

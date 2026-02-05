@@ -51,9 +51,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   bool _isDashboardActive = true;
   Widget? _currentPageWidget;
+  Key _pageKey = UniqueKey();
 
   String _nomeUsuarioLogado = '';
   int _nivelAcessoUsuarioLogado = 1;
+  String _nomeEmpresa = '';
 
   Map<String, int> _dashboardStats = {
     'Agendamentos Hoje': 0,
@@ -196,9 +198,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Future<void> _loadUserData() async {
     final nomeCompleto = await AuthService.getNomeCompleto();
     final nivelAcesso = await AuthService.getNivelAcesso();
+    final nomeEmpresa = await AuthService.getNomeEmpresa();
 
     setState(() {
       _nomeUsuarioLogado = nomeCompleto ?? 'Usuário';
+      _nomeEmpresa = nomeEmpresa ?? '';
       _nivelAcessoUsuarioLogado = nivelAcesso ?? 1;
     });
   }
@@ -228,6 +232,54 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const LoginPage()),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    if (_currentTitle == 'Início') {
+      try {
+        await _loadDashboardData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Dados recarregados com sucesso!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao recarregar dados. Tente novamente.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } else {
+      setState(() {
+        _pageKey = UniqueKey();
+        _isLoadingStats = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Página recarregada!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
         );
       }
     }
@@ -1524,6 +1576,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
         actions: [
+          if (_nomeEmpresa.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: Center(
+                child: Row(
+                  children: [
+                    const Icon(Icons.business, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      _nomeEmpresa,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Center(
@@ -1538,7 +1609,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (_nivelAcessoUsuarioLogado == 0)
+                  if (_nivelAcessoUsuarioLogado == 1)
                     Container(
                       margin: const EdgeInsets.only(left: 6),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1564,52 +1635,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             onPressed: _handleLogout,
             tooltip: 'Sair do sistema',
           ),
-          if (_currentTitle == 'Início')
-            IconButton(
-              icon: _isLoadingStats
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.refresh),
-              onPressed: _isLoadingStats
-                  ? null
-                  : () async {
-                      HapticFeedback.lightImpact();
-                      try {
-                        await _loadDashboardData();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Todos os dados foram carregados com sucesso!'),
-                              backgroundColor: Colors.green,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Erro ao carregar dados completos. Tente novamente.'),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 3),
-                              action: SnackBarAction(
-                                label: 'Recarregar',
-                                textColor: Colors.white,
-                                onPressed: () => _loadDashboardData(),
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                    },
-              tooltip: 'Atualizar dados',
-            ),
+          IconButton(
+            icon: _isLoadingStats
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            onPressed: _isLoadingStats ? null : _handleRefresh,
+            tooltip: 'Atualizar página',
+          ),
         ],
       ),
       drawer: Drawer(
@@ -1693,7 +1732,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   final item = raw as Map<String, dynamic>;
                   final title = item['title'] as String;
 
-                  if (_nivelAcessoUsuarioLogado != 0) {
+                  if (_nivelAcessoUsuarioLogado != 1) {
                     if (title == 'Tipos de Pagamento' ||
                         title == 'Gerenciar Usuários' ||
                         title == 'Auditoria' ||
@@ -1834,7 +1873,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ),
       ),
-      body: _isDashboardActive ? _buildDashboard() : (_currentPageWidget ?? const SizedBox.shrink()),
+      body: _isDashboardActive
+          ? _buildDashboard()
+          : KeyedSubtree(
+              key: _pageKey,
+              child: _currentPageWidget ?? const SizedBox.shrink(),
+            ),
     );
   }
 }

@@ -250,9 +250,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
       final ordensServico = results[6] as List<OrdemServico>;
       ordensServico.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bDate.compareTo(aDate);
+        final aId = a.id ?? 0;
+        final bId = b.id ?? 0;
+        return bId.compareTo(aId);
       });
       final recent = ordensServico.take(5).toList();
 
@@ -275,7 +275,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         final consultorId = await AuthService.getConsultorId();
 
         if (consultorId != null) {
-          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+          consultorParaSelecionar = funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
         }
       }
 
@@ -790,7 +790,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     if (!_isAdmin && _consultorSelecionado == null) {
                       final consultorId = await AuthService.getConsultorId();
                       if (consultorId != null && mounted) {
-                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 1).firstOrNull;
+                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
                         if (consultor != null && mounted) {
                           setState(() {
                             _consultorSelecionado = consultor;
@@ -3092,7 +3092,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   hint: const Text('Selecione um mecânico'),
                   items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
                     return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
                       return DropdownMenuItem<Funcionario>(
@@ -3147,7 +3147,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                   hint: const Text('Selecione um consultor'),
                   items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 1).toList();
+                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
                     lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
                     return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
                       return DropdownMenuItem<Funcionario>(
@@ -4905,13 +4905,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
-            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 3).firstOrNull;
           } else {
             _mecanicoSelecionado = null;
           }
 
           if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
-            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 2).firstOrNull;
           } else {
             _consultorSelecionado = null;
           }
@@ -5073,13 +5073,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
 
           if (osCompleta.mecanico != null && osCompleta.mecanico!.id != null) {
-            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 2).firstOrNull;
+            _mecanicoSelecionado = _funcionarios.where((f) => f.id == osCompleta.mecanico!.id && f.nivelAcesso == 3).firstOrNull;
           } else {
             _mecanicoSelecionado = null;
           }
 
           if (osCompleta.consultor != null && osCompleta.consultor!.id != null) {
-            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 1).firstOrNull;
+            _consultorSelecionado = _funcionarios.where((f) => f.id == osCompleta.consultor!.id && f.nivelAcesso == 2).firstOrNull;
           } else {
             _consultorSelecionado = null;
           }

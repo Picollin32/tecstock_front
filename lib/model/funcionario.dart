@@ -1,7 +1,9 @@
 import 'pessoa.dart';
+import 'empresa.dart';
 
 class Funcionario extends Pessoa {
   int nivelAcesso;
+  Empresa? empresa;
 
   Funcionario({
     super.id,
@@ -11,6 +13,7 @@ class Funcionario extends Pessoa {
     required super.cpf,
     required super.dataNascimento,
     required this.nivelAcesso,
+    this.empresa,
     super.rua,
     super.numeroCasa,
     super.bairro,
@@ -29,6 +32,7 @@ class Funcionario extends Pessoa {
       cpf: json['cpf'],
       dataNascimento: DateTime.parse(json['dataNascimento']),
       nivelAcesso: json['nivelAcesso'],
+      empresa: json['empresa'] != null ? Empresa.fromJson(json['empresa']) : null,
       rua: json['rua'],
       numeroCasa: json['numeroCasa'],
       bairro: json['bairro'],
@@ -42,6 +46,9 @@ class Funcionario extends Pessoa {
   Map<String, dynamic> toJson() {
     final map = super.toJsonBase();
     map['nivelAcesso'] = nivelAcesso;
+    if (empresa != null) {
+      map['empresa'] = {'id': empresa!.id};
+    }
     return map;
   }
 

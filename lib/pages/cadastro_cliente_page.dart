@@ -30,7 +30,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   final TextEditingController _numeroCasaController = TextEditingController();
   final TextEditingController _bairroController = TextEditingController();
   final TextEditingController _cidadeController = TextEditingController();
-  final TextEditingController _ufController = TextEditingController();
+  String _ufSelecionada = 'GO';
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
   final _maskCpf = MaskTextInputFormatter(
@@ -53,6 +53,36 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   static const Color errorColor = Color(0xFFDC2626);
   static const Color successColor = Color(0xFF16A34A);
   static const Color shadowColor = Color(0x1A000000);
+
+  final List<String> _ufs = [
+    'AC',
+    'AL',
+    'AP',
+    'AM',
+    'BA',
+    'CE',
+    'DF',
+    'ES',
+    'GO',
+    'MA',
+    'MT',
+    'MS',
+    'MG',
+    'PA',
+    'PB',
+    'PR',
+    'PE',
+    'PI',
+    'RJ',
+    'RN',
+    'RS',
+    'RO',
+    'RR',
+    'SC',
+    'SP',
+    'SE',
+    'TO'
+  ];
 
   @override
   void initState() {
@@ -86,7 +116,6 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _numeroCasaController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
-    _ufController.dispose();
     super.dispose();
   }
 
@@ -207,7 +236,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         numeroCasa: _numeroCasaController.text.isNotEmpty ? _numeroCasaController.text : null,
         bairro: _bairroController.text.isNotEmpty ? _bairroController.text : null,
         cidade: _cidadeController.text.isNotEmpty ? _cidadeController.text : null,
-        uf: _ufController.text.isNotEmpty ? _ufController.text : null,
+        uf: _ufSelecionada,
       );
 
       final resultado = _clienteEmEdicao != null
@@ -248,7 +277,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       _numeroCasaController.text = cliente.numeroCasa ?? '';
       _bairroController.text = cliente.bairro ?? '';
       _cidadeController.text = cliente.cidade ?? '';
-      _ufController.text = cliente.uf ?? '';
+      _ufSelecionada = cliente.uf ?? 'GO';
       _clienteEmEdicao = cliente;
     });
     _showFormModal();
@@ -320,7 +349,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _numeroCasaController.clear();
     _bairroController.clear();
     _cidadeController.clear();
-    _ufController.clear();
+    _ufSelecionada = 'GO';
     _clienteEmEdicao = null;
   }
 
@@ -844,20 +873,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: TextFormField(
-                  controller: _ufController,
-                  maxLength: 2,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')),
-                    UpperCaseTextFormatter(),
-                  ],
-                  validator: (v) => v!.isEmpty ? 'Informe a UF' : null,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                child: DropdownButtonFormField<String>(
+                  value: _ufSelecionada,
                   decoration: InputDecoration(
                     labelText: 'UF',
                     prefixIcon: Icon(Icons.map, color: primaryColor),
-                    counterText: '',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey[300]!),
@@ -870,13 +890,16 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: primaryColor, width: 2),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: errorColor),
-                    ),
                     filled: true,
                     fillColor: Colors.grey[50],
                   ),
+                  items: _ufs
+                      .map((uf) => DropdownMenuItem(
+                            value: uf,
+                            child: Text(uf),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => _ufSelecionada = value!),
                 ),
               ),
             ],

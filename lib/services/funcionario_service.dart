@@ -40,6 +40,13 @@ class Funcionarioservice {
     String baseUrl = '${ApiConfig.funcionariosUrl}/listarTodos';
     try {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        print('Erro de autenticação ao listar funcionários');
+        await AuthService.logout();
+        throw Exception('Unauthorized');
+      }
+
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Funcionario.fromJson(e)).toList();
@@ -47,7 +54,7 @@ class Funcionarioservice {
       return [];
     } catch (e) {
       print('Erro ao listar funcionarios: $e');
-      return [];
+      rethrow;
     }
   }
 

@@ -1113,7 +1113,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Map<String, dynamic> _getStockStatus(int quantidadeAtual, int estoqueSeguranca) {
     if (quantidadeAtual <= 0) {
       return {'icon': Icons.error, 'color': errorColor, 'status': 'sem_estoque', 'label': 'Sem Estoque'};
-    } else if (quantidadeAtual < (estoqueSeguranca / 2).ceil()) {
+    } else if (quantidadeAtual < estoqueSeguranca) {
       return {'icon': Icons.warning, 'color': warningColor, 'status': 'critico', 'label': 'Crítico'};
     } else {
       return {'icon': Icons.check_circle, 'color': successColor, 'status': 'ok', 'label': 'OK'};

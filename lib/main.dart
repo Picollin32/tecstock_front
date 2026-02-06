@@ -2,6 +2,7 @@ import 'package:TecStock/pages/home_page.dart';
 import 'package:TecStock/pages/login_page.dart';
 import 'package:TecStock/pages/gerenciar_empresas_page.dart';
 import 'package:TecStock/services/auth_service.dart';
+import 'package:TecStock/utils/http_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -16,6 +17,7 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: HttpHelper.navigatorKey,
       title: 'TecStock',
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

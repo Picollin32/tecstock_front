@@ -279,15 +279,15 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   Future<void> _excluirUsuario(Usuario usuario) async {
     setState(() => _isLoading = true);
     try {
-      final sucesso = await UsuarioService.excluirUsuario(usuario.id!);
-      if (sucesso) {
+      final resultado = await UsuarioService.excluirUsuario(usuario.id!);
+      if (resultado['success']) {
         await _carregarDados();
-        _showSuccessSnackBar('Usuário excluído com sucesso');
+        _showSuccessSnackBar(resultado['message'] ?? 'Usuário excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, 'Erro ao excluir usuário');
+        ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir usuário');
       }
     } catch (e) {
-      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir usuário');
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir usuário: $e');
     } finally {
       setState(() => _isLoading = false);
     }

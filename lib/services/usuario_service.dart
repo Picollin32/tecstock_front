@@ -60,7 +60,7 @@ class UsuarioService {
     }
   }
 
-  static Future<bool> excluirUsuario(int id) async {
+  static Future<Map<String, dynamic>> excluirUsuario(int id) async {
     String baseUrl = '${ApiConfig.usuariosUrl}/deletar/$id';
 
     try {
@@ -68,10 +68,28 @@ class UsuarioService {
         Uri.parse(baseUrl),
         headers: await AuthService.getAuthHeaders(),
       );
-      return response.statusCode == 200 || response.statusCode == 204;
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'success': true, 'message': 'Usuário excluído com sucesso'};
+      } else {
+        String errorMessage = 'Erro ao excluir usuário';
+        try {
+          final errorBody = jsonDecode(response.body);
+          if (errorBody['message'] != null) {
+            errorMessage = errorBody['message'];
+          } else if (errorBody['error'] != null) {
+            errorMessage = errorBody['error'];
+          }
+        } catch (e) {
+          if (response.body.isNotEmpty) {
+            errorMessage = response.body;
+          }
+        }
+        return {'success': false, 'message': errorMessage};
+      }
     } catch (e) {
       print('Erro ao excluir usuario: $e');
-      return false;
+      return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
 

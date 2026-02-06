@@ -887,7 +887,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     required void Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: primaryColor),
@@ -1608,13 +1608,13 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
     if (confirmar == true) {
       setState(() => _isLoading = true);
       try {
-        final sucesso = await UsuarioService.excluirUsuario(admin.id!);
-        if (sucesso) {
+        final resultado = await UsuarioService.excluirUsuario(admin.id!);
+        if (resultado['success']) {
           await _carregarAdmins();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Administrador excluído com sucesso'),
+              SnackBar(
+                content: Text(resultado['message'] ?? 'Administrador excluído com sucesso'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
               ),
@@ -1622,12 +1622,12 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
           }
         } else {
           if (mounted) {
-            ErrorUtils.showVisibleError(context, 'Erro ao excluir administrador');
+            ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir administrador');
           }
         }
       } catch (e) {
         if (mounted) {
-          ErrorUtils.showVisibleError(context, 'Erro ao excluir administrador');
+          ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir administrador: $e');
         }
       } finally {
         setState(() => _isLoading = false);

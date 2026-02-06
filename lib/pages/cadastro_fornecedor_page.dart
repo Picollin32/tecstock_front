@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
-import '../utils/uppercase_text_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../model/fornecedor.dart';
 import '../services/fornecedor_service.dart';
@@ -901,7 +900,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
               Expanded(
                 flex: 1,
                 child: DropdownButtonFormField<String>(
-                  value: _ufSelecionada,
+                  initialValue: _ufSelecionada,
                   decoration: InputDecoration(
                     labelText: 'UF',
                     prefixIcon: Icon(Icons.map, color: primaryColor),

@@ -112,6 +112,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   int? _editingOSId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
+  double _precoTotalPecas = 0.0;
   String? _categoriaSelecionada;
   bool _isViewMode = false;
   double _descontoServicos = 0.0;
@@ -425,6 +426,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     setState(() {
       _precoTotalServicos = totalServicos;
+      _precoTotalPecas = totalPecas;
       _precoTotal = totalServicosComDesconto + totalPecasComDesconto;
     });
   }
@@ -449,28 +451,74 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   void _onDescontoServicosChanged(String value) {
     final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+
+    if (desconto > _precoTotalServicos) {
+      setState(() {
+        _descontoServicosController.text = _precoTotalServicos.toStringAsFixed(2);
+        _descontoServicos = _precoTotalServicos;
+      });
+      _showErrorSnackBar('Desconto limitado ao valor total dos serviços (R\$ ${_precoTotalServicos.toStringAsFixed(2)})');
+      _calcularPrecoTotal();
+      return;
+    }
+
+    if (_isAdmin) {
+      setState(() {
+        _descontoServicos = desconto;
+      });
+      _calcularPrecoTotal();
+      return;
+    }
+
     final maxDesconto = _calcularMaxDescontoServicos();
 
     if (desconto > maxDesconto) {
-      _descontoServicosController.text = maxDesconto.toStringAsFixed(2);
-      _descontoServicos = maxDesconto;
-      _showErrorSnackBar('Desconto máximo para serviços é de 10% (R\$ ${maxDesconto.toStringAsFixed(2)})');
+      setState(() {
+        _descontoServicosController.text = maxDesconto.toStringAsFixed(2);
+        _descontoServicos = maxDesconto;
+      });
+      _showErrorSnackBar('Desconto limitado a 10% do valor dos serviços (R\$ ${maxDesconto.toStringAsFixed(2)})');
     } else {
-      _descontoServicos = desconto;
+      setState(() {
+        _descontoServicos = desconto;
+      });
     }
     _calcularPrecoTotal();
   }
 
   void _onDescontoPecasChanged(String value) {
     final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+
+    if (desconto > _precoTotalPecas) {
+      setState(() {
+        _descontoPecasController.text = _precoTotalPecas.toStringAsFixed(2);
+        _descontoPecas = _precoTotalPecas;
+      });
+      _showErrorSnackBar('Desconto limitado ao valor total das peças (R\$ ${_precoTotalPecas.toStringAsFixed(2)})');
+      _calcularPrecoTotal();
+      return;
+    }
+
+    if (_isAdmin) {
+      setState(() {
+        _descontoPecas = desconto;
+      });
+      _calcularPrecoTotal();
+      return;
+    }
+
     final maxDesconto = _calcularMaxDescontoPecas();
 
     if (desconto > maxDesconto) {
-      _descontoPecasController.text = maxDesconto.toStringAsFixed(2);
-      _descontoPecas = maxDesconto;
-      _showErrorSnackBar('Desconto máximo para peças é limitado pela margem de lucro (R\$ ${maxDesconto.toStringAsFixed(2)})');
+      setState(() {
+        _descontoPecasController.text = maxDesconto.toStringAsFixed(2);
+        _descontoPecas = maxDesconto;
+      });
+      _showErrorSnackBar('Desconto limitado pela margem de lucro das peças (R\$ ${maxDesconto.toStringAsFixed(2)})');
     } else {
-      _descontoPecas = desconto;
+      setState(() {
+        _descontoPecas = desconto;
+      });
     }
     _calcularPrecoTotal();
   }
@@ -2745,7 +2793,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   ),
                                 ),
                               )
-                            else if (_pecaEncontrada!.quantidadeEstoque <= 5)
+                            else if (_pecaEncontrada!.quantidadeEstoque < _pecaEncontrada!.estoqueSeguranca)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(

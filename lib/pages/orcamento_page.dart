@@ -113,6 +113,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   int? _editingOrcamentoId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
+  double _precoTotalPecas = 0.0;
   bool _isViewMode = false;
   double _descontoServicos = 0.0;
   double _descontoPecas = 0.0;
@@ -377,6 +378,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _veiculoPreenchidoAutomaticamente = false;
       _precoTotal = 0.0;
       _precoTotalServicos = 0.0;
+      _precoTotalPecas = 0.0;
       _descontoServicos = 0.0;
       _descontoPecas = 0.0;
     });
@@ -2087,6 +2089,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
       _precoTotal = orcamento.precoTotal;
       _precoTotalServicos = orcamento.precoTotalServicos ?? 0.0;
+      _precoTotalPecas = orcamento.precoTotalPecas ?? 0.0;
       _descontoServicos = orcamento.descontoServicos ?? 0.0;
       _descontoPecas = orcamento.descontoPecas ?? 0.0;
       _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
@@ -2625,7 +2628,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                                   ),
                                 ),
                               )
-                            else if (_pecaEncontrada!.quantidadeEstoque <= 5)
+                            else if (_pecaEncontrada!.quantidadeEstoque < _pecaEncontrada!.estoqueSeguranca)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
@@ -3682,28 +3685,74 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   void _onDescontoServicosChanged(String value) {
     final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+
+    if (desconto > _precoTotalServicos) {
+      setState(() {
+        _descontoServicosController.text = _precoTotalServicos.toStringAsFixed(2);
+        _descontoServicos = _precoTotalServicos;
+      });
+      _showErrorMessage('Desconto limitado ao valor total dos serviços (R\$ ${_precoTotalServicos.toStringAsFixed(2)})');
+      _calcularPrecoTotal();
+      return;
+    }
+
+    if (_isAdmin) {
+      setState(() {
+        _descontoServicos = desconto;
+      });
+      _calcularPrecoTotal();
+      return;
+    }
+
     final maxDesconto = _calcularMaxDescontoServicos();
 
     if (desconto > maxDesconto) {
-      _descontoServicosController.text = maxDesconto.toStringAsFixed(2);
-      _descontoServicos = maxDesconto;
-      _showErrorMessage('Desconto máximo para serviços é de 10% (R\$ ${maxDesconto.toStringAsFixed(2)})');
+      setState(() {
+        _descontoServicosController.text = maxDesconto.toStringAsFixed(2);
+        _descontoServicos = maxDesconto;
+      });
+      _showErrorMessage('Desconto limitado a 10% do valor dos serviços (R\$ ${maxDesconto.toStringAsFixed(2)})');
     } else {
-      _descontoServicos = desconto;
+      setState(() {
+        _descontoServicos = desconto;
+      });
     }
     _calcularPrecoTotal();
   }
 
   void _onDescontoPecasChanged(String value) {
     final desconto = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+
+    if (desconto > _precoTotalPecas) {
+      setState(() {
+        _descontoPecasController.text = _precoTotalPecas.toStringAsFixed(2);
+        _descontoPecas = _precoTotalPecas;
+      });
+      _showErrorMessage('Desconto limitado ao valor total das peças (R\$ ${_precoTotalPecas.toStringAsFixed(2)})');
+      _calcularPrecoTotal();
+      return;
+    }
+
+    if (_isAdmin) {
+      setState(() {
+        _descontoPecas = desconto;
+      });
+      _calcularPrecoTotal();
+      return;
+    }
+
     final maxDesconto = _calcularMaxDescontoPecas();
 
     if (desconto > maxDesconto) {
-      _descontoPecasController.text = maxDesconto.toStringAsFixed(2);
-      _descontoPecas = maxDesconto;
-      _showErrorMessage('Desconto máximo para peças é limitado pela margem de lucro (R\$ ${maxDesconto.toStringAsFixed(2)})');
+      setState(() {
+        _descontoPecasController.text = maxDesconto.toStringAsFixed(2);
+        _descontoPecas = maxDesconto;
+      });
+      _showErrorMessage('Desconto limitado pela margem de lucro das peças (R\$ ${maxDesconto.toStringAsFixed(2)})');
     } else {
-      _descontoPecas = desconto;
+      setState(() {
+        _descontoPecas = desconto;
+      });
     }
     _calcularPrecoTotal();
   }
@@ -3736,6 +3785,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       }
 
       final totalPecas = _calcularTotalPecas();
+      _precoTotalPecas = totalPecas;
       _precoTotal = _precoTotalServicos + totalPecas - _descontoServicos - _descontoPecas;
     });
   }

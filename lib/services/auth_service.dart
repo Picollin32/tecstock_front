@@ -180,7 +180,7 @@ class AuthService {
 
   static Future<bool> isAdmin() async {
     final nivelAcesso = await getNivelAcesso();
-    return nivelAcesso == 1;
+    return nivelAcesso != null && nivelAcesso <= 1;
   }
 
   static Future<void> printSessionDebug() async {

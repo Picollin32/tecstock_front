@@ -4,7 +4,6 @@ import 'package:TecStock/model/cliente.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
-import '../utils/uppercase_text_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/cliente_service.dart';
 import '../services/funcionario_service.dart';
@@ -874,7 +873,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
               Expanded(
                 flex: 1,
                 child: DropdownButtonFormField<String>(
-                  value: _ufSelecionada,
+                  initialValue: _ufSelecionada,
                   decoration: InputDecoration(
                     labelText: 'UF',
                     prefixIcon: Icon(Icons.map, color: primaryColor),

@@ -4,10 +4,10 @@ import 'package:TecStock/model/funcionario.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
-import '../utils/uppercase_text_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/funcionario_service.dart';
 import '../services/cliente_service.dart';
+import '../services/auth_service.dart';
 import 'package:TecStock/model/cliente.dart';
 import '../utils/error_utils.dart';
 
@@ -145,8 +145,18 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   }
 
   Future<void> _carregarFuncionarios() async {
+    if (!mounted) return;
+
     setState(() => _isLoadingFuncionarios = true);
     try {
+      final isAuthenticated = await AuthService.isLoggedIn();
+      if (!isAuthenticated) {
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+        return;
+      }
+
       final lista = await Funcionarioservice.listarFuncionarios();
 
       lista.sort((a, b) {
@@ -167,6 +177,16 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         _filtrarFuncionarios();
       });
     } catch (e) {
+      if (!mounted) return;
+
+      if (e.toString().contains('401') ||
+          e.toString().contains('403') ||
+          e.toString().contains('Token expirado') ||
+          e.toString().contains('Unauthorized')) {
+        Navigator.of(context).pushReplacementNamed('/login');
+        return;
+      }
+
       ErrorUtils.showVisibleError(context, 'Erro ao carregar funcionários');
     } finally {
       setState(() => _isLoadingFuncionarios = false);
@@ -898,7 +918,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
               Expanded(
                 flex: 1,
                 child: DropdownButtonFormField<String>(
-                  value: _ufSelecionada,
+                  initialValue: _ufSelecionada,
                   decoration: InputDecoration(
                     labelText: 'UF',
                     prefixIcon: Icon(Icons.map, color: primaryColor),

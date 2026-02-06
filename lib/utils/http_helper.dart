@@ -1,11 +1,18 @@
 import 'package:TecStock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
 
 class HttpHelper {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   static void _checkAuthError(http.Response response) {
     if (response.statusCode == 401 || response.statusCode == 403) {
       print('Erro de autenticação detectado (${response.statusCode}), fazendo logout automático');
       AuthService.logout();
+      final context = navigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      }
     }
   }
 

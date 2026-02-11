@@ -12,16 +12,16 @@ class Funcionarioservice {
     try {
       final response = await http
           .post(
-            Uri.parse(baseUrl),
-            headers: await AuthService.getAuthHeaders(),
-            body: jsonEncode(funcionario.toJson()),
-          )
+        Uri.parse(baseUrl),
+        headers: await AuthService.getAuthHeaders(),
+        body: jsonEncode(funcionario.toJson()),
+      )
           .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw Exception('Timeout: A requisição demorou muito para responder');
-            },
-          );
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Timeout: A requisição demorou muito para responder');
+        },
+      );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Funcionário salvo com sucesso'};

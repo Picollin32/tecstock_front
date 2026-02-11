@@ -10,8 +10,18 @@ class Funcionarioservice {
     String baseUrl = '${ApiConfig.funcionariosUrl}/salvar';
 
     try {
-      final response =
-          await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(funcionario.toJson()));
+      final response = await http
+          .post(
+            Uri.parse(baseUrl),
+            headers: await AuthService.getAuthHeaders(),
+            body: jsonEncode(funcionario.toJson()),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Timeout: A requisição demorou muito para responder');
+            },
+          );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {'success': true, 'message': 'Funcionário salvo com sucesso'};
@@ -35,7 +45,11 @@ class Funcionarioservice {
       if (kDebugMode) {
         print('Erro ao salvar funcionario: $e');
       }
-      return {'success': false, 'message': 'Erro de conexão: $e'};
+      String errorMessage = 'Erro de conexão';
+      if (e.toString().contains('Timeout')) {
+        errorMessage = 'Tempo de espera excedido. Tente novamente.';
+      }
+      return {'success': false, 'message': errorMessage};
     }
   }
 

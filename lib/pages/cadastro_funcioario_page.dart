@@ -277,10 +277,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           : await Funcionarioservice.salvarFuncionario(funcionario);
 
       if (resultado['success']) {
-        setState(() {
-          _isLoading = false;
-          _isSaving = false;
-        });
         if (!mounted) return;
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
@@ -295,16 +291,22 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       String errorMessage = "Erro inesperado ao salvar funcionário";
       if (e.toString().contains('CPF já cadastrado')) {
         errorMessage = "CPF já cadastrado";
-        if (!mounted) return;
       } else if (e.toString().contains('já cadastrado')) {
         errorMessage = "Funcionário já cadastrado";
+      } else if (e.toString().contains('Timeout')) {
+        errorMessage = "Tempo de espera excedido. Tente novamente.";
       }
-      ErrorUtils.showVisibleError(context, errorMessage);
+      if (mounted) {
+        ErrorUtils.showVisibleError(context, errorMessage);
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-        _isSaving = false;
-      });
+      // SEMPRE resetar o estado, independente de sucesso ou erro
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isSaving = false;
+        });
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -185,7 +186,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         _recentFiltrados = _recent;
       });
     } catch (e) {
-      print('Erro ao carregar checklists: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar checklists: $e');
+      }
     }
   }
 
@@ -216,7 +219,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         });
       }
     } catch (e) {
-      print('Erro ao carregar funcionários: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar funcionários: $e');
+      }
     }
   }
 
@@ -339,7 +344,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         }
       });
     } catch (e) {
-      print('Erro ao carregar clientes/veículos: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar clientes/veículos: $e');
+      }
     }
   }
 
@@ -1125,7 +1132,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.3),
+            color: Colors.purple.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -1136,7 +1143,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -1161,7 +1168,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 Text(
                   'Gerencie checklists de recepção e inspeção',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
               ],
@@ -1173,7 +1180,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -1247,7 +1254,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1312,7 +1319,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1358,7 +1365,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1403,7 +1410,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1457,9 +1464,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: c.status == 'Fechado' ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                          color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: c.status == 'Fechado' ? Colors.red.withOpacity(0.3) : Colors.green.withOpacity(0.3)),
+                          border: Border.all(
+                              color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.3) : Colors.green.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1674,6 +1682,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 final sucesso = await ChecklistService.excluirChecklist(checklist.id!);
                 if (sucesso) {
                   await _loadRecentChecklists();
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Row(
@@ -1689,6 +1698,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     ),
                   );
                 } else {
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Row(
@@ -1724,7 +1734,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -1765,7 +1775,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       Text(
                         'Checklist de Recepção de Veículo',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                       ),
                     ],
@@ -1777,7 +1787,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: IconButton(
@@ -1856,7 +1866,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.purple.withOpacity(0.3),
+                        color: Colors.purple.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -2004,7 +2014,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         });
       }
     } catch (e) {
-      print('Erro ao carregar dados do checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar dados do checklist: $e');
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao carregar dados do checklist')),
       );
@@ -2026,7 +2039,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         _slideController.forward();
       }
     } catch (e) {
-      print('Erro ao carregar checklist para visualização: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar checklist para visualização: $e');
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Erro ao carregar dados do checklist')),
       );
@@ -2167,6 +2183,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     } else {
       sucesso = await ChecklistService.salvarChecklist(checklist);
     }
+    if (!mounted) return;
 
     if (sucesso) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2188,6 +2205,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         _showForm = false;
         _editingChecklistId = null;
       });
+      if (!mounted) return;
       await _loadRecentChecklists();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2978,7 +2996,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               inactiveTrackColor: Colors.grey[300],
               thumbColor: Colors.purple.shade600,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-              overlayColor: Colors.purple.withOpacity(0.2),
+              overlayColor: Colors.purple.withValues(alpha: 0.2),
               trackHeight: 8,
             ),
             child: Slider(

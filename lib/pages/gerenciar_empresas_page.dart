@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../utils/adaptive_phone_formatter.dart';
-import 'package:TecStock/model/empresa.dart';
-import 'package:TecStock/model/usuario.dart';
+import 'package:tecstock/model/empresa.dart';
+import 'package:tecstock/model/usuario.dart';
 import '../services/empresa_service.dart';
 import '../services/usuario_service.dart';
 import '../services/auth_service.dart';
@@ -265,6 +265,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
 
       if (result['success'] == true) {
         _limparFormulario();
+        if (!mounted) return;
         Navigator.pop(context);
         await _carregarDados();
         if (mounted) {
@@ -761,11 +762,14 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       final result = await EmpresaService.deletarEmpresa(empresa.id!);
       if (result['success'] == true) {
         await _carregarDados();
+        if (!mounted) return;
         _showSuccessSnackBar('Empresa excluída com sucesso');
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, result['message'] ?? 'Erro ao excluir empresa');
       }
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir empresa');
     } finally {
       setState(() => _isLoading = false);
@@ -979,7 +983,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withOpacity(0.3),
+            color: primaryColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -990,7 +994,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -1017,7 +1021,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                 Text(
                   'Controle total das empresas cadastradas',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 14,
                   ),
                 ),
@@ -1032,7 +1036,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -1051,7 +1055,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -1078,7 +1082,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1154,7 +1158,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -1200,7 +1204,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1221,7 +1225,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -1245,7 +1249,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1669,7 +1673,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                         Text(
                           widget.empresa.nomeFantasia,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 14,
                           ),
                         ),

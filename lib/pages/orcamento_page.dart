@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -454,7 +455,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: Colors.blue.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -465,7 +466,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -490,7 +491,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 Text(
                   'Gerencie orçamentos automotivos',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
               ],
@@ -502,7 +503,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -575,7 +576,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -646,7 +647,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -698,7 +699,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -743,7 +744,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: IconButton(
@@ -831,7 +832,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.3),
+                              color: Colors.grey.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -866,7 +867,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withOpacity(0.3),
+                              color: Colors.blue.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -915,7 +916,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -2031,6 +2032,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
                 final ordemServico = await OrcamentoService.transformarEmOrdemServico(orcamento.id!);
 
+                if (!mounted) return;
                 Navigator.pop(context);
 
                 if (ordemServico != null) {
@@ -2387,7 +2389,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -3275,7 +3277,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withOpacity(0.3),
+                  color: Colors.purple.withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -3899,7 +3901,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       setState(() {
         _isSaving = false;
       });
-      print('Erro ao salvar orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar orçamento: $e');
+      }
       _showErrorMessage('Erro ao salvar orçamento: ${e.toString()}');
     }
   }

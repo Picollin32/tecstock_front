@@ -1,4 +1,4 @@
-import 'package:TecStock/model/marca.dart';
+import 'package:tecstock/model/marca.dart';
 
 class Veiculo {
   int? id;

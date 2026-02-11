@@ -92,6 +92,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         _filtrarFabricantes();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar fabricantes');
     } finally {
       setState(() => _isLoadingFabricantes = false);
@@ -114,11 +115,14 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
           : await FabricanteService.salvarFabricante(fabricante);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(_fabricanteEmEdicao != null ? "Fabricante atualizado com sucesso" : "Fabricante cadastrado com sucesso");
         _limparFormulario();
         await _carregarFabricantes();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -132,6 +136,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
       } else if (e.toString().contains('Duplicate entry')) {
         errorMessage = "Fabricante já cadastrado";
       }
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
@@ -193,8 +198,10 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
       final resultado = await FabricanteService.excluirFabricante(fabricante.id!);
       if (resultado['success']) {
         await _carregarFabricantes();
+        if (!mounted) return;
         _showSuccessSnackBar('Fabricante excluído com sucesso');
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -430,7 +437,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -643,7 +650,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

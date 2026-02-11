@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:TecStock/model/funcionario.dart';
+import 'package:tecstock/model/funcionario.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
@@ -8,7 +8,7 @@ import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/funcionario_service.dart';
 import '../services/cliente_service.dart';
 import '../services/auth_service.dart';
-import 'package:TecStock/model/cliente.dart';
+import 'package:tecstock/model/cliente.dart';
 import '../utils/error_utils.dart';
 
 class CadastroFuncionarioPage extends StatefulWidget {
@@ -245,6 +245,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
       if (existenteCliente != null) {
         if (!(_funcionarioEmEdicao != null && _funcionarioEmEdicao!.cpf == cpfLimpo)) {
+          if (!mounted) return;
           ErrorUtils.showVisibleError(context, 'CPF já cadastrado como Cliente');
           setState(() {
             _isLoading = false;
@@ -280,17 +281,21 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           _isLoading = false;
           _isSaving = false;
         });
+        if (!mounted) return;
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarFuncionarios();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
       String errorMessage = "Erro inesperado ao salvar funcionário";
       if (e.toString().contains('CPF já cadastrado')) {
         errorMessage = "CPF já cadastrado";
+        if (!mounted) return;
       } else if (e.toString().contains('já cadastrado')) {
         errorMessage = "Funcionário já cadastrado";
       }
@@ -366,6 +371,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     setState(() => _isLoading = true);
     try {
       final resultado = await Funcionarioservice.excluirFuncionario(funcionario.id!);
+      if (!mounted) return;
+
       if (resultado['success']) {
         await _carregarFuncionarios();
         _showSuccessSnackBar(resultado['message'] ?? 'Funcionário excluído com sucesso');
@@ -373,6 +380,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir funcionário');
       }
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir funcionário');
     } finally {
       setState(() => _isLoading = false);
@@ -624,7 +632,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: (nivelInfo['color'] as Color).withOpacity(0.1),
+                        color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -651,7 +659,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: (nivelInfo['color'] as Color).withOpacity(0.1),
+                              color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1117,7 +1125,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

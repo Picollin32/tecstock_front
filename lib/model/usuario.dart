@@ -1,5 +1,5 @@
-import 'package:TecStock/model/funcionario.dart';
-import 'package:TecStock/model/empresa.dart';
+import 'package:tecstock/model/funcionario.dart';
+import 'package:tecstock/model/empresa.dart';
 
 class Usuario {
   int? id;

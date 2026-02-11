@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/model/veiculo.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/model/veiculo.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class VeiculoService {
@@ -30,7 +31,9 @@ class VeiculoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar veículo: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar veículo: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -45,7 +48,9 @@ class VeiculoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar veículos: $e');
+      if (kDebugMode) {
+        print('Erro ao listar veículos: $e');
+      }
       return [];
     }
   }
@@ -75,7 +80,9 @@ class VeiculoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir veículo: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir veículo: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -109,7 +116,9 @@ class VeiculoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar veículo: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar veículo: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

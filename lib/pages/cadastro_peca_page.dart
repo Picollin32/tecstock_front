@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
@@ -136,7 +137,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _pecasEmOS = pecasEmOS;
       });
     } catch (e) {
-      print('Erro ao carregar peças em OS: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar peças em OS: $e');
+      }
     }
   }
 
@@ -213,6 +216,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       }
 
       if (resultado['sucesso']) {
+        if (!mounted) return;
         Navigator.of(context).pop();
         _showSuccessSnackBar(resultado['mensagem']);
         _limparFormulario();
@@ -772,7 +776,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
               Text(
                 emptySubtitle,
                 style: TextStyle(
-                  color: (_filtroEstoque != 'todos') ? successColor.withOpacity(0.7) : Colors.grey[500],
+                  color: (_filtroEstoque != 'todos') ? successColor.withValues(alpha: 0.7) : Colors.grey[500],
                 ),
               ),
             ],
@@ -863,7 +867,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -890,7 +894,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: successColor.withOpacity(0.1),
+                              color: successColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -998,9 +1002,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                     decoration: BoxDecoration(
-                      color: warningColor.withOpacity(0.1),
+                      color: warningColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: warningColor.withOpacity(0.3), width: 1),
+                      border: Border.all(color: warningColor.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Column(
                       children: [
@@ -1026,7 +1030,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             child: Text(
                               'OS: ${ordensComPeca.take(3).join(', ')}${ordensComPeca.length > 3 ? '...' : ''}',
                               style: TextStyle(
-                                color: warningColor.withOpacity(0.8),
+                                color: warningColor.withValues(alpha: 0.8),
                                 fontSize: 9,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1079,7 +1083,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: stockStatus['color'].withOpacity(0.2),
+                              color: stockStatus['color'].withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -1457,7 +1461,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1481,7 +1485,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: successColor.withOpacity(0.3),
+                          color: successColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1508,7 +1512,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: (_filtroEstoque == 'critico' ? warningColor : Colors.grey).withOpacity(0.3),
+                              color: (_filtroEstoque == 'critico' ? warningColor : Colors.grey).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -1567,7 +1571,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: (_filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey).withOpacity(0.3),
+                              color: (_filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -1626,7 +1630,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: (_filtroEstoque == 'em_uso' ? primaryColor : Colors.grey).withOpacity(0.3),
+                              color: (_filtroEstoque == 'em_uso' ? primaryColor : Colors.grey).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),

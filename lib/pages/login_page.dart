@@ -1,5 +1,5 @@
-import 'package:TecStock/pages/home_page.dart';
-import 'package:TecStock/services/auth_service.dart';
+import 'package:tecstock/pages/home_page.dart';
+import 'package:tecstock/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatefulWidget {
@@ -42,6 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (result['success']) {
         final nivelAcesso = await AuthService.getNivelAcesso();
+        if (!mounted) return;
 
         if (nivelAcesso == 0) {
           Navigator.of(context).pushReplacementNamed('/empresas');

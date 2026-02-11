@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../model/servico.dart';
@@ -54,6 +55,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         _carregarServicosEmOS(),
       ]);
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar dados');
     } finally {
       setState(() => _isLoadingServicos = false);
@@ -68,7 +70,9 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         _servicosEmOS = servicosEmOS;
       });
     } catch (e) {
-      print('Erro ao carregar serviços em OS: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar serviços em OS: $e');
+      }
     }
   }
 
@@ -122,6 +126,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         _filtrarServicos();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar serviços');
     } finally {
       setState(() => _isLoadingServicos = false);
@@ -149,11 +154,14 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
           : await ServicoService.salvarServico(servico);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(_servicoEmEdicao != null ? "Serviço atualizado com sucesso" : "Serviço cadastrado com sucesso");
         _limparFormulario();
         await _carregarServicos();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -167,6 +175,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
       } else if (e.toString().contains('Duplicate entry')) {
         errorMessage = "Serviço já cadastrado";
       }
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
@@ -228,6 +237,8 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     setState(() => _isLoading = true);
     try {
       final sucesso = await ServicoService.excluirServico(servico.id!);
+      if (!mounted) return;
+
       if (sucesso) {
         await _carregarServicos();
         _showSuccessSnackBar('Serviço excluído com sucesso');
@@ -235,6 +246,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         ErrorUtils.showVisibleError(context, 'Erro ao excluir serviço, ele está vinculado a algum checklist ou OS');
       }
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir serviço');
     } finally {
       setState(() => _isLoading = false);
@@ -470,7 +482,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -540,9 +552,9 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
+                                color: Colors.blue.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,9 +591,9 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.1),
+                                color: Colors.orange.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -624,9 +636,9 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                     decoration: BoxDecoration(
-                      color: warningColor.withOpacity(0.1),
+                      color: warningColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: warningColor.withOpacity(0.3), width: 1),
+                      border: Border.all(color: warningColor.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Column(
                       children: [
@@ -652,7 +664,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                             child: Text(
                               'OS: ${(_servicosEmOS[servico.id]!['ordens'] as List<String>).take(3).join(', ')}${(_servicosEmOS[servico.id]!['ordens'] as List<String>).length > 3 ? '...' : ''}',
                               style: TextStyle(
-                                color: warningColor.withOpacity(0.8),
+                                color: warningColor.withValues(alpha: 0.8),
                                 fontSize: 9,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -868,7 +880,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -894,7 +906,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: (_filtroServicos == 'pendentes' ? warningColor : Colors.grey).withOpacity(0.3),
+                              color: (_filtroServicos == 'pendentes' ? warningColor : Colors.grey).withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),

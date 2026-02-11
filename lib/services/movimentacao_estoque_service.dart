@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../model/movimentacao_estoque.dart';
 
@@ -112,7 +113,9 @@ class MovimentacaoEstoqueService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar movimentações: $e');
+      if (kDebugMode) {
+        print('Erro ao listar movimentações: $e');
+      }
       return [];
     }
   }
@@ -126,7 +129,9 @@ class MovimentacaoEstoqueService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar movimentações por código: $e');
+      if (kDebugMode) {
+        print('Erro ao listar movimentações por código: $e');
+      }
       return [];
     }
   }
@@ -140,7 +145,9 @@ class MovimentacaoEstoqueService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar movimentações por fornecedor: $e');
+      if (kDebugMode) {
+        print('Erro ao listar movimentações por fornecedor: $e');
+      }
       return [];
     }
   }

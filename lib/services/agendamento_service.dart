@@ -1,7 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
 import '../model/agendamento.dart';
 
 class AgendamentoService {
@@ -16,10 +17,14 @@ class AgendamentoService {
         body: jsonEncode(agendamento.toJson()),
       );
       if (response.statusCode == 201 || response.statusCode == 200) return true;
-      print('Falha ao salvar agendamento. Status: ${response.statusCode}. Body: ${response.body}');
+      if (kDebugMode) {
+        print('Falha ao salvar agendamento. Status: ${response.statusCode}. Body: ${response.body}');
+      }
       return false;
     } catch (e) {
-      print('Erro ao salvar agendamento: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar agendamento: $e');
+      }
       return false;
     }
   }
@@ -39,10 +44,14 @@ class AgendamentoService {
       if (response.statusCode == 200) {
         return true;
       }
-      print('Falha ao atualizar agendamento. Status: ${response.statusCode}. Body: ${response.body}');
+      if (kDebugMode) {
+        print('Falha ao atualizar agendamento. Status: ${response.statusCode}. Body: ${response.body}');
+      }
       return false;
     } catch (e) {
-      print('Erro ao atualizar agendamento: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar agendamento: $e');
+      }
       return false;
     }
   }
@@ -58,7 +67,9 @@ class AgendamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar agendamentos: $e');
+      if (kDebugMode) {
+        print('Erro ao listar agendamentos: $e');
+      }
       return [];
     }
   }
@@ -71,7 +82,9 @@ class AgendamentoService {
       final response = await http.delete(Uri.parse(baseUrl), headers: headers);
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Erro ao excluir agendamento: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir agendamento: $e');
+      }
       return false;
     }
   }

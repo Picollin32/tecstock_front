@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/config/api_config.dart';
 import '../model/auditoria_log.dart';
 
 class AuditoriaService {
@@ -276,7 +277,9 @@ class AuditoriaService {
 
       return [];
     } catch (e) {
-      print('Erro ao buscar meses disponíveis: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar meses disponíveis: $e');
+      }
       return [];
     }
   }

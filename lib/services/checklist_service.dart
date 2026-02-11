@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/model/checklist.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/model/checklist.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ChecklistService {
@@ -13,7 +14,9 @@ class ChecklistService {
           await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(checklist.toJson()));
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
-      print('Erro ao salvar checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar checklist: $e');
+      }
       return false;
     }
   }
@@ -29,7 +32,9 @@ class ChecklistService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar checklist: $e');
+      }
       return null;
     }
   }
@@ -44,7 +49,9 @@ class ChecklistService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar checklists: $e');
+      if (kDebugMode) {
+        print('Erro ao listar checklists: $e');
+      }
       return [];
     }
   }
@@ -56,7 +63,9 @@ class ChecklistService {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Erro ao excluir checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir checklist: $e');
+      }
       return false;
     }
   }
@@ -72,7 +81,9 @@ class ChecklistService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar checklist: $e');
+      }
       return false;
     }
   }
@@ -84,7 +95,9 @@ class ChecklistService {
       final response = await http.put(Uri.parse(baseUrl));
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao fechar checklist: $e');
+      if (kDebugMode) {
+        print('Erro ao fechar checklist: $e');
+      }
       return false;
     }
   }

@@ -1,8 +1,9 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/model/orcamento.dart';
-import 'package:TecStock/model/ordem_servico.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/model/orcamento.dart';
+import 'package:tecstock/model/ordem_servico.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class OrcamentoService {
@@ -17,7 +18,9 @@ class OrcamentoService {
       );
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
-      print('Erro ao salvar orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar orçamento: $e');
+      }
       return false;
     }
   }
@@ -31,7 +34,9 @@ class OrcamentoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar orçamento: $e');
+      }
       return null;
     }
   }
@@ -45,7 +50,9 @@ class OrcamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar orçamentos: $e');
+      if (kDebugMode) {
+        print('Erro ao listar orçamentos: $e');
+      }
       return [];
     }
   }
@@ -55,7 +62,9 @@ class OrcamentoService {
       final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Erro ao excluir orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir orçamento: $e');
+      }
       return false;
     }
   }
@@ -70,7 +79,9 @@ class OrcamentoService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar orçamento: $e');
+      }
       return false;
     }
   }
@@ -83,7 +94,9 @@ class OrcamentoService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar status do orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar status do orçamento: $e');
+      }
       return false;
     }
   }
@@ -97,7 +110,9 @@ class OrcamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar orçamentos por cliente: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar orçamentos por cliente: $e');
+      }
       return [];
     }
   }
@@ -111,7 +126,9 @@ class OrcamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar orçamentos por veículo: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar orçamentos por veículo: $e');
+      }
       return [];
     }
   }
@@ -125,7 +142,9 @@ class OrcamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar orçamentos por status: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar orçamentos por status: $e');
+      }
       return [];
     }
   }
@@ -139,7 +158,9 @@ class OrcamentoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar orçamento por número: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar orçamento por número: $e');
+      }
       return null;
     }
   }
@@ -152,7 +173,9 @@ class OrcamentoService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao recalcular preços do orçamento: $e');
+      if (kDebugMode) {
+        print('Erro ao recalcular preços do orçamento: $e');
+      }
       return false;
     }
   }
@@ -169,7 +192,9 @@ class OrcamentoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao calcular máximos de desconto: $e');
+      if (kDebugMode) {
+        print('Erro ao calcular máximos de desconto: $e');
+      }
       return null;
     }
   }
@@ -186,7 +211,9 @@ class OrcamentoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao transformar orçamento em OS: $e');
+      if (kDebugMode) {
+        print('Erro ao transformar orçamento em OS: $e');
+      }
       return null;
     }
   }

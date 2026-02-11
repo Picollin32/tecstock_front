@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:TecStock/model/marca.dart';
+import 'package:tecstock/model/marca.dart';
 import 'package:intl/intl.dart';
 import '../services/marca_service.dart';
 import '../utils/error_utils.dart';
@@ -94,6 +94,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         _filtrarMarcas();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
     } finally {
       setState(() => _isLoadingMarcas = false);
@@ -115,11 +116,14 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
           _marcaEmEdicao != null ? await MarcaService.atualizarMarca(_marcaEmEdicao!.id!, marca) : await MarcaService.salvarMarca(marca);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(_marcaEmEdicao != null ? "Marca atualizada com sucesso" : "Marca cadastrada com sucesso");
         _limparFormulario();
         await _carregarMarcas();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -130,6 +134,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         errorMessage = "Marca já cadastrada";
       } else if (e.toString().contains('já cadastrado')) {
         errorMessage = "Marca já cadastrada";
+        if (!mounted) return;
       } else if (e.toString().contains('Duplicate entry')) {
         errorMessage = "Marca já cadastrada";
       }
@@ -192,6 +197,8 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     setState(() => _isLoading = true);
     try {
       final resultado = await MarcaService.excluirMarca(marca.id!);
+      if (!mounted) return;
+
       if (resultado['success']) {
         await _carregarMarcas();
         _showSuccessSnackBar('Marca excluída com sucesso');
@@ -199,6 +206,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
+      if (!mounted) return;
       String errorMessage = "Erro inesperado ao excluir marca";
       if (e.toString().contains('Marca não pode ser excluída')) {
         errorMessage = "Marca em uso";
@@ -439,7 +447,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
                       child: Text(
                         initials,
                         style: TextStyle(
@@ -653,7 +661,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

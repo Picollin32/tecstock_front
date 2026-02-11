@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/model/tipo_pagamento.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/model/tipo_pagamento.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class TipoPagamentoService {
@@ -40,7 +41,9 @@ class TipoPagamentoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar tipo de pagamento: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar tipo de pagamento: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -55,7 +58,9 @@ class TipoPagamentoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar tipos de pagamento: $e');
+      if (kDebugMode) {
+        print('Erro ao listar tipos de pagamento: $e');
+      }
       return [];
     }
   }
@@ -94,7 +99,9 @@ class TipoPagamentoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir tipo de pagamento: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir tipo de pagamento: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -134,7 +141,9 @@ class TipoPagamentoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar tipo de pagamento: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar tipo de pagamento: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -149,7 +158,9 @@ class TipoPagamentoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar tipo de pagamento: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar tipo de pagamento: $e');
+      }
       return null;
     }
   }

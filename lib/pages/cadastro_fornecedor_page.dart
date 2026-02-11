@@ -177,6 +177,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         _filtrarFornecedores();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar fornecedores');
     } finally {
       setState(() => _isLoadingFornecedores = false);
@@ -209,6 +210,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         );
 
         if (fornecedorExistente.cnpj.isNotEmpty) {
+          if (!mounted) return;
           ErrorUtils.showVisibleError(context, 'Este CNPJ já está cadastrado para outro fornecedor');
           setState(() => _isLoading = false);
           return;
@@ -237,11 +239,14 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           : await FornecedorService.salvarFornecedor(fornecedor);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarFornecedores();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -255,6 +260,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       } else if (e.toString().contains('Duplicate entry')) {
         errorMessage = "Fornecedor com esses dados já existe no sistema";
       }
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() => _isLoading = false);
@@ -332,6 +338,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     setState(() => _isLoading = true);
     try {
       final resultado = await FornecedorService.excluirFornecedor(fornecedor.id!);
+      if (!mounted) return;
+
       if (resultado['success']) {
         await _carregarFornecedores();
         _showSuccessSnackBar('Fornecedor excluído com sucesso');
@@ -339,6 +347,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
+      if (!mounted) return;
       String errorMessage = "Erro inesperado ao excluir fornecedor";
       if (e.toString().contains('Fornecedor não pode ser excluído')) {
         errorMessage = "Fornecedor em uso";
@@ -600,7 +609,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -627,7 +636,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: margemColor.withOpacity(0.1),
+                              color: margemColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1049,7 +1058,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

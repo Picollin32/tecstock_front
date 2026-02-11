@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/model/servico.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/model/servico.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ServicoService {
@@ -30,7 +31,9 @@ class ServicoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar servico: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar servico: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -45,7 +48,9 @@ class ServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar servicos: $e');
+      if (kDebugMode) {
+        print('Erro ao listar servicos: $e');
+      }
       return [];
     }
   }
@@ -60,7 +65,9 @@ class ServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar serviços pendentes: $e');
+      if (kDebugMode) {
+        print('Erro ao listar serviços pendentes: $e');
+      }
       return [];
     }
   }
@@ -71,7 +78,9 @@ class ServicoService {
       final response = await http.post(Uri.parse(baseUrl));
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar unidades usadas: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar unidades usadas: $e');
+      }
       return false;
     }
   }
@@ -83,7 +92,9 @@ class ServicoService {
       final response = await http.delete(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Erro ao excluir servico: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir servico: $e');
+      }
       return false;
     }
   }
@@ -117,7 +128,9 @@ class ServicoService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar servico: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar servico: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

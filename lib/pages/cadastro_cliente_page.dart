@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:TecStock/model/cliente.dart';
+import 'package:tecstock/model/cliente.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import '../services/cliente_service.dart';
 import '../services/funcionario_service.dart';
-import 'package:TecStock/model/funcionario.dart';
+import 'package:tecstock/model/funcionario.dart';
 import '../utils/error_utils.dart';
 
 class CadastroClientePage extends StatefulWidget {
@@ -158,6 +158,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         _filtrarClientes();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar clientes');
     } finally {
       setState(() => _isLoadingClientes = false);
@@ -215,6 +216,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
       if (existenteFuncionario != null) {
         if (!(_clienteEmEdicao != null && _clienteEmEdicao!.cpf == cpfLimpo)) {
+          if (!mounted) return;
           ErrorUtils.showVisibleError(context, 'CPF já cadastrado como Funcionário');
           setState(() {
             _isSaving = false;
@@ -243,11 +245,14 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           : await ClienteService.salvarCliente(cliente);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarClientes();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -257,6 +262,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       } else if (e.toString().contains('já cadastrado')) {
         errorMessage = "Cliente já cadastrado";
       }
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() {
@@ -326,6 +332,8 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   Future<void> _excluirCliente(Cliente cliente) async {
     try {
       final resultado = await ClienteService.excluirCliente(cliente.id!);
+      if (!mounted) return;
+
       if (resultado['success']) {
         await _carregarClientes();
         _showSuccessSnackBar(resultado['message'] ?? 'Cliente excluído com sucesso');
@@ -333,6 +341,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir cliente');
       }
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir cliente');
     }
   }
@@ -579,7 +588,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -606,7 +615,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
+                              color: primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1018,7 +1027,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

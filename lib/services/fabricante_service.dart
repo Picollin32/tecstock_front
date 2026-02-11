@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/model/fabricante.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/model/fabricante.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class FabricanteService {
@@ -31,7 +32,9 @@ class FabricanteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar fabricante: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar fabricante: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -46,7 +49,9 @@ class FabricanteService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar fabricantes: $e');
+      if (kDebugMode) {
+        print('Erro ao listar fabricantes: $e');
+      }
       return [];
     }
   }
@@ -76,7 +81,9 @@ class FabricanteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir fabricante: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir fabricante: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -110,7 +117,9 @@ class FabricanteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar fabricante: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar fabricante: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

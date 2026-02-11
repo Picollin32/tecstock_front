@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/model/usuario.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/model/usuario.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class UsuarioService {
@@ -37,7 +38,9 @@ class UsuarioService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar usuario: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar usuario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -55,7 +58,9 @@ class UsuarioService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar usuarios: $e');
+      if (kDebugMode) {
+        print('Erro ao listar usuarios: $e');
+      }
       return [];
     }
   }
@@ -88,7 +93,9 @@ class UsuarioService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir usuario: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir usuario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -125,7 +132,9 @@ class UsuarioService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar usuario: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar usuario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

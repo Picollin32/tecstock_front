@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:async';
@@ -34,7 +35,9 @@ class PdfLogoHelper {
       _cachedLogoImage = result;
       return _cachedLogoImage;
     } catch (e) {
-      print('Erro ao carregar logo: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar logo: $e');
+      }
       return null;
     } finally {
       _isLoading = false;
@@ -52,7 +55,9 @@ class PdfLogoHelper {
 
       final image = img.decodeImage(originalBytes);
       if (image == null) {
-        print('Não foi possível decodificar a imagem');
+        if (kDebugMode) {
+          print('Não foi possível decodificar a imagem');
+        }
         return null;
       }
 
@@ -65,12 +70,16 @@ class PdfLogoHelper {
 
       final optimizedBytes = img.encodePng(resized, level: 6);
 
-      print(
-          'Logo otimizado: ${originalBytes.length} bytes → ${optimizedBytes.length} bytes (${((1 - optimizedBytes.length / originalBytes.length) * 100).toStringAsFixed(1)}% redução)');
+      if (kDebugMode) {
+        print(
+            'Logo otimizado: ${originalBytes.length} bytes → ${optimizedBytes.length} bytes (${((1 - optimizedBytes.length / originalBytes.length) * 100).toStringAsFixed(1)}% redução)');
+      }
 
       return pw.MemoryImage(Uint8List.fromList(optimizedBytes));
     } catch (e) {
-      print('Falha ao carregar logo: $e');
+      if (kDebugMode) {
+        print('Falha ao carregar logo: $e');
+      }
     }
     return null;
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -17,7 +18,7 @@ class AgendamentoPage extends StatefulWidget {
   const AgendamentoPage({super.key});
 
   @override
-  _AgendamentoPageState createState() => _AgendamentoPageState();
+  State<AgendamentoPage> createState() => _AgendamentoPageState();
 }
 
 class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderStateMixin {
@@ -179,7 +180,9 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         _mecanicos = _funcionarios.where((f) => f.nivelAcesso == 3).toList()..sort((a, b) => a.nome.compareTo(b.nome));
       });
     } catch (e) {
-      print('Erro ao carregar funcionários: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar funcionários: $e');
+      }
       setState(() {
         _funcionarios = [];
         _consultores = [];
@@ -209,6 +212,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         _selectedEvents.value = _getEventsForDay(_selectedDay!);
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar agendamentos');
     }
   }
@@ -464,13 +468,13 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [primaryColor.withOpacity(0.1), secondaryColor.withOpacity(0.1)],
+                  colors: [primaryColor.withValues(alpha: 0.1), secondaryColor.withValues(alpha: 0.1)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 border: Border.all(
-                  color: primaryColor.withOpacity(0.1),
+                  color: primaryColor.withValues(alpha: 0.1),
                   width: 1,
                 ),
               ),
@@ -487,7 +491,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -525,7 +529,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -591,7 +595,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: primaryColor.withOpacity(0.3),
+                        color: primaryColor.withValues(alpha: 0.3),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -600,7 +604,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   leftChevronIcon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.chevron_left, color: primaryColor, size: 20),
@@ -608,7 +612,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   rightChevronIcon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.chevron_right, color: primaryColor, size: 20),
@@ -633,7 +637,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: primaryColor.withOpacity(0.4),
+                        color: primaryColor.withValues(alpha: 0.4),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),
@@ -645,7 +649,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     fontSize: 16,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: primaryColor.withOpacity(0.3),
+                    color: primaryColor.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                     border: Border.all(color: primaryColor, width: 2),
                   ),
@@ -676,8 +680,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: hasEvents ? Colors.red.withOpacity(0.1) : null,
-                          border: hasEvents ? Border.all(color: Colors.red.withOpacity(0.3), width: 1) : null,
+                          color: hasEvents ? Colors.red.withValues(alpha: 0.1) : null,
+                          border: hasEvents ? Border.all(color: Colors.red.withValues(alpha: 0.3), width: 1) : null,
                         ),
                         child: Text(
                           day.day.toString(),
@@ -695,8 +699,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: primaryColor.withOpacity(0.1),
-                          border: Border.all(color: primaryColor.withOpacity(0.3), width: 1),
+                          color: primaryColor.withValues(alpha: 0.1),
+                          border: Border.all(color: primaryColor.withValues(alpha: 0.3), width: 1),
                         ),
                         child: Text(
                           day.day.toString(),
@@ -730,7 +734,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                     border: Border.all(color: Colors.white, width: 0.5),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: cor.withOpacity(0.5),
+                                        color: cor.withValues(alpha: 0.5),
                                         blurRadius: 2,
                                         offset: const Offset(0, 1),
                                       ),
@@ -750,7 +754,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       alignment: Alignment.center,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: isWeekend ? Colors.red.withOpacity(0.05) : primaryColor.withOpacity(0.05),
+                        color: isWeekend ? Colors.red.withValues(alpha: 0.05) : primaryColor.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -813,14 +817,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [secondaryColor, secondaryColor.withOpacity(0.8)],
+                colors: [secondaryColor, secondaryColor.withValues(alpha: 0.8)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: secondaryColor.withOpacity(0.3),
+                  color: secondaryColor.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -838,21 +842,21 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         child: InkWell(
                           onTap: () => setState(() => _currentStep = AgendamentoStep.calendario),
                           borderRadius: BorderRadius.circular(12),
-                          splashColor: Colors.white.withOpacity(0.3),
-                          highlightColor: Colors.white.withOpacity(0.1),
+                          splashColor: Colors.white.withValues(alpha: 0.3),
+                          highlightColor: Colors.white.withValues(alpha: 0.1),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -883,21 +887,21 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       child: InkWell(
                         onTap: () => _showHorarioSelectionDialog(),
                         borderRadius: BorderRadius.circular(12),
-                        splashColor: Colors.white.withOpacity(0.3),
-                        highlightColor: Colors.white.withOpacity(0.1),
+                        splashColor: Colors.white.withValues(alpha: 0.3),
+                        highlightColor: Colors.white.withValues(alpha: 0.1),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -926,12 +930,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.event, color: Colors.white.withOpacity(0.9), size: 16),
+                    Icon(Icons.event, color: Colors.white.withValues(alpha: 0.9), size: 16),
                     const SizedBox(width: 6),
                     Text(
                       '${agendamentosDodia.length} agendamento${agendamentosDodia.length != 1 ? 's' : ''}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1002,10 +1006,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         }
       }
 
-      print('Erro ao fazer parse do horário: $timeStr');
+      if (kDebugMode) {
+        print('Erro ao fazer parse do horário: $timeStr');
+      }
       return null;
     } catch (e) {
-      print('Erro ao fazer parse do horário $timeStr: $e');
+      if (kDebugMode) {
+        print('Erro ao fazer parse do horário $timeStr: $e');
+      }
       return null;
     }
   }
@@ -1030,10 +1038,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         }
       }
 
-      print('Erro ao formatar horário: $horario');
+      if (kDebugMode) {
+        print('Erro ao formatar horário: $horario');
+      }
       return null;
     } catch (e) {
-      print('Erro ao formatar horário $horario: $e');
+      if (kDebugMode) {
+        print('Erro ao formatar horário $horario: $e');
+      }
       return null;
     }
   }
@@ -1080,7 +1092,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.3),
+                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withValues(alpha: 0.3),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -1109,10 +1121,10 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.3), width: 1.5),
+                  border: Border.all(color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withValues(alpha: 0.3), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withOpacity(0.15),
+                      color: (mostrarBloqueio ? Colors.grey : serviceInfo['color']).withValues(alpha: 0.15),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
@@ -1139,12 +1151,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [serviceInfo['color'].withOpacity(0.1), serviceInfo['color'].withOpacity(0.05)],
+                                    colors: [serviceInfo['color'].withValues(alpha: 0.1), serviceInfo['color'].withValues(alpha: 0.05)],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: serviceInfo['color'].withOpacity(0.2)),
+                                  border: Border.all(color: serviceInfo['color'].withValues(alpha: 0.2)),
                                 ),
                                 child: Row(
                                   children: [
@@ -1155,7 +1167,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                         borderRadius: BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: serviceInfo['color'].withOpacity(0.3),
+                                            color: serviceInfo['color'].withValues(alpha: 0.3),
                                             blurRadius: 8,
                                             offset: const Offset(0, 3),
                                           ),
@@ -1194,7 +1206,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                               borderRadius: BorderRadius.circular(20),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: serviceInfo['color'].withOpacity(0.3),
+                                                  color: serviceInfo['color'].withValues(alpha: 0.3),
                                                   blurRadius: 4,
                                                   offset: const Offset(0, 2),
                                                 ),
@@ -1215,7 +1227,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: serviceInfo['color'].withOpacity(0.1),
+                                        color: serviceInfo['color'].withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Icon(
@@ -1326,7 +1338,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             border: Border.all(color: Colors.red.shade300),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.red.withOpacity(0.2),
+                                color: Colors.red.withValues(alpha: 0.2),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -1364,15 +1376,15 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1440,7 +1452,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: secondaryColor.withOpacity(0.1),
+              color: secondaryColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1471,7 +1483,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: successColor.withOpacity(0.1),
+              color: successColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -1542,7 +1554,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 decoration: BoxDecoration(
                   color: serviceInfo['lightColor'],
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: serviceInfo['color'].withOpacity(0.3)),
+                  border: Border.all(color: serviceInfo['color'].withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1574,7 +1586,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryColor.withOpacity(0.1)),
+        border: Border.all(color: primaryColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
@@ -1592,7 +1604,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [primaryColor.withOpacity(0.1), secondaryColor.withOpacity(0.1)],
+                    colors: [primaryColor.withValues(alpha: 0.1), secondaryColor.withValues(alpha: 0.1)],
                   ),
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -1632,10 +1644,10 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: entry.value['color'].withOpacity(0.3)),
+                    border: Border.all(color: entry.value['color'].withValues(alpha: 0.3)),
                     boxShadow: [
                       BoxShadow(
-                        color: entry.value['color'].withOpacity(0.1),
+                        color: entry.value['color'].withValues(alpha: 0.1),
                         blurRadius: 2,
                         offset: const Offset(0, 1),
                       ),
@@ -1766,7 +1778,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: errorColor.withOpacity(0.1),
+                        color: errorColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -1848,9 +1860,9 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: errorColor.withOpacity(0.1),
+                    color: errorColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: errorColor.withOpacity(0.3)),
+                    border: Border.all(color: errorColor.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
@@ -1906,6 +1918,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     final horaInicioController = TextEditingController(text: inicioPref);
     final horaFimController = TextEditingController(text: fimPref);
 
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
@@ -2195,13 +2208,19 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                           bool sucesso;
                           if (agendamentoExistente != null && agendamentoExistente.id != null) {
                             sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
                           } else {
                             sucesso = await AgendamentoService.salvarAgendamento(agendamento);
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
                           }
 
+                          if (!mounted) return;
                           if (sucesso) {
+                            // ignore: use_build_context_synchronously
                             Navigator.pop(context);
                             _loadEvents();
                           }
@@ -2253,14 +2272,21 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 backgroundColor: errorColor,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () {
-                AgendamentoService.excluirAgendamento(id).then((_) {
+              onPressed: () async {
+                try {
+                  await AgendamentoService.excluirAgendamento(id);
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
                   Navigator.pop(context);
                   _loadEvents();
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
                   _showSuccessSnackBar("Agendamento excluído com sucesso!");
-                }).catchError((e) {
+                } catch (e) {
+                  if (!mounted) return;
+                  // ignore: use_build_context_synchronously
                   ErrorUtils.showVisibleError(context, "Erro ao excluir: $e");
-                });
+                }
               },
               child: const Text("Excluir"),
             ),

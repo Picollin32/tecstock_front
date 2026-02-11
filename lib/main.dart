@@ -1,8 +1,9 @@
-import 'package:TecStock/pages/home_page.dart';
-import 'package:TecStock/pages/login_page.dart';
-import 'package:TecStock/pages/gerenciar_empresas_page.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/utils/http_helper.dart';
+import 'package:tecstock/pages/home_page.dart';
+import 'package:tecstock/pages/login_page.dart';
+import 'package:tecstock/pages/gerenciar_empresas_page.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/utils/http_helper.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -87,7 +88,9 @@ class AuthChecker extends StatelessWidget {
       nivelAcesso = await AuthService.getNivelAcesso();
     }
 
-    print('AuthChecker - isLoggedIn: $isLoggedIn, nivelAcesso: $nivelAcesso');
+    if (kDebugMode) {
+      print('AuthChecker - isLoggedIn: $isLoggedIn, nivelAcesso: $nivelAcesso');
+    }
 
     return {
       'isLoggedIn': isLoggedIn,
@@ -118,6 +121,7 @@ class EmpresasAuthChecker extends StatelessWidget {
             return const GerenciarEmpresasPage();
           } else {
             Future.microtask(() {
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Acesso negado. Apenas super administradores podem acessar esta área.'),
@@ -134,7 +138,10 @@ class EmpresasAuthChecker extends StatelessWidget {
           }
         }
 
-        Future.microtask(() => Navigator.of(context).pushReplacementNamed('/login'));
+        Future.microtask(() {
+          if (!context.mounted) return;
+          Navigator.of(context).pushReplacementNamed('/login');
+        });
         return const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),

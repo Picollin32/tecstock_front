@@ -1,35 +1,36 @@
-import 'package:TecStock/pages/agendamento_page.dart';
-import 'package:TecStock/pages/auditoria_page.dart';
-import 'package:TecStock/pages/cadastro_fabricante_page.dart';
-import 'package:TecStock/pages/cadastro_fornecedor_page.dart';
-import 'package:TecStock/pages/cadastro_funcioario_page.dart';
-import 'package:TecStock/pages/cadastro_marca_page.dart';
-import 'package:TecStock/pages/cadastro_peca_page.dart';
-import 'package:TecStock/pages/cadastro_servico_page.dart';
-import 'package:TecStock/pages/cadastro_tipo_pagamento_page.dart';
-import 'package:TecStock/pages/checklist_page.dart';
-import 'package:TecStock/pages/gerenciamento_fiados_page.dart';
-import 'package:TecStock/pages/gerenciar_usuarios_page.dart';
-import 'package:TecStock/pages/login_page.dart';
-import 'package:TecStock/pages/ordem_servico_page.dart';
-import 'package:TecStock/pages/orcamento_page.dart';
-import 'package:TecStock/pages/relatorios_page.dart';
-import 'package:TecStock/services/agendamento_service.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/services/cliente_service.dart';
-import 'package:TecStock/services/veiculo_service.dart';
-import 'package:TecStock/services/checklist_service.dart';
-import 'package:TecStock/services/marca_service.dart';
-import 'package:TecStock/services/fabricante_service.dart';
-import 'package:TecStock/services/servico_service.dart';
-import 'package:TecStock/services/fornecedor_service.dart';
-import 'package:TecStock/services/funcionario_service.dart';
-import 'package:TecStock/services/peca_service.dart';
-import 'package:TecStock/services/tipo_pagamento_service.dart';
-import 'package:TecStock/services/ordem_servico_service.dart';
-import 'package:TecStock/services/orcamento_service.dart';
-import 'package:TecStock/services/movimentacao_estoque_service.dart';
-import 'package:TecStock/model/movimentacao_estoque.dart';
+import 'package:tecstock/pages/agendamento_page.dart';
+import 'package:tecstock/pages/auditoria_page.dart';
+import 'package:tecstock/pages/cadastro_fabricante_page.dart';
+import 'package:tecstock/pages/cadastro_fornecedor_page.dart';
+import 'package:tecstock/pages/cadastro_funcioario_page.dart';
+import 'package:tecstock/pages/cadastro_marca_page.dart';
+import 'package:tecstock/pages/cadastro_peca_page.dart';
+import 'package:tecstock/pages/cadastro_servico_page.dart';
+import 'package:tecstock/pages/cadastro_tipo_pagamento_page.dart';
+import 'package:tecstock/pages/checklist_page.dart';
+import 'package:tecstock/pages/gerenciamento_fiados_page.dart';
+import 'package:tecstock/pages/gerenciar_usuarios_page.dart';
+import 'package:tecstock/pages/login_page.dart';
+import 'package:tecstock/pages/ordem_servico_page.dart';
+import 'package:tecstock/pages/orcamento_page.dart';
+import 'package:tecstock/pages/relatorios_page.dart';
+import 'package:tecstock/services/agendamento_service.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/services/cliente_service.dart';
+import 'package:tecstock/services/veiculo_service.dart';
+import 'package:tecstock/services/checklist_service.dart';
+import 'package:tecstock/services/marca_service.dart';
+import 'package:tecstock/services/fabricante_service.dart';
+import 'package:tecstock/services/servico_service.dart';
+import 'package:tecstock/services/fornecedor_service.dart';
+import 'package:tecstock/services/funcionario_service.dart';
+import 'package:tecstock/services/peca_service.dart';
+import 'package:tecstock/services/tipo_pagamento_service.dart';
+import 'package:tecstock/services/ordem_servico_service.dart';
+import 'package:tecstock/services/orcamento_service.dart';
+import 'package:tecstock/services/movimentacao_estoque_service.dart';
+import 'package:tecstock/model/movimentacao_estoque.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'cadastro_cliente_page.dart';
@@ -701,7 +702,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _isLoadingStats = false;
       });
     } catch (e) {
-      print('Erro ao carregar dados do dashboard: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar dados do dashboard: $e');
+      }
       setState(() {
         _dashboardStats = {
           'Agendamentos Hoje': 0,
@@ -883,7 +886,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             spreadRadius: 0,
             blurRadius: 20,
             offset: const Offset(0, 4),
@@ -898,7 +901,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Image.asset(
@@ -938,7 +941,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Text(
             'Sistema de Gerenciamento de Oficina',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 16,
               fontWeight: FontWeight.w400,
             ),
@@ -947,7 +950,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           Text(
             'Hoje, ${_formatDate(DateTime.now())}',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
             ),
           ),
@@ -1007,7 +1010,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             spreadRadius: 0,
             blurRadius: 10,
             offset: const Offset(0, 4),
@@ -1024,7 +1027,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -1036,7 +1039,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               if (!_isLoadingStats)
                 Icon(
                   Icons.trending_up,
-                  color: color.withOpacity(0.6),
+                  color: color.withValues(alpha: 0.6),
                   size: 16,
                 ),
             ],
@@ -1146,7 +1149,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 spreadRadius: 0,
                 blurRadius: 10,
                 offset: const Offset(0, 4),
@@ -1159,7 +1162,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: (action['color'] as Color).withOpacity(0.1),
+                  color: (action['color'] as Color).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
@@ -1224,7 +1227,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -1246,7 +1249,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 spreadRadius: 0,
                 blurRadius: 10,
                 offset: const Offset(0, 4),
@@ -1338,7 +1341,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1565C0).withOpacity(0.1),
+                                  color: const Color(0xFF1565C0).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -1387,7 +1390,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 20),
@@ -1414,7 +1417,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
+                        color: Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -1432,7 +1435,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: tagColor.withOpacity(0.1),
+                        color: tagColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1691,7 +1694,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Image.asset(
@@ -1713,7 +1716,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           Text(
                             'Gerenciamento de Oficina',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                             ),
@@ -1754,13 +1757,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: _currentTitle == item['title'] ? const Color(0xFF1565C0).withOpacity(0.1) : Colors.transparent,
+                      color: _currentTitle == item['title'] ? const Color(0xFF1565C0).withValues(alpha: 0.1) : Colors.transparent,
                     ),
                     child: ListTile(
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: _currentTitle == item['title'] ? const Color(0xFF1565C0) : const Color(0xFF1565C0).withOpacity(0.1),
+                          color: _currentTitle == item['title'] ? const Color(0xFF1565C0) : const Color(0xFF1565C0).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -1794,7 +1797,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         spreadRadius: 0,
                         blurRadius: 4,
                         offset: const Offset(0, 2),
@@ -1807,7 +1810,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1565C0).withOpacity(0.1),
+                          color: const Color(0xFF1565C0).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -1831,13 +1834,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           margin: const EdgeInsets.only(left: 16, right: 8, bottom: 4),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            color: _currentTitle == item['title'] ? const Color(0xFF1565C0).withOpacity(0.1) : Colors.transparent,
+                            color: _currentTitle == item['title'] ? const Color(0xFF1565C0).withValues(alpha: 0.1) : Colors.transparent,
                           ),
                           child: ListTile(
                             leading: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: _currentTitle == item['title'] ? const Color(0xFF1565C0) : const Color(0xFF1565C0).withOpacity(0.1),
+                                color: _currentTitle == item['title']
+                                    ? const Color(0xFF1565C0)
+                                    : const Color(0xFF1565C0).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(

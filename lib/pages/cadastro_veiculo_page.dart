@@ -1,6 +1,6 @@
-import 'package:TecStock/model/marca.dart';
-import 'package:TecStock/model/veiculo.dart';
-import 'package:TecStock/services/marca_service.dart';
+import 'package:tecstock/model/marca.dart';
+import 'package:tecstock/model/veiculo.dart';
+import 'package:tecstock/services/marca_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -127,6 +127,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         _filtrarVeiculos();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar veículos');
     } finally {
       setState(() => _isLoadingVeiculos = false);
@@ -141,6 +142,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         _marcas = lista;
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
     }
   }
@@ -183,11 +185,14 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           : await VeiculoService.salvarVeiculo(veiculo);
 
       if (resultado['success']) {
+        if (!mounted) return;
         _showSuccessSnackBar(resultado['message']);
         _limparFormulario();
         await _carregarVeiculos();
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
@@ -197,6 +202,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
       } else if (e.toString().contains('já cadastrada')) {
         errorMessage = "Veículo já cadastrado";
       }
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
     } finally {
       setState(() {
@@ -264,6 +270,8 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   Future<void> _excluirVeiculo(Veiculo veiculo) async {
     try {
       final resultado = await VeiculoService.excluirVeiculo(veiculo.id!);
+      if (!mounted) return;
+
       if (resultado['success']) {
         await _carregarVeiculos();
         _showSuccessSnackBar('Veículo excluído com sucesso');
@@ -271,6 +279,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         ErrorUtils.showVisibleError(context, resultado['message']);
       }
     } catch (e) {
+      if (!mounted) return;
       String errorMessage = "Erro inesperado ao excluir veículo";
       if (e.toString().contains('Veículo não pode ser excluído')) {
         errorMessage = "Veículo em uso";
@@ -520,7 +529,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -547,7 +556,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
+                              color: primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -913,7 +922,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

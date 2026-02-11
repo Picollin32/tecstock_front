@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:TecStock/model/usuario.dart';
-import 'package:TecStock/model/funcionario.dart';
+import 'package:tecstock/model/usuario.dart';
+import 'package:tecstock/model/funcionario.dart';
 import '../services/usuario_service.dart';
 import '../services/funcionario_service.dart';
 import '../utils/error_utils.dart';
@@ -101,6 +101,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         _filtrarUsuarios();
       });
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar dados');
     } finally {
       setState(() => _isLoadingUsuarios = false);
@@ -282,11 +283,14 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       final resultado = await UsuarioService.excluirUsuario(usuario.id!);
       if (resultado['success']) {
         await _carregarDados();
+        if (!mounted) return;
         _showSuccessSnackBar(resultado['message'] ?? 'Usuário excluído com sucesso');
       } else {
+        if (!mounted) return;
         ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir usuário');
       }
     } catch (e) {
+      if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir usuário: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -732,7 +736,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
                       child: Text(
                         initials,
                         style: TextStyle(
@@ -888,7 +892,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

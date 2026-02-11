@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
+import 'package:tecstock/services/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../model/relatorio.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/config/api_config.dart';
 
 class RelatorioService {
   final String baseUrl = ApiConfig.relatoriosUrl;

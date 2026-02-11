@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/model/cliente.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/model/cliente.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ClienteService {
@@ -31,7 +32,9 @@ class ClienteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar cliente: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar cliente: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -41,21 +44,33 @@ class ClienteService {
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.get(Uri.parse(baseUrl), headers: headers);
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      if (kDebugMode) {
+        print('Response status: ${response.statusCode}');
+      }
+      if (kDebugMode) {
+        print('Response body: ${response.body}');
+      }
 
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        print('JSON List length: ${jsonList.length}');
-        print('JSON List: $jsonList');
+        if (kDebugMode) {
+          print('JSON List length: ${jsonList.length}');
+        }
+        if (kDebugMode) {
+          print('JSON List: $jsonList');
+        }
 
         final clientes = jsonList.map((e) => Cliente.fromJson(e)).toList();
-        print('Clientes parsed: ${clientes.length}');
+        if (kDebugMode) {
+          print('Clientes parsed: ${clientes.length}');
+        }
         return clientes;
       }
       return [];
     } catch (e) {
-      print('Erro ao listar clientes: $e');
+      if (kDebugMode) {
+        print('Erro ao listar clientes: $e');
+      }
       return [];
     }
   }
@@ -86,7 +101,9 @@ class ClienteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir cliente: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir cliente: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -121,7 +138,9 @@ class ClienteService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar cliente: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar cliente: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

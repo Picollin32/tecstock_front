@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -79,7 +80,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       setState(() {
         _isLoadingFuncionarios = false;
       });
-      print('Erro ao carregar mecânicos: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar mecânicos: $e');
+      }
     }
   }
 
@@ -175,6 +178,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       setState(() {
         _isLoading = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro ao gerar relatório: $e')),
       );
@@ -211,7 +215,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: Colors.blue.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -222,7 +226,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -247,7 +251,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 Text(
                   'Análises e estatísticas do sistema',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
               ],
@@ -263,7 +267,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -314,7 +318,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -587,7 +591,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: Colors.blue.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -642,7 +646,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -663,7 +667,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -677,7 +681,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -1608,7 +1612,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.calendar_month, color: Colors.white, size: 32),
@@ -1743,7 +1747,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.build, color: Colors.white, size: 32),
@@ -1868,7 +1872,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.inventory, color: Colors.white, size: 32),
@@ -2021,7 +2025,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.attach_money, color: Colors.white, size: 32),
@@ -2072,7 +2076,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: (relatorio.lucroEstimado >= 0 ? Colors.green : Colors.red).withOpacity(0.3),
+                color: (relatorio.lucroEstimado >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -2175,10 +2179,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cardColor.withOpacity(0.2), width: 1.5),
+        border: Border.all(color: cardColor.withValues(alpha: 0.2), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: cardColor.withOpacity(0.08),
+            color: cardColor.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -2189,7 +2193,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: cardColor.withOpacity(0.1),
+              color: cardColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: cardColor, size: 28),
@@ -2228,7 +2232,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -2317,7 +2321,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.green.withOpacity(0.3),
+                color: Colors.green.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -2328,7 +2332,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -2742,7 +2746,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -2794,7 +2798,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.verified_user, color: Colors.white, size: 32),
@@ -2900,7 +2904,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               border: Border.all(color: borderColor, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -2912,7 +2916,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(10),
                       topRight: Radius.circular(10),
@@ -2923,7 +2927,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.2),
+                          color: statusColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -3131,7 +3135,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.credit_card, color: Colors.white, size: 32),
@@ -3395,7 +3399,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               border: Border.all(color: borderColor, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -3407,7 +3411,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(10),
                       topRight: Radius.circular(10),
@@ -3418,7 +3422,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.2),
+                          color: statusColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -3600,7 +3604,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.people_alt, color: Colors.white, size: 32),
@@ -3730,10 +3734,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             decoration: BoxDecoration(
               color: backgroundColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: rankColor.withOpacity(0.3), width: 2),
+              border: Border.all(color: rankColor.withValues(alpha: 0.3), width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: rankColor.withOpacity(0.1),
+                  color: rankColor.withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -3744,7 +3748,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: rankColor.withOpacity(0.1),
+                    color: rankColor.withValues(alpha: 0.1),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(14),
                       topRight: Radius.circular(14),
@@ -3756,7 +3760,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: rankColor.withOpacity(0.2),
+                          color: rankColor.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Center(
@@ -3901,9 +3905,9 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

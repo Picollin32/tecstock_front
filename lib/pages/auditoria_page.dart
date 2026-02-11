@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../model/auditoria_log.dart';
@@ -174,7 +175,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         });
       }
     } catch (e) {
-      print('Erro ao carregar meses disponíveis: $e');
+      if (kDebugMode) {
+        print('Erro ao carregar meses disponíveis: $e');
+      }
     }
   }
 
@@ -229,7 +232,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: _getOperacaoColor(log.operacao).withOpacity(0.1),
+                        color: _getOperacaoColor(log.operacao).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -255,7 +258,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getOperacaoColor(log.operacao).withOpacity(0.1),
+                              color: _getOperacaoColor(log.operacao).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -613,7 +616,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -638,7 +641,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
             ),
             const SizedBox(height: 8),
             Center(
-              child: Icon(Icons.arrow_downward, size: 20, color: corTexto.withOpacity(0.5)),
+              child: Icon(Icons.arrow_downward, size: 20, color: corTexto.withValues(alpha: 0.5)),
             ),
             const SizedBox(height: 8),
             _buildValorComparacao(
@@ -690,9 +693,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: cor.withOpacity(0.3)),
+        border: Border.all(color: cor.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,7 +720,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                   valorFormatado,
                   style: TextStyle(
                     fontSize: 13,
-                    color: cor.withOpacity(0.9),
+                    color: cor.withValues(alpha: 0.9),
                     fontWeight: FontWeight.w500,
                     fontFamily: valorFormatado.contains('{') || valorFormatado.contains('[') ? 'monospace' : null,
                   ),
@@ -1014,7 +1017,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF0EA5E9).withOpacity(0.1),
+              color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
@@ -1102,7 +1105,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                               ? const Color(0xFF0EA5E9)
                               : temLogs
                                   ? const Color(0xFFE2E8F0)
-                                  : const Color(0xFFE2E8F0).withOpacity(0.5),
+                                  : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
                         ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1258,7 +1261,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0EA5E9).withOpacity(0.1),
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
@@ -1491,9 +1494,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0EA5E9).withOpacity(0.1),
+        color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF0EA5E9).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
       ),
       child: Text(
         texto,
@@ -1613,7 +1616,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF0EA5E9).withOpacity(0.1) : Colors.white,
+                          color: isSelected ? const Color(0xFF0EA5E9).withValues(alpha: 0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0),
@@ -1772,7 +1775,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: _getOperacaoColor(log.operacao).withOpacity(0.1),
+                          color: _getOperacaoColor(log.operacao).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
@@ -1805,7 +1808,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: _getOperacaoColor(log.operacao).withOpacity(0.1),
+                                    color: _getOperacaoColor(log.operacao).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(

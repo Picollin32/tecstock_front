@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/model/funcionario.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/model/funcionario.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class Funcionarioservice {
@@ -31,7 +32,9 @@ class Funcionarioservice {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar funcionario: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar funcionario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -42,7 +45,9 @@ class Funcionarioservice {
       final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
 
       if (response.statusCode == 401 || response.statusCode == 403) {
-        print('Erro de autenticação ao listar funcionários');
+        if (kDebugMode) {
+          print('Erro de autenticação ao listar funcionários');
+        }
         await AuthService.logout();
         throw Exception('Unauthorized');
       }
@@ -53,7 +58,9 @@ class Funcionarioservice {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar funcionarios: $e');
+      if (kDebugMode) {
+        print('Erro ao listar funcionarios: $e');
+      }
       rethrow;
     }
   }
@@ -83,7 +90,9 @@ class Funcionarioservice {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao excluir funcionario: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir funcionario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -117,7 +126,9 @@ class Funcionarioservice {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar funcionario: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar funcionario: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }

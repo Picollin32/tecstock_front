@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:TecStock/model/tipo_pagamento.dart';
+import 'package:tecstock/model/tipo_pagamento.dart';
 import 'package:intl/intl.dart';
 import '../services/tipo_pagamento_service.dart';
 
@@ -107,6 +107,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
       }
 
       if (resultado['success']) {
+        if (!mounted) return;
         Navigator.pop(context);
         await _carregarTiposPagamento();
         _showSuccessSnackBar(resultado['message']);
@@ -341,7 +342,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
+                        color: primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
@@ -523,9 +524,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: primaryColor.withOpacity(0.1),
+                              color: primaryColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: primaryColor.withOpacity(0.3)),
+                              border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               children: [
@@ -635,7 +636,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: primaryColor.withOpacity(0.3),
+                          color: primaryColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),

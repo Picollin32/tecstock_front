@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'package:TecStock/model/ordem_servico.dart';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/model/ordem_servico.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class OrdemServicoService {
@@ -30,7 +31,9 @@ class OrdemServicoService {
         return {'sucesso': false, 'mensagem': errorMessage};
       }
     } catch (e) {
-      print('Erro ao salvar ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao salvar ordem de serviço: $e');
+      }
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
@@ -44,7 +47,9 @@ class OrdemServicoService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar ordem de serviço: $e');
+      }
       return null;
     }
   }
@@ -58,7 +63,9 @@ class OrdemServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar ordens de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao listar ordens de serviço: $e');
+      }
       return [];
     }
   }
@@ -68,7 +75,9 @@ class OrdemServicoService {
       final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'), headers: await AuthService.getAuthHeaders());
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print('Erro ao excluir ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao excluir ordem de serviço: $e');
+      }
       return false;
     }
   }
@@ -96,7 +105,9 @@ class OrdemServicoService {
         return {'sucesso': false, 'mensagem': errorMessage};
       }
     } catch (e) {
-      print('Erro ao atualizar ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar ordem de serviço: $e');
+      }
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
@@ -109,7 +120,9 @@ class OrdemServicoService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar status da ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar status da ordem de serviço: $e');
+      }
       return false;
     }
   }
@@ -129,7 +142,9 @@ class OrdemServicoService {
         return {'sucesso': false, 'mensagem': errorData['message'] ?? 'Erro ao fechar ordem de serviço'};
       }
     } catch (e) {
-      print('Erro ao fechar ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao fechar ordem de serviço: $e');
+      }
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
@@ -150,11 +165,15 @@ class OrdemServicoService {
           if (response.body.isNotEmpty) {
             errorMessage = response.body;
           }
-        } catch (e) {}
+        } catch (e) {
+          // Se não conseguir decodificar, usa a mensagem padrão
+        }
         return {'sucesso': false, 'mensagem': errorMessage};
       }
     } catch (e) {
-      print('Erro ao reabrir ordem de serviço: $e');
+      if (kDebugMode) {
+        print('Erro ao reabrir ordem de serviço: $e');
+      }
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
@@ -168,7 +187,9 @@ class OrdemServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar ordens de serviço por cliente: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar ordens de serviço por cliente: $e');
+      }
       return [];
     }
   }
@@ -182,7 +203,9 @@ class OrdemServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar ordens de serviço por veículo: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar ordens de serviço por veículo: $e');
+      }
       return [];
     }
   }
@@ -221,7 +244,9 @@ class OrdemServicoService {
 
       return quantidadeTotal.round();
     } catch (e) {
-      print('Erro ao buscar quantidade de peça em OS abertas: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar quantidade de peça em OS abertas: $e');
+      }
       return 0;
     }
   }
@@ -254,7 +279,9 @@ class OrdemServicoService {
 
       return pecasInfo;
     } catch (e) {
-      print('Erro ao buscar peças em OS abertas: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar peças em OS abertas: $e');
+      }
       return {};
     }
   }
@@ -295,7 +322,9 @@ class OrdemServicoService {
 
       return servicosInfo;
     } catch (e) {
-      print('Erro ao buscar serviços em OS abertas: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar serviços em OS abertas: $e');
+      }
       return {};
     }
   }
@@ -313,7 +342,9 @@ class OrdemServicoService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar fiados em aberto: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar fiados em aberto: $e');
+      }
       throw Exception('Erro ao buscar fiados em aberto: $e');
     }
   }
@@ -329,7 +360,9 @@ class OrdemServicoService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao marcar fiado como pago: $e');
+      if (kDebugMode) {
+        print('Erro ao marcar fiado como pago: $e');
+      }
       throw Exception('Erro ao marcar fiado como pago: $e');
     }
   }
@@ -353,7 +386,9 @@ class OrdemServicoService {
         return {'sucesso': false, 'mensagem': 'Erro ao desbloquear OS'};
       }
     } catch (e) {
-      print('Erro ao desbloquear OS: $e');
+      if (kDebugMode) {
+        print('Erro ao desbloquear OS: $e');
+      }
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }

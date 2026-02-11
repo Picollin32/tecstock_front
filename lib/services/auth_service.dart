@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/config/api_config.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 class AuthService {
@@ -65,7 +66,9 @@ class AuthService {
         return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
-      print('Erro ao fazer login: $e');
+      if (kDebugMode) {
+        print('Erro ao fazer login: $e');
+      }
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
@@ -102,7 +105,9 @@ class AuthService {
       }
 
       if (await isTokenExpired()) {
-        print('Token expirado, fazendo logout automático');
+        if (kDebugMode) {
+          print('Token expirado, fazendo logout automático');
+        }
         await logout();
         return false;
       }
@@ -120,7 +125,9 @@ class AuthService {
 
       return JwtDecoder.isExpired(token);
     } catch (e) {
-      print('Erro ao verificar expiração do token: $e');
+      if (kDebugMode) {
+        print('Erro ao verificar expiração do token: $e');
+      }
       return true;
     }
   }
@@ -186,12 +193,26 @@ class AuthService {
   static Future<void> printSessionDebug() async {
     final prefs = await SharedPreferences.getInstance();
     final token = await getToken();
-    print('=== DEBUG SESSÃO ===');
-    print('isLoggedIn: ${prefs.getBool('isLoggedIn')}');
-    print('userId: ${prefs.getInt('userId')}');
-    print('nomeUsuario: ${prefs.getString('nomeUsuario')}');
-    print('nivelAcesso: ${prefs.getInt('nivelAcesso')}');
-    print('token exists: ${token != null && token.isNotEmpty}');
-    print('==================');
+    if (kDebugMode) {
+      print('=== DEBUG SESSÃO ===');
+    }
+    if (kDebugMode) {
+      print('isLoggedIn: ${prefs.getBool('isLoggedIn')}');
+    }
+    if (kDebugMode) {
+      print('userId: ${prefs.getInt('userId')}');
+    }
+    if (kDebugMode) {
+      print('nomeUsuario: ${prefs.getString('nomeUsuario')}');
+    }
+    if (kDebugMode) {
+      print('nivelAcesso: ${prefs.getInt('nivelAcesso')}');
+    }
+    if (kDebugMode) {
+      print('token exists: ${token != null && token.isNotEmpty}');
+    }
+    if (kDebugMode) {
+      print('==================');
+    }
   }
 }

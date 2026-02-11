@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:TecStock/services/auth_service.dart';
-import 'package:TecStock/config/api_config.dart';
+import 'package:tecstock/services/auth_service.dart';
+import 'package:tecstock/config/api_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../model/peca.dart';
 
@@ -17,7 +18,9 @@ class PecaService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar peças: $e');
+      if (kDebugMode) {
+        print('Erro ao listar peças: $e');
+      }
       return [];
     }
   }
@@ -32,7 +35,9 @@ class PecaService {
       }
       return [];
     } catch (e) {
-      print('Erro ao listar peças em uso: $e');
+      if (kDebugMode) {
+        print('Erro ao listar peças em uso: $e');
+      }
       return [];
     }
   }
@@ -43,7 +48,9 @@ class PecaService {
       final response = await http.post(Uri.parse(baseUrl));
       return response.statusCode == 200;
     } catch (e) {
-      print('Erro ao atualizar unidades usadas: $e');
+      if (kDebugMode) {
+        print('Erro ao atualizar unidades usadas: $e');
+      }
       return false;
     }
   }
@@ -63,7 +70,9 @@ class PecaService {
       }
       return null;
     } catch (e) {
-      print('Erro ao buscar peça por código: $e');
+      if (kDebugMode) {
+        print('Erro ao buscar peça por código: $e');
+      }
       return null;
     }
   }

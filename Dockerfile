@@ -15,7 +15,7 @@ RUN flutter pub get --no-example
 COPY . .
 
 # Argumento para a URL da API (pode ser sobrescrito no build)
-ARG API_BASE_URL=http://localhost:8081
+ARG API_BASE_URL=https://api.tecstock.app
 
 # Build da aplicação web para produção (sem símbolos de debug)
 # Passa a URL da API como variável de ambiente em tempo de compilação

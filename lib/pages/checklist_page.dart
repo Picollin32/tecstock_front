@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -121,6 +123,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
   List<dynamic> _veiculos = [];
   final TextEditingController _searchController = TextEditingController();
+  String _tipoPesquisa = 'numero';
+  Timer? _searchDebounce;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  static const int _pageSize = 10;
   List<Checklist> _recentFiltrados = [];
 
   final Map<String, dynamic> _clienteByCpf = {};
@@ -179,12 +186,21 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
   Future<void> _loadRecentChecklists() async {
     try {
-      final all = await ChecklistService.listarChecklists();
-      all.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
-      setState(() {
-        _recent = all.take(3).toList();
-        _recentFiltrados = _recent;
-      });
+      final resultado = await ChecklistService.buscarPaginado(
+        _searchController.text.trim(),
+        _tipoPesquisa,
+        _currentPage,
+        size: _pageSize,
+      );
+
+      if (resultado['success']) {
+        setState(() {
+          _recent = resultado['content'] as List<Checklist>;
+          _recentFiltrados = _recent;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = resultado['currentPage'] as int? ?? _currentPage;
+        });
+      }
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao carregar checklists: $e');
@@ -259,7 +275,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     _initializeData();
     _loadClientesVeiculos();
     _loadRecentChecklists();
-    _searchController.addListener(_filtrarRecentes);
+    _searchController.addListener(_onSearchChanged);
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
 
@@ -308,7 +324,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
       _inspecaoVisualObs.forEach((key, controller) => controller.dispose());
 
-      _searchController.removeListener(_filtrarRecentes);
+      _searchDebounce?.cancel();
+      _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
@@ -316,18 +333,54 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     super.dispose();
   }
 
-  void _filtrarRecentes() {
-    final q = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (q.isEmpty) {
-        _recentFiltrados = _recent;
-      } else {
-        _recentFiltrados = _recent
-            .where(
-                (c) => c.numeroChecklist.toLowerCase().contains(q) || (c.veiculoPlaca != null && c.veiculoPlaca!.toLowerCase().contains(q)))
-            .toList();
-      }
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _currentPage = 0;
+      _loadRecentChecklists();
     });
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() {
+        _currentPage -= 1;
+      });
+      _loadRecentChecklists();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() {
+        _currentPage += 1;
+      });
+      _loadRecentChecklists();
+    }
+  }
+
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Text('Pagina ${_currentPage + 1} de $_totalPages'),
+          IconButton(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadClientesVeiculos() async {
@@ -1277,33 +1330,69 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Pesquisar por número do checklist ou placa do veículo',
-              prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey[400]),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _tipoPesquisa,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'numero', child: Text('Número')),
+                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _tipoPesquisa = value;
+                        _searchController.clear();
+                      });
+                      _onSearchChanged();
+                    }
+                  },
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: TextField(
+                  controller: _searchController,
+                  inputFormatters: _tipoPesquisa == 'numero' ? [FilteringTextInputFormatter.digitsOnly] : null,
+                  decoration: InputDecoration(
+                    hintText: _tipoPesquisa == 'numero' ? 'Digite o número do checklist' : 'Digite a placa do veículo',
+                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear, color: Colors.grey[400]),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
+            ],
           ),
         ],
       ),
@@ -1646,6 +1735,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             },
           ),
         ),
+        _buildPaginationControls(),
       ],
     );
   }
@@ -2453,12 +2543,13 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
+            await Future.delayed(const Duration(milliseconds: 300));
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
             return options.where((cpf) {
               final cpfSemMascara = cpf.replaceAll(RegExp(r'[^0-9]'), '');
-              return cpfSemMascara.contains(searchValue);
+              return cpfSemMascara.startsWith(searchValue);
             });
           },
           onSelected: (String selection) {
@@ -2582,9 +2673,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
-            return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            await Future.delayed(const Duration(milliseconds: 300));
+            final query = textEditingValue.text.replaceAll('-', '').toUpperCase();
+            return options.where((p) {
+              final placaSemMascara = p.replaceAll('-', '');
+              return placaSemMascara.toUpperCase().startsWith(query);
+            });
           },
           onSelected: (String selection) {
             final v = _veiculoByPlaca[selection] as Veiculo?;

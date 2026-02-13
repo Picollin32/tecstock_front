@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tecstock/model/marca.dart';
 import 'package:intl/intl.dart';
 import '../services/marca_service.dart';
@@ -16,12 +18,18 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
   final TextEditingController _marcaController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'));
+
   List<Marca> _marcas = [];
   List<Marca> _marcasFiltradas = [];
   Marca? _marcaEmEdicao;
 
   bool _isLoading = false;
   bool _isLoadingMarcas = true;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -37,7 +45,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     _initializeAnimations();
     _limparFormulario();
     _carregarMarcas();
-    _searchController.addListener(_filtrarMarcas);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -52,47 +60,74 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarMarcas);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _marcaController.dispose();
     super.dispose();
   }
 
-  void _filtrarMarcas() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _marcasFiltradas = _marcas.take(8).toList();
-      } else {
-        _marcasFiltradas = _marcas.where((marca) {
-          return marca.marca.toLowerCase().contains(query);
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarMarcas();
     });
+  }
+
+  Future<void> _filtrarMarcas() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingMarcas = true);
+
+    try {
+      final resultado = await MarcaService.buscarPaginado(query, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _marcasFiltradas = resultado['content'] as List<Marca>;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar marcas');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar marcas');
+    } finally {
+      setState(() => _isLoadingMarcas = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarMarcas();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarMarcas();
+    }
   }
 
   Future<void> _carregarMarcas() async {
     setState(() => _isLoadingMarcas = true);
     try {
-      final lista = await MarcaService.listarMarcas();
+      final resultado = await MarcaService.buscarPaginado('', 0, size: 30);
 
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-      setState(() {
-        _marcas = lista;
-        _filtrarMarcas();
-      });
+      if (resultado['success']) {
+        setState(() {
+          _marcas = resultado['content'] as List<Marca>;
+          _marcasFiltradas = _marcas;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar marcas');
@@ -553,6 +588,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
             controller: _marcaController,
             label: 'Nome da Marca',
             icon: Icons.branding_watermark,
+            inputFormatters: [_lettersOnlyFormatter],
             validator: (v) => v!.isEmpty ? 'Informe o nome da marca' : null,
           ),
           const SizedBox(height: 32),
@@ -596,10 +632,12 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
+      inputFormatters: inputFormatters,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
@@ -623,6 +661,57 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         ),
         filled: true,
         fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -700,6 +789,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                 ),
               const SizedBox(height: 16),
               _buildBrandGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

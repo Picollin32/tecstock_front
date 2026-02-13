@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -110,6 +112,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   List<OrdemServico> _recent = [];
   List<OrdemServico> _recentFiltrados = [];
   final TextEditingController _searchController = TextEditingController();
+  String _tipoPesquisa = 'numero';
+  Timer? _searchDebounce;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  static const int _pageSize = 10;
   int? _editingOSId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
@@ -157,7 +164,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
 
     _initializeData();
-    _searchController.addListener(_filtrarRecentes);
+    _searchController.addListener(_onSearchChanged);
     _servicoSearchController.addListener(_filtrarServicos);
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
@@ -204,7 +211,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _queixaPrincipalController.dispose();
       _observacoesController.dispose();
       _checklistController.dispose();
-      _searchController.removeListener(_filtrarRecentes);
+      _searchDebounce?.cancel();
+      _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
       _servicoSearchController.removeListener(_filtrarServicos);
       _servicoSearchController.dispose();
@@ -226,19 +234,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       final checklistsFuture = ChecklistService.listarChecklists();
       final servicosFuture = ServicoService.listarServicos();
       final tiposPagamentoFuture = TipoPagamentoService.listarTiposPagamento();
-      final ordensFuture = OrdemServicoService.listarOrdensServico();
       final pecasFuture = PecaService.listarPecas();
 
-      final results = await Future.wait([
-        clientesFuture,
-        funcionariosFuture,
-        veiculosFuture,
-        checklistsFuture,
-        servicosFuture,
-        tiposPagamentoFuture,
-        ordensFuture,
-        pecasFuture
-      ]);
+      final results = await Future.wait(
+          [clientesFuture, funcionariosFuture, veiculosFuture, checklistsFuture, servicosFuture, tiposPagamentoFuture, pecasFuture]);
 
       final clientes = results[0] as List<dynamic>;
       final funcionarios = results[1] as List<Funcionario>;
@@ -248,15 +247,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       final servicos = results[4] as List<Servico>;
       servicos.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
       final tiposPagamento = results[5] as List<TipoPagamento>;
-      final pecas = results[7] as List<Peca>;
-
-      final ordensServico = results[6] as List<OrdemServico>;
-      ordensServico.sort((a, b) {
-        final aId = a.id ?? 0;
-        final bId = b.id ?? 0;
-        return bId.compareTo(aId);
-      });
-      final recent = ordensServico.take(5).toList();
+      final pecas = results[6] as List<Peca>;
 
       final clienteByCpf = <String, dynamic>{};
       for (var c in clientes) {
@@ -291,8 +282,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _servicosFiltrados = servicos;
           _tiposPagamento = tiposPagamento;
           _pecasDisponiveis = pecas;
-          _recent = recent;
-          _recentFiltrados = recent;
           _clienteByCpf.clear();
           _clienteByCpf.addAll(clienteByCpf);
           _veiculoByPlaca.clear();
@@ -303,6 +292,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           }
         });
       }
+
+      await _carregarOrdensPaginadas();
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao carregar dados: $e');
@@ -310,20 +301,78 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
   }
 
-  void _filtrarRecentes() {
-    final q = _searchController.text.trim().toLowerCase();
-    setState(() {
-      if (q.isEmpty) {
-        _recentFiltrados = _recent;
-      } else {
-        _recentFiltrados = _recent
-            .where((os) =>
-                os.numeroOS.toLowerCase().contains(q) ||
-                (os.clienteNome.toLowerCase().contains(q)) ||
-                (os.veiculoPlaca.toLowerCase().contains(q)))
-            .toList();
-      }
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _currentPage = 0;
+      _carregarOrdensPaginadas();
     });
+  }
+
+  Future<void> _carregarOrdensPaginadas() async {
+    try {
+      final resultado = await OrdemServicoService.buscarPaginado(
+        _searchController.text.trim(),
+        _tipoPesquisa,
+        _currentPage,
+        size: _pageSize,
+      );
+
+      if (resultado['success']) {
+        setState(() {
+          _recent = resultado['content'] as List<OrdemServico>;
+          _recentFiltrados = _recent;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = resultado['currentPage'] as int? ?? _currentPage;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao carregar OS paginadas: $e');
+      }
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() {
+        _currentPage -= 1;
+      });
+      _carregarOrdensPaginadas();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() {
+        _currentPage += 1;
+      });
+      _carregarOrdensPaginadas();
+    }
+  }
+
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Text('Pagina ${_currentPage + 1} de $_totalPages'),
+          IconButton(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
   }
 
   void _filtrarServicos() {
@@ -911,33 +960,78 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Pesquisar por número da OS, cliente ou placa do veículo',
-              prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey[400]),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _tipoPesquisa,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'numero', child: Text('Número')),
+                    DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _tipoPesquisa = value;
+                        _searchController.clear();
+                      });
+                      _onSearchChanged();
+                    }
+                  },
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: TextField(
+                  controller: _searchController,
+                  inputFormatters: _tipoPesquisa == 'numero'
+                      ? [FilteringTextInputFormatter.digitsOnly]
+                      : _tipoPesquisa == 'cliente'
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                          : null,
+                  decoration: InputDecoration(
+                    hintText: _tipoPesquisa == 'numero'
+                        ? 'Digite o número da OS'
+                        : _tipoPesquisa == 'cliente'
+                            ? 'Digite o nome do cliente'
+                            : 'Digite a placa do veículo',
+                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear, color: Colors.grey[400]),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
+            ],
           ),
         ],
       ),
@@ -1066,6 +1160,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             },
           ),
         ),
+        _buildPaginationControls(),
       ],
     );
   }
@@ -1763,12 +1858,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
+            await Future.delayed(const Duration(milliseconds: 300));
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
             return options.where((cpf) {
               final cpfSemMascara = cpf.replaceAll(RegExp(r'[^0-9]'), '');
-              return cpfSemMascara.contains(searchValue);
+              return cpfSemMascara.startsWith(searchValue);
             });
           },
           onSelected: (String selection) {
@@ -1885,9 +1981,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
-            return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            await Future.delayed(const Duration(milliseconds: 300));
+            final query = textEditingValue.text.replaceAll('-', '').toUpperCase();
+            return options.where((p) {
+              final placaSemMascara = p.replaceAll('-', '');
+              return placaSemMascara.toUpperCase().startsWith(query);
+            });
           },
           onSelected: (String selection) {
             final v = _veiculoByPlaca[selection];
@@ -2125,11 +2226,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: checklist.status == 'FECHADO' ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
+                                      color: checklist.status == 'FECHADO'
+                                          ? Colors.red.withValues(alpha: 0.1)
+                                          : Colors.green.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                          color:
-                                              checklist.status == 'FECHADO' ? Colors.red.withValues(alpha: 0.3) : Colors.green.withValues(alpha: 0.3)),
+                                          color: checklist.status == 'FECHADO'
+                                              ? Colors.red.withValues(alpha: 0.3)
+                                              : Colors.green.withValues(alpha: 0.3)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,

@@ -50,10 +50,12 @@ class Veiculo {
       'placa': placa,
       'ano': ano,
       'modelo': modelo,
-      'marca': {
-        'id': marca!.id,
-        'marca': marca!.marca,
-      },
+      'marca': marca != null
+          ? {
+              'id': marca!.id,
+              'marca': marca!.marca,
+            }
+          : null,
       'categoria': categoria,
       'cor': cor,
       'quilometragem': quilometragem,

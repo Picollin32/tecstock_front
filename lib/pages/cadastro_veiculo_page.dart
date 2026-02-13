@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:tecstock/model/marca.dart';
 import 'package:tecstock/model/veiculo.dart';
 import 'package:tecstock/services/marca_service.dart';
@@ -40,6 +41,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   });
 
+  final _numbersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'));
+  final _maxLength4Formatter = LengthLimitingTextInputFormatter(4);
+
   final TextEditingController _searchController = TextEditingController();
   List<Veiculo> _veiculos = [];
   List<Veiculo> _veiculosFiltrados = [];
@@ -47,6 +52,10 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
 
   bool _isLoadingVeiculos = true;
   bool _isSaving = false;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -63,7 +72,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     _limparFormulario();
     _carregarMarcas();
     _carregarVeiculos();
-    _searchController.addListener(_filtrarVeiculos);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -78,7 +87,8 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarVeiculos);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nome.dispose();
     _placa.dispose();
@@ -89,43 +99,68 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     super.dispose();
   }
 
-  void _filtrarVeiculos() {
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarVeiculos();
+    });
+  }
+
+  Future<void> _filtrarVeiculos() async {
     final unmaskedQuery = _maskPlaca.unmaskText(_searchController.text).toUpperCase();
 
-    setState(() {
-      if (unmaskedQuery.isEmpty) {
-        _veiculosFiltrados = _veiculos.take(6).toList();
+    setState(() => _isLoadingVeiculos = true);
+
+    try {
+      final resultado = await VeiculoService.buscarPaginado(unmaskedQuery, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _veiculosFiltrados = resultado['content'] as List<Veiculo>;
+          _totalPages = resultado['totalPages'] as int;
+        });
       } else {
-        _veiculosFiltrados = _veiculos.where((veiculo) {
-          final placaSemMascara = veiculo.placa.replaceAll('-', '');
-          return placaSemMascara.toUpperCase().contains(unmaskedQuery);
-        }).toList();
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar veículos');
       }
-    });
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar veículos');
+    } finally {
+      setState(() => _isLoadingVeiculos = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarVeiculos();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarVeiculos();
+    }
   }
 
   Future<void> _carregarVeiculos() async {
     setState(() => _isLoadingVeiculos = true);
     try {
-      final lista = await VeiculoService.listarVeiculos();
+      final resultado = await VeiculoService.buscarPaginado('', 0, size: 30);
 
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-      setState(() {
-        _veiculos = lista;
-        _filtrarVeiculos();
-      });
+      if (resultado['success']) {
+        setState(() {
+          _veiculos = resultado['content'] as List<Veiculo>;
+          _veiculosFiltrados = _veiculos;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar veículos');
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar veículos');
@@ -201,6 +236,8 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         errorMessage = "Placa já cadastrada";
       } else if (e.toString().contains('já cadastrada')) {
         errorMessage = "Veículo já cadastrado";
+      } else if (e.toString().contains('marca') && e.toString().contains('obrigatória')) {
+        errorMessage = "A marca do veículo é obrigatória";
       }
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, errorMessage);
@@ -679,6 +716,57 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormulario() {
     return Form(
       key: _formKey,
@@ -708,6 +796,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   label: 'Ano',
                   icon: Icons.calendar_today,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
                   validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
                 ),
               ),
@@ -717,6 +806,8 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   controller: _modelo,
                   label: 'Modelo',
                   icon: Icons.build,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
                   validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
                 ),
               ),
@@ -734,6 +825,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                     ))
                 .toList(),
             onChanged: (value) => setState(() => _marcaSelecionadaId = value),
+            validator: (value) => value == null ? 'Selecione uma marca' : null,
           ),
           const SizedBox(height: 16),
           _buildDropdownField(
@@ -761,6 +853,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   controller: _cor,
                   label: 'Cor',
                   icon: Icons.palette,
+                  inputFormatters: [_lettersOnlyFormatter],
                   validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
                 ),
               ),
@@ -771,6 +864,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   label: 'Quilometragem',
                   icon: Icons.speed,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [_numbersOnlyFormatter],
                   validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
                 ),
               ),
@@ -961,6 +1055,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                 ),
               const SizedBox(height: 16),
               _buildVehicleGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

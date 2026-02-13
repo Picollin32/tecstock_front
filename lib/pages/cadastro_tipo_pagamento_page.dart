@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tecstock/model/tipo_pagamento.dart';
 import 'package:intl/intl.dart';
@@ -22,6 +23,10 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   bool _isLoading = false;
   bool _isLoadingTipos = true;
 
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -36,7 +41,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     _initializeAnimations();
     _limparFormulario();
     _carregarTiposPagamento();
-    _searchController.addListener(_filtrarTiposPagamento);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -51,37 +56,71 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarTiposPagamento);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     super.dispose();
   }
 
-  void _filtrarTiposPagamento() {
-    final query = _searchController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _tiposPagamentoFiltrados = _tiposPagamento.take(6).toList();
-      } else {
-        _tiposPagamentoFiltrados = _tiposPagamento.where((tipo) {
-          final nomeMatch = tipo.nome.toLowerCase().contains(query);
-          final codigoMatch = tipo.codigo?.toString().contains(query) ?? false;
-          return nomeMatch || codigoMatch;
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarTiposPagamento();
     });
+  }
+
+  Future<void> _filtrarTiposPagamento() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingTipos = true);
+
+    try {
+      final resultado = await TipoPagamentoService.buscarPaginado(query, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _tiposPagamentoFiltrados = resultado['content'] as List<TipoPagamento>;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        _showVisibleError('Erro ao buscar tipos de pagamento');
+      }
+    } catch (e) {
+      _showVisibleError('Erro ao buscar tipos de pagamento');
+    } finally {
+      setState(() => _isLoadingTipos = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarTiposPagamento();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarTiposPagamento();
+    }
   }
 
   Future<void> _carregarTiposPagamento() async {
     setState(() => _isLoadingTipos = true);
     try {
-      final lista = await TipoPagamentoService.listarTiposPagamento();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
-      setState(() {
-        _tiposPagamento = lista;
-        _filtrarTiposPagamento();
-      });
+      final resultado = await TipoPagamentoService.buscarPaginado('', 0, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _tiposPagamento = resultado['content'] as List<TipoPagamento>;
+          _tiposPagamentoFiltrados = _tiposPagamento;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        _showVisibleError('Erro ao carregar tipos de pagamento');
+      }
     } catch (e) {
       _showVisibleError('Erro ao carregar tipos de pagamento');
     } finally {
@@ -602,6 +641,57 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -675,6 +765,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                 ),
               const SizedBox(height: 16),
               _buildTiposPagamentoGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

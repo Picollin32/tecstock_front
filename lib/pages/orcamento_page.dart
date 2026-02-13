@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -111,6 +113,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   List<Orcamento> _recent = [];
   List<Orcamento> _recentFiltrados = [];
   final TextEditingController _searchController = TextEditingController();
+  String _tipoPesquisa = 'numero';
+  Timer? _searchDebounce;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  static const int _pageSize = 10;
   int? _editingOrcamentoId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
@@ -161,7 +168,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _pecaSearchController = TextEditingController();
 
     _initializeData();
-    _searchController.addListener(_filtrarRecentes);
+    _searchController.addListener(_onSearchChanged);
     _servicoSearchController.addListener(_filtrarServicos);
     _fadeController.forward();
     _slideController.forward();
@@ -201,7 +208,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _veiculoQuilometragemController.dispose();
       _queixaPrincipalController.dispose();
       _observacoesController.dispose();
-      _searchController.removeListener(_filtrarRecentes);
+      _searchDebounce?.cancel();
+      _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
       _servicoSearchController.removeListener(_filtrarServicos);
       _servicoSearchController.dispose();
@@ -225,13 +233,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoadingData = true;
-    });
-
     try {
       final results = await Future.wait([
-        OrcamentoService.listarOrcamentos(),
         ServicoService.listarServicos(),
         TipoPagamentoService.listarTiposPagamento(),
         PecaService.listarPecas(),
@@ -240,13 +243,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         Funcionarioservice.listarFuncionarios(),
       ]);
 
-      final orcamentos = results[0] as List<Orcamento>;
-      final servicos = results[1] as List<Servico>;
-      final tiposPagamento = results[2] as List<TipoPagamento>;
-      final pecas = results[3] as List<Peca>;
-      final clientes = results[4] as List<dynamic>;
-      final veiculos = results[5] as List<Veiculo>;
-      final funcionarios = results[6] as List<Funcionario>;
+      final servicos = results[0] as List<Servico>;
+      final tiposPagamento = results[1] as List<TipoPagamento>;
+      final pecas = results[2] as List<Peca>;
+      final clientes = results[3] as List<dynamic>;
+      final veiculos = results[4] as List<Veiculo>;
+      final funcionarios = results[5] as List<Funcionario>;
 
       servicos.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
@@ -254,8 +256,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       for (var tp in tiposPagamento) {
         if (tp.id != null) tpById[tp.id!] = tp;
       }
-
-      orcamentos.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
 
       final clienteByCpf = <String, dynamic>{};
       for (var cliente in clientes) {
@@ -282,29 +282,25 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
       if (mounted) {
         setState(() {
-          _recent = orcamentos;
           _servicosDisponiveis = servicos;
           _servicosFiltrados = servicos;
           _tiposPagamento = tpById.values.toList();
           _pecasDisponiveis = pecas;
           _veiculos = veiculos;
           _funcionarios = funcionarios;
-          _recentFiltrados = List.from(orcamentos);
           _clienteByCpf.clear();
           _clienteByCpf.addAll(clienteByCpf);
           _veiculoByPlaca.clear();
           _veiculoByPlaca.addAll(veiculoByPlaca);
-          _isLoadingData = false;
 
           if (consultorParaSelecionar != null) {
             _consultorSelecionado = consultorParaSelecionar;
           }
         });
       }
+
+      await _carregarOrcamentosPaginados();
     } catch (e) {
-      setState(() {
-        _isLoadingData = false;
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao carregar dados: $e')),
@@ -313,19 +309,90 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     }
   }
 
-  void _filtrarRecentes() {
-    final searchText = _searchController.text.toLowerCase();
-    setState(() {
-      if (searchText.isEmpty) {
-        _recentFiltrados = List.from(_recent);
-      } else {
-        _recentFiltrados = _recent.where((orcamento) {
-          return orcamento.numeroOrcamento.toLowerCase().contains(searchText) ||
-              orcamento.clienteNome.toLowerCase().contains(searchText) ||
-              orcamento.veiculoPlaca.toLowerCase().contains(searchText);
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _currentPage = 0;
+      _carregarOrcamentosPaginados();
     });
+  }
+
+  Future<void> _carregarOrcamentosPaginados() async {
+    setState(() {
+      _isLoadingData = true;
+    });
+
+    try {
+      final resultado = await OrcamentoService.buscarPaginado(
+        _searchController.text.trim(),
+        _tipoPesquisa,
+        _currentPage,
+        size: _pageSize,
+      );
+
+      if (resultado['success']) {
+        setState(() {
+          _recent = resultado['content'] as List<Orcamento>;
+          _recentFiltrados = _recent;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = resultado['currentPage'] as int? ?? _currentPage;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar orçamentos: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingData = false;
+        });
+      }
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() {
+        _currentPage -= 1;
+      });
+      _carregarOrcamentosPaginados();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() {
+        _currentPage += 1;
+      });
+      _carregarOrcamentosPaginados();
+    }
+  }
+
+  Widget _buildPaginationControls() {
+    if (_totalPages <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Text('Pagina ${_currentPage + 1} de $_totalPages'),
+          IconButton(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
   }
 
   void _filtrarServicos() {
@@ -599,33 +666,78 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Pesquisar por número do orçamento, cliente ou placa do veículo',
-              prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey[400]),
-                      onPressed: () => _searchController.clear(),
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _tipoPesquisa,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar por',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'numero', child: Text('Número')),
+                    DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _tipoPesquisa = value;
+                        _searchController.clear();
+                      });
+                      _onSearchChanged();
+                    }
+                  },
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 5,
+                child: TextField(
+                  controller: _searchController,
+                  inputFormatters: _tipoPesquisa == 'numero'
+                      ? [FilteringTextInputFormatter.digitsOnly]
+                      : _tipoPesquisa == 'cliente'
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                          : null,
+                  decoration: InputDecoration(
+                    hintText: _tipoPesquisa == 'numero'
+                        ? 'Digite o número do orçamento'
+                        : _tipoPesquisa == 'cliente'
+                            ? 'Digite o nome do cliente'
+                            : 'Digite a placa do veículo',
+                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear, color: Colors.grey[400]),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
+            ],
           ),
         ],
       ),
@@ -681,14 +793,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       );
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _recentFiltrados.length,
-      itemBuilder: (context, index) {
-        final orcamento = _recentFiltrados[index];
-        return _buildOrcamentoCard(orcamento);
-      },
+    return Column(
+      children: [
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _recentFiltrados.length,
+          itemBuilder: (context, index) {
+            final orcamento = _recentFiltrados[index];
+            return _buildOrcamentoCard(orcamento);
+          },
+        ),
+        _buildPaginationControls(),
+      ],
     );
   }
 
@@ -4014,12 +4131,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('cpf_$_cpfAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
+            await Future.delayed(const Duration(milliseconds: 300));
             final searchValue = textEditingValue.text.replaceAll(RegExp(r'[^0-9]'), '');
             return options.where((cpf) {
               final cpfSemMascara = cpf.replaceAll(RegExp(r'[^0-9]'), '');
-              return cpfSemMascara.contains(searchValue);
+              return cpfSemMascara.startsWith(searchValue);
             });
           },
           onSelected: (String selection) {
@@ -4175,9 +4293,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         const SizedBox(height: 8),
         Autocomplete<String>(
           key: ValueKey('placa_$_placaAutocompleteRebuildKey'),
-          optionsBuilder: (TextEditingValue textEditingValue) {
+          optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text == '') return const Iterable<String>.empty();
-            return options.where((p) => p.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+            await Future.delayed(const Duration(milliseconds: 300));
+            final query = textEditingValue.text.replaceAll('-', '').toUpperCase();
+            return options.where((p) {
+              final placaSemMascara = p.replaceAll('-', '');
+              return placaSemMascara.toUpperCase().startsWith(query);
+            });
           },
           onSelected: (String selection) {
             final v = _veiculoByPlaca[selection];

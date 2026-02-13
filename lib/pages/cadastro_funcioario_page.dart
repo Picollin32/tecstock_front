@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tecstock/model/funcionario.dart';
@@ -40,6 +41,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     type: MaskAutoCompletionType.lazy,
   );
 
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\u00c0-\u00ff\s]'));
+
   List<Funcionario> _funcionarios = [];
   List<Funcionario> _funcionariosFiltrados = [];
   Funcionario? _funcionarioEmEdicao;
@@ -47,6 +50,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   bool _isLoading = false;
   bool _isLoadingFuncionarios = true;
   bool _isSaving = false;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -97,7 +104,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     _initializeAnimations();
     _limparFormulario();
     _carregarFuncionarios();
-    _searchController.addListener(_filtrarFuncionarios);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -112,7 +119,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarFuncionarios);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     _telefoneController.dispose();
@@ -126,22 +134,52 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     super.dispose();
   }
 
-  void _filtrarFuncionarios() {
-    final query = _searchController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _funcionariosFiltrados = _funcionarios.take(6).toList();
-      } else {
-        _funcionariosFiltrados = _funcionarios.where((funcionario) {
-          final nomeMatch = funcionario.nome.toLowerCase().contains(query);
-          final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfFuncionarioSemMascara = funcionario.cpf.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfMatch = cpfFuncionarioSemMascara.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
-
-          return nomeMatch || cpfMatch;
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarFuncionarios();
     });
+  }
+
+  Future<void> _filtrarFuncionarios() async {
+    final query = _searchController.text.trim();
+    final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
+    final queryParaBusca = cpfSemMascara.isNotEmpty ? cpfSemMascara : query;
+
+    setState(() => _isLoadingFuncionarios = true);
+
+    try {
+      final resultado = await Funcionarioservice.buscarPaginado(queryParaBusca, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _funcionariosFiltrados = resultado['content'] as List<Funcionario>;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar funcionários');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar funcionários');
+    } finally {
+      setState(() => _isLoadingFuncionarios = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarFuncionarios();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarFuncionarios();
+    }
   }
 
   Future<void> _carregarFuncionarios() async {
@@ -157,25 +195,19 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         return;
       }
 
-      final lista = await Funcionarioservice.listarFuncionarios();
+      final resultado = await Funcionarioservice.buscarPaginado('', 0, size: 30);
 
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-      setState(() {
-        _funcionarios = lista;
-        _filtrarFuncionarios();
-      });
+      if (resultado['success']) {
+        setState(() {
+          _funcionarios = resultado['content'] as List<Funcionario>;
+          _funcionariosFiltrados = _funcionarios;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar funcionários');
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -300,7 +332,6 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         ErrorUtils.showVisibleError(context, errorMessage);
       }
     } finally {
-      // SEMPRE resetar o estado, independente de sucesso ou erro
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -794,6 +825,57 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormulario() {
     return Form(
       key: _formKey,
@@ -803,6 +885,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             controller: _nomeController,
             label: 'Nome Completo',
             icon: Icons.person,
+            inputFormatters: [_lettersOnlyFormatter],
             validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
           ),
           const SizedBox(height: 16),
@@ -1166,6 +1249,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                 ),
               const SizedBox(height: 16),
               _buildEmployeeGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

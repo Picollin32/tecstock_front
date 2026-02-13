@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../model/servico.dart';
 import '../services/servico_service.dart';
@@ -20,6 +22,8 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   final TextEditingController _precoCaminhoneteController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'));
+
   List<Servico> _servicos = [];
   List<Servico> _servicosFiltrados = [];
   Servico? _servicoEmEdicao;
@@ -28,6 +32,10 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   bool _isLoading = false;
   bool _isLoadingServicos = true;
   String _filtroServicos = 'todos';
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -44,7 +52,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     _initializeAnimations();
     _limparFormulario();
     _carregarDados();
-    _searchController.addListener(_filtrarServicos);
+    _searchController.addListener(_onSearchChanged);
   }
 
   Future<void> _carregarDados() async {
@@ -88,7 +96,8 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarServicos);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     _precoPasseioController.dispose();
@@ -96,35 +105,73 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     super.dispose();
   }
 
-  void _filtrarServicos() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      List<Servico> servicosBase = _servicos;
-
-      if (_filtroServicos == 'pendentes') {
-        servicosBase = servicosBase.where((s) => s.unidadesUsadasEmOS != null && s.unidadesUsadasEmOS! > 0).toList();
-      }
-
-      if (query.isEmpty) {
-        _servicosFiltrados = servicosBase.take(6).toList();
-      } else {
-        _servicosFiltrados = servicosBase.where((servico) {
-          return servico.nome.toLowerCase().contains(query);
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarServicos();
     });
+  }
+
+  Future<void> _filtrarServicos() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingServicos = true);
+
+    try {
+      final resultado = await ServicoService.buscarPaginado(query, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        List<Servico> servicosFiltrados = resultado['content'] as List<Servico>;
+
+        if (_filtroServicos == 'pendentes') {
+          servicosFiltrados = servicosFiltrados.where((s) => s.unidadesUsadasEmOS != null && s.unidadesUsadasEmOS! > 0).toList();
+        }
+
+        setState(() {
+          _servicosFiltrados = servicosFiltrados;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar serviços');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar serviços');
+    } finally {
+      setState(() => _isLoadingServicos = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarServicos();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarServicos();
+    }
   }
 
   Future<void> _carregarServicos() async {
     setState(() => _isLoadingServicos = true);
     try {
-      final lista = await ServicoService.listarServicos();
-      lista.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
-      setState(() {
-        _servicos = lista;
-        _filtrarServicos();
-      });
+      final resultado = await ServicoService.buscarPaginado('', 0, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _servicos = resultado['content'] as List<Servico>;
+          _servicosFiltrados = _servicos;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar serviços');
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar serviços');
@@ -722,6 +769,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
             controller: _nomeController,
             label: 'Nome do Serviço',
             icon: Icons.build,
+            inputFormatters: [_lettersOnlyFormatter],
             validator: (v) => v!.isEmpty ? 'Informe o nome do serviço' : null,
           ),
           const SizedBox(height: 16),
@@ -812,12 +860,14 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       onChanged: onChanged,
       autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -842,6 +892,57 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         ),
         filled: true,
         fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -994,6 +1095,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                 ),
               const SizedBox(height: 16),
               _buildServiceGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

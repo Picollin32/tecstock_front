@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:tecstock/config/api_config.dart';
 import '../model/auditoria_log.dart';
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 
 class AuditoriaService {
   static String get baseUrl => ApiConfig.auditoriaUrl;
@@ -281,6 +283,63 @@ class AuditoriaService {
         print('Erro ao buscar meses disponíveis: $e');
       }
       return [];
+    }
+  }
+
+  static Future<void> exportarRegistrosCSV(
+    String token, {
+    required String tipoFiltro,
+    DateTime? dia,
+    DateTime? dataInicio,
+    DateTime? dataFim,
+    int? ano,
+    int? mes,
+    String? usuario,
+    String? entidade,
+    String? operacao,
+    int? entidadeId,
+  }) async {
+    final queryParams = <String, String>{};
+
+    if (tipoFiltro == 'dia' && dia != null) {
+      queryParams['dia'] = '${dia.year}-${dia.month.toString().padLeft(2, '0')}-${dia.day.toString().padLeft(2, '0')}';
+    } else if (tipoFiltro == 'intervalo' && dataInicio != null && dataFim != null) {
+      queryParams['dataInicio'] = dataInicio.toIso8601String();
+      queryParams['dataFim'] = dataFim.toIso8601String();
+    } else if (tipoFiltro == 'mes' && ano != null && mes != null) {
+      queryParams['ano'] = ano.toString();
+      queryParams['mes'] = mes.toString();
+    }
+
+    if (usuario != null && usuario.isNotEmpty) queryParams['usuario'] = usuario;
+    if (entidade != null && entidade.isNotEmpty) queryParams['entidade'] = entidade;
+    if (operacao != null && operacao.isNotEmpty) queryParams['operacao'] = operacao;
+    if (entidadeId != null) queryParams['entidadeId'] = entidadeId.toString();
+
+    final uri = Uri.parse('$baseUrl/exportar-csv').replace(queryParameters: queryParams);
+    final response = await http.get(uri, headers: _getHeaders(token));
+
+    if (response.statusCode == 200) {
+      final bytes = response.bodyBytes;
+
+      final blob = web.Blob([bytes.toJS].toJS);
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
+      anchor.href = url;
+
+      String nomeArquivo = 'auditoria';
+      if (tipoFiltro == 'dia' && dia != null) {
+        nomeArquivo += '_${dia.year}-${dia.month.toString().padLeft(2, '0')}-${dia.day.toString().padLeft(2, '0')}';
+      } else if (tipoFiltro == 'mes' && ano != null && mes != null) {
+        nomeArquivo += '_${ano}_${mes.toString().padLeft(2, '0')}';
+      } else {
+        nomeArquivo += '_export';
+      }
+      anchor.download = '$nomeArquivo.csv';
+      anchor.click();
+      web.URL.revokeObjectURL(url);
+    } else {
+      throw Exception('Erro ao exportar registros para CSV');
     }
   }
 }

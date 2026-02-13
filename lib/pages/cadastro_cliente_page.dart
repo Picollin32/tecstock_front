@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tecstock/model/cliente.dart';
@@ -38,12 +39,18 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     type: MaskAutoCompletionType.lazy,
   );
 
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'));
+
   List<Cliente> _clientes = [];
   List<Cliente> _clientesFiltrados = [];
   Cliente? _clienteEmEdicao;
 
   bool _isLoadingClientes = true;
   bool _isSaving = false;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -89,7 +96,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _initializeAnimations();
     _limparFormulario();
     _carregarClientes();
-    _searchController.addListener(_filtrarClientes);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -104,7 +111,8 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarClientes);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     _telefoneController.dispose();
@@ -118,50 +126,66 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     super.dispose();
   }
 
-  void _filtrarClientes() {
-    final query = _searchController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _clientesFiltrados = _clientes.take(6).toList();
-      } else {
-        _clientesFiltrados = _clientes.where((cliente) {
-          final nomeMatch = cliente.nome.toLowerCase().contains(query);
-          final cpfSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfClienteSemMascara = cliente.cpf.replaceAll(RegExp(r'[^0-9]'), '');
-          final cpfMatch = cpfClienteSemMascara.contains(cpfSemMascara) && cpfSemMascara.isNotEmpty;
-
-          return nomeMatch || cpfMatch;
-        }).toList();
-      }
+  void _onSearchChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarClientes();
     });
+  }
+
+  void _filtrarClientes() async {
+    final query = _searchController.text.trim();
+    setState(() => _isLoadingClientes = true);
+    try {
+      if (query.isEmpty) {
+        await _carregarClientes();
+      } else {
+        final resultado = await ClienteService.buscarPaginado(query, _currentPage, size: 30);
+        if (resultado['success'] == true) {
+          setState(() {
+            _clientesFiltrados = List<Cliente>.from(resultado['content']);
+            _totalPages = resultado['totalPages'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao filtrar clientes');
+    } finally {
+      setState(() => _isLoadingClientes = false);
+    }
   }
 
   Future<void> _carregarClientes() async {
     setState(() => _isLoadingClientes = true);
     try {
-      final lista = await ClienteService.listarClientes();
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-      setState(() {
-        _clientes = lista;
-        _filtrarClientes();
-      });
+      final resultado = await ClienteService.buscarPaginado('', _currentPage, size: 30);
+      if (resultado['success'] == true) {
+        setState(() {
+          _clientes = List<Cliente>.from(resultado['content']);
+          _clientesFiltrados = _clientes;
+          _totalPages = resultado['totalPages'] ?? 0;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar clientes');
     } finally {
       setState(() => _isLoadingClientes = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarClientes();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarClientes();
     }
   }
 
@@ -748,6 +772,57 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormulario() {
     return Form(
       key: _formKey,
@@ -757,6 +832,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             controller: _nomeController,
             label: 'Nome Completo',
             icon: Icons.person,
+            inputFormatters: [_lettersOnlyFormatter],
             validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
           ),
           const SizedBox(height: 16),
@@ -1066,6 +1142,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                 ),
               const SizedBox(height: 16),
               _buildClientGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

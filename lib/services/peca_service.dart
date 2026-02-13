@@ -217,4 +217,31 @@ class PecaService {
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
+
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
+    String url = '${ApiConfig.pecasUrl}/buscarPaginado?query=$query&page=$page&size=$size';
+    try {
+      final headers = await AuthService.getAuthHeaders();
+      final response = await http.get(Uri.parse(url), headers: headers);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'];
+        final pecas = jsonList.map((e) => Peca.fromJson(e)).toList();
+        return {
+          'success': true,
+          'content': pecas,
+          'totalElements': jsonResponse['totalElements'],
+          'totalPages': jsonResponse['totalPages'],
+          'currentPage': jsonResponse['number'],
+        };
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao buscar peças paginado: $e');
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    }
+  }
 }

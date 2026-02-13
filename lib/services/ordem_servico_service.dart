@@ -210,6 +210,46 @@ class OrdemServicoService {
     }
   }
 
+  static Future<Map<String, dynamic>> buscarPaginado(
+    String query,
+    String tipo,
+    int page, {
+    int size = 10,
+  }) async {
+    try {
+      final base = Uri.parse(baseUrl);
+      final url = base.replace(
+        path: '${base.path}/buscarPaginado',
+        queryParameters: {
+          'query': query,
+          'tipo': tipo,
+          'page': page.toString(),
+          'size': size.toString(),
+        },
+      );
+
+      final response = await http.get(url, headers: await AuthService.getAuthHeaders());
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'];
+        final ordens = jsonList.map((e) => OrdemServico.fromJson(e)).toList();
+        return {
+          'success': true,
+          'content': ordens,
+          'totalElements': jsonResponse['totalElements'],
+          'totalPages': jsonResponse['totalPages'],
+          'currentPage': jsonResponse['number'],
+        };
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao buscar OS paginado: $e');
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    }
+  }
+
   static Future<List<OrdemServico>> buscarPorStatus(String status) async {
     final url = Uri.parse('$baseUrl/status/$status');
 

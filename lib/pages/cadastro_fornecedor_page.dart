@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -61,6 +62,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   bool _isLoading = false;
   bool _isLoadingFornecedores = true;
 
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -106,7 +111,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _initializeAnimations();
     _limparFormulario();
     _carregarFornecedores();
-    _searchController.addListener(_filtrarFornecedores);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -121,7 +126,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarFornecedores);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     _cnpjController.dispose();
@@ -135,47 +141,70 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     super.dispose();
   }
 
-  void _filtrarFornecedores() {
-    final query = _searchController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _fornecedoresFiltrados = _fornecedores.take(6).toList();
-      } else {
-        _fornecedoresFiltrados = _fornecedores.where((fornecedor) {
-          final nomeMatch = fornecedor.nome.toLowerCase().contains(query);
-          final cnpjSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
-          final cnpjFornecedorSemMascara = fornecedor.cnpj.replaceAll(RegExp(r'[^0-9]'), '');
-          final cnpjMatch = cnpjFornecedorSemMascara.contains(cnpjSemMascara) && cnpjSemMascara.isNotEmpty;
-
-          return nomeMatch || cnpjMatch;
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarFornecedores();
     });
+  }
+
+  Future<void> _filtrarFornecedores() async {
+    final query = _searchController.text.trim();
+    final cnpjSemMascara = query.replaceAll(RegExp(r'[^0-9]'), '');
+    final queryParaBusca = cnpjSemMascara.isNotEmpty ? cnpjSemMascara : query;
+
+    setState(() => _isLoadingFornecedores = true);
+
+    try {
+      final resultado = await FornecedorService.buscarPaginado(queryParaBusca, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _fornecedoresFiltrados = resultado['content'] as List<Fornecedor>;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar fornecedores');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar fornecedores');
+    } finally {
+      setState(() => _isLoadingFornecedores = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarFornecedores();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarFornecedores();
+    }
   }
 
   Future<void> _carregarFornecedores() async {
     setState(() => _isLoadingFornecedores = true);
     try {
-      final lista = await FornecedorService.listarFornecedores();
+      final resultado = await FornecedorService.buscarPaginado('', 0, size: 30);
 
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-
-      setState(() {
-        _fornecedores = lista.toList();
-        _filtrarFornecedores();
-      });
+      if (resultado['success']) {
+        setState(() {
+          _fornecedores = resultado['content'] as List<Fornecedor>;
+          _fornecedoresFiltrados = _fornecedores;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar fornecedores');
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar fornecedores');
@@ -768,6 +797,57 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormulario() {
     return Form(
       key: _formKey,
@@ -1097,6 +1177,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 ),
               const SizedBox(height: 16),
               _buildSupplierGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

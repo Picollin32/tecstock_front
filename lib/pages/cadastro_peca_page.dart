@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../model/fornecedor.dart';
@@ -27,6 +29,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   final _precoFinalController = TextEditingController();
   final _searchController = TextEditingController();
 
+  final _numbersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[0-9]'));
+
   Fornecedor? _fornecedorSelecionado;
   List<Fornecedor> _fornecedores = [];
   Fabricante? _fabricanteSelecionado;
@@ -40,6 +44,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   bool _isLoadingPecas = true;
   bool _isSaving = false;
   String _filtroEstoque = 'todos';
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -55,7 +63,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     super.initState();
     _initializeAnimations();
     _carregarDados();
-    _searchController.addListener(_filtrarPecas);
+    _searchController.addListener(_onSearchChanged);
     _precoUnitarioController.addListener(_calcularPrecoFinal);
   }
 
@@ -71,7 +79,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarPecas);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _precoUnitarioController.removeListener(_calcularPrecoFinal);
     _nomeController.dispose();
     _codigoFabricanteController.dispose();
@@ -99,16 +108,18 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   Future<void> _carregarPecas() async {
     try {
-      final listaPecas = await PecaService.listarPecas();
-      setState(() {
-        _pecas = listaPecas
-          ..sort((a, b) {
-            final DateTime dataA = a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            final DateTime dataB = b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-            return dataB.compareTo(dataA);
-          });
-        _filtrarPecas();
-      });
+      final resultado = await PecaService.buscarPaginado('', 0, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _pecas = resultado['content'] as List<Peca>;
+          _pecasFiltradas = _pecas;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        _showError('Erro ao carregar peças');
+      }
     } catch (e) {
       _showError('Erro ao carregar peças');
     }
@@ -143,33 +154,61 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     }
   }
 
-  void _filtrarPecas() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      List<Peca> pecasFiltradas = _pecas;
-
-      if (query.isNotEmpty) {
-        pecasFiltradas = pecasFiltradas.where((peca) {
-          return peca.codigoFabricante.toLowerCase().contains(query) || peca.nome.toLowerCase().contains(query);
-        }).toList();
-      }
-
-      if (_filtroEstoque != 'todos') {
-        pecasFiltradas = pecasFiltradas.where((peca) {
-          if (_filtroEstoque == 'em_uso') {
-            return peca.unidadesUsadasEmOS != null && peca.unidadesUsadasEmOS! > 0;
-          }
-          final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
-          return status['status'] == _filtroEstoque;
-        }).toList();
-      }
-
-      if (query.isEmpty && _filtroEstoque == 'todos') {
-        _pecasFiltradas = pecasFiltradas.take(6).toList();
-      } else {
-        _pecasFiltradas = pecasFiltradas;
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarPecas();
     });
+  }
+
+  Future<void> _filtrarPecas() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingPecas = true);
+
+    try {
+      final resultado = await PecaService.buscarPaginado(query, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        List<Peca> pecasFiltradas = resultado['content'] as List<Peca>;
+
+        if (_filtroEstoque != 'todos') {
+          pecasFiltradas = pecasFiltradas.where((peca) {
+            if (_filtroEstoque == 'em_uso') {
+              return peca.unidadesUsadasEmOS != null && peca.unidadesUsadasEmOS! > 0;
+            }
+            final status = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
+            return status['status'] == _filtroEstoque;
+          }).toList();
+        }
+
+        setState(() {
+          _pecasFiltradas = pecasFiltradas;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        _showError('Erro ao buscar peças');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Erro ao buscar peças');
+    } finally {
+      setState(() => _isLoadingPecas = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarPecas();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarPecas();
+    }
   }
 
   void _calcularPrecoFinal() {
@@ -1166,6 +1205,57 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFormulario() {
     return Form(
       key: _formKey,
@@ -1238,6 +1328,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   label: 'Estoque de Segurança',
                   icon: Icons.inventory,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [_numbersOnlyFormatter],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Informe o estoque de segurança';
@@ -1351,6 +1442,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
     bool enabled = true,
@@ -1359,6 +1451,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       onChanged: onChanged,
       enabled: enabled,
@@ -1733,6 +1826,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ),
               const SizedBox(height: 16),
               _buildPartGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

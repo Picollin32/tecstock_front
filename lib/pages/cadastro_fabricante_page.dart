@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../model/fabricante.dart';
 import '../services/fabricante_service.dart';
@@ -16,11 +18,17 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
   final _nomeController = TextEditingController();
   final _searchController = TextEditingController();
 
+  final _lettersOnlyFormatter = FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'));
+
   List<Fabricante> _fabricantes = [];
   List<Fabricante> _fabricantesFiltrados = [];
   Fabricante? _fabricanteEmEdicao;
   bool _isLoading = false;
   bool _isLoadingFabricantes = true;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -35,7 +43,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     super.initState();
     _initializeAnimations();
     _carregarFabricantes();
-    _searchController.addListener(_filtrarFabricantes);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -50,47 +58,74 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarFabricantes);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
     super.dispose();
   }
 
-  void _filtrarFabricantes() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      if (query.isEmpty) {
-        _fabricantesFiltrados = _fabricantes.take(6).toList();
-      } else {
-        _fabricantesFiltrados = _fabricantes.where((fabricante) {
-          return fabricante.nome.toLowerCase().contains(query);
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _filtrarFabricantes();
     });
+  }
+
+  Future<void> _filtrarFabricantes() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingFabricantes = true);
+
+    try {
+      final resultado = await FabricanteService.buscarPaginado(query, _currentPage, size: 30);
+
+      if (resultado['success']) {
+        setState(() {
+          _fabricantesFiltrados = resultado['content'] as List<Fabricante>;
+          _totalPages = resultado['totalPages'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar fabricantes');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar fabricantes');
+    } finally {
+      setState(() => _isLoadingFabricantes = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarFabricantes();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarFabricantes();
+    }
   }
 
   Future<void> _carregarFabricantes() async {
     setState(() => _isLoadingFabricantes = true);
     try {
-      final lista = await FabricanteService.listarFabricantes();
+      final resultado = await FabricanteService.buscarPaginado('', 0, size: 30);
 
-      lista.sort((a, b) {
-        final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateComparison = bDate.compareTo(aDate);
-
-        if (dateComparison == 0) {
-          final aId = a.id ?? 0;
-          final bId = b.id ?? 0;
-          return bId.compareTo(aId);
-        }
-
-        return dateComparison;
-      });
-      setState(() {
-        _fabricantes = lista;
-        _filtrarFabricantes();
-      });
+      if (resultado['success']) {
+        setState(() {
+          _fabricantes = resultado['content'] as List<Fabricante>;
+          _fabricantesFiltrados = _fabricantes;
+          _totalPages = resultado['totalPages'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar fabricantes');
+      }
     } catch (e) {
       if (!mounted) return;
       ErrorUtils.showVisibleError(context, 'Erro ao carregar fabricantes');
@@ -542,6 +577,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
             controller: _nomeController,
             label: 'Nome do Fabricante',
             icon: Icons.precision_manufacturing,
+            inputFormatters: [_lettersOnlyFormatter],
             validator: (v) => v!.isEmpty ? 'Informe o nome do fabricante' : null,
           ),
           const SizedBox(height: 32),
@@ -585,10 +621,12 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
+      inputFormatters: inputFormatters,
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
@@ -612,6 +650,57 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         ),
         filled: true,
         fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ElevatedButton.icon(
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            icon: const Icon(Icons.chevron_left),
+            label: const Text('Anterior'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            icon: const Icon(Icons.chevron_right),
+            label: const Text('Próxima'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey[300],
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -689,6 +778,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                 ),
               const SizedBox(height: 16),
               _buildManufacturerGrid(),
+              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
             ],
           ),
         ),

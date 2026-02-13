@@ -101,4 +101,44 @@ class ChecklistService {
       return false;
     }
   }
+
+  static Future<Map<String, dynamic>> buscarPaginado(
+    String query,
+    String tipo,
+    int page, {
+    int size = 10,
+  }) async {
+    try {
+      final base = Uri.parse(ApiConfig.checklistUrl);
+      final url = base.replace(
+        path: '${base.path}/buscarPaginado',
+        queryParameters: {
+          'query': query,
+          'tipo': tipo,
+          'page': page.toString(),
+          'size': size.toString(),
+        },
+      );
+
+      final response = await http.get(url, headers: await AuthService.getAuthHeaders());
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'];
+        final checklists = jsonList.map((e) => Checklist.fromJson(e)).toList();
+        return {
+          'success': true,
+          'content': checklists,
+          'totalElements': jsonResponse['totalElements'],
+          'totalPages': jsonResponse['totalPages'],
+          'currentPage': jsonResponse['number'],
+        };
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao buscar checklists paginado: $e');
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0};
+    }
+  }
 }

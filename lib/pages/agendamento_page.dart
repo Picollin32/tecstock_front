@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -222,6 +224,15 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    final hoje = DateTime.now();
+    final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+    final dataSelecionada = DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final hasEvents = _getEventsForDay(selectedDay).isNotEmpty;
+
+    if (dataSelecionada.isBefore(dataHoje) && !hasEvents) {
+      return;
+    }
+
     if (!isSameDay(_selectedDay, selectedDay) || _currentStep == AgendamentoStep.calendario) {
       setState(() {
         _selectedDay = selectedDay;
@@ -667,12 +678,21 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),
+                  disabledTextStyle: TextStyle(
+                    color: Colors.grey[400],
+                    fontWeight: FontWeight.w400,
+                    fontSize: 16,
+                  ),
                   cellMargin: const EdgeInsets.all(6),
                   cellPadding: const EdgeInsets.all(0),
                 ),
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (context, day, focusedDay) {
                     final hasEvents = _getEventsForDay(day).isNotEmpty;
+                    final hoje = DateTime.now();
+                    final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                    final dataComparacao = DateTime(day.year, day.month, day.day);
+                    final isPassado = dataComparacao.isBefore(dataHoje);
 
                     if (day.weekday == DateTime.sunday) {
                       return Container(
@@ -680,13 +700,13 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: hasEvents ? Colors.red.withValues(alpha: 0.1) : null,
-                          border: hasEvents ? Border.all(color: Colors.red.withValues(alpha: 0.3), width: 1) : null,
+                          color: hasEvents ? Colors.red.withValues(alpha: isPassado ? 0.05 : 0.1) : null,
+                          border: hasEvents ? Border.all(color: Colors.red.withValues(alpha: isPassado ? 0.2 : 0.3), width: 1) : null,
                         ),
                         child: Text(
                           day.day.toString(),
                           style: TextStyle(
-                            color: Colors.red,
+                            color: isPassado ? Colors.red.withValues(alpha: 0.5) : Colors.red,
                             fontWeight: hasEvents ? FontWeight.bold : FontWeight.w500,
                           ),
                         ),
@@ -699,13 +719,16 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: primaryColor.withValues(alpha: 0.1),
-                          border: Border.all(color: primaryColor.withValues(alpha: 0.3), width: 1),
+                          color: isPassado ? Colors.grey.withValues(alpha: 0.1) : primaryColor.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: isPassado ? Colors.grey.withValues(alpha: 0.3) : primaryColor.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
                         ),
                         child: Text(
                           day.day.toString(),
                           style: TextStyle(
-                            color: primaryColor,
+                            color: isPassado ? Colors.grey[600] : primaryColor,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -713,6 +736,59 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     }
 
                     return null;
+                  },
+                  disabledBuilder: (context, day, focusedDay) {
+                    final hasEvents = _getEventsForDay(day).isNotEmpty;
+
+                    if (day.weekday == DateTime.sunday) {
+                      return Container(
+                        margin: const EdgeInsets.all(2.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: hasEvents ? Colors.red.withValues(alpha: 0.1) : null,
+                          border: hasEvents ? Border.all(color: Colors.red.withValues(alpha: 0.2), width: 1) : null,
+                        ),
+                        child: Text(
+                          day.day.toString(),
+                          style: TextStyle(
+                            color: Colors.red.withValues(alpha: 0.5),
+                            fontWeight: hasEvents ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (hasEvents) {
+                      return Container(
+                        margin: const EdgeInsets.all(2.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          border: Border.all(color: Colors.grey.withValues(alpha: 0.3), width: 1),
+                        ),
+                        child: Text(
+                          day.day.toString(),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.all(2.0),
+                      alignment: Alignment.center,
+                      child: Text(
+                        day.day.toString(),
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    );
                   },
                   markerBuilder: (context, day, events) {
                     final cores = _getCoresServicosNoDia(day);
@@ -786,6 +862,13 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 focusedDay: _focusedDay,
                 calendarFormat: _calendarFormat,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                enabledDayPredicate: (day) {
+                  final hoje = DateTime.now();
+                  final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                  final dataComparacao = DateTime(day.year, day.month, day.day);
+                  final hasEvents = _getEventsForDay(day).isNotEmpty;
+                  return !dataComparacao.isBefore(dataHoje) || hasEvents;
+                },
                 eventLoader: _getEventsForDay,
                 onDaySelected: _onDaySelected,
                 onFormatChanged: (format) => setState(() => _calendarFormat = format),
@@ -873,57 +956,108 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        _formatDate(_selectedDay!),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _formatDate(_selectedDay!),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if ((() {
+                            final hoje = DateTime.now();
+                            final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                            final dataSelecionada =
+                                _selectedDay != null ? DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day) : dataHoje;
+                            return dataSelecionada.isBefore(dataHoje);
+                          })()) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.history, color: Colors.white.withValues(alpha: 0.9), size: 12),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Visualização (somente leitura)',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     Material(
                       color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _showHorarioSelectionDialog(),
-                        borderRadius: BorderRadius.circular(12),
-                        splashColor: Colors.white.withValues(alpha: 0.3),
-                        highlightColor: Colors.white.withValues(alpha: 0.1),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              width: 1,
+                      child: Builder(builder: (context) {
+                        final hoje = DateTime.now();
+                        final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                        final dataSelecionada =
+                            _selectedDay != null ? DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day) : dataHoje;
+                        final isDataPassada = dataSelecionada.isBefore(dataHoje);
+
+                        return InkWell(
+                          onTap: isDataPassada ? null : () => _showHorarioSelectionDialog(),
+                          borderRadius: BorderRadius.circular(12),
+                          splashColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.3),
+                          highlightColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.1),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isDataPassada ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                              boxShadow: isDataPassada
+                                  ? []
+                                  : [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.add_circle_outline, color: Colors.white, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Novo',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_circle_outline,
+                                  color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
+                                  size: 16,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Novo',
+                                  style: TextStyle(
+                                    color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ),
                   ],
                 ),
@@ -1689,6 +1823,17 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   void _showHorarioSelectionDialog() {
+    if (_selectedDay != null) {
+      final hoje = DateTime.now();
+      final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+      final dataSelecionada = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+
+      if (dataSelecionada.isBefore(dataHoje)) {
+        ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
+        return;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1949,12 +2094,13 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Autocomplete<String>(
-                        optionsBuilder: (TextEditingValue textEditingValue) {
+                        optionsBuilder: (TextEditingValue textEditingValue) async {
                           final query = _maskPlaca.unmaskText(textEditingValue.text).toUpperCase();
                           if (query.isEmpty) return const Iterable<String>.empty();
+                          await Future.delayed(const Duration(milliseconds: 300));
                           return _veiculos.map((v) => v.placa).where((placa) {
                             final placaSemMascara = placa.replaceAll('-', '');
-                            return placaSemMascara.toUpperCase().contains(query);
+                            return placaSemMascara.toUpperCase().startsWith(query);
                           });
                         },
                         displayStringForOption: (option) => option,
@@ -2191,6 +2337,17 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                               horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
                             } else {
                               horaFimFormatada = "09:00";
+                            }
+                          }
+
+                          if (agendamentoExistente == null) {
+                            final hoje = DateTime.now();
+                            final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                            final dataSelecionada = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+
+                            if (dataSelecionada.isBefore(dataHoje)) {
+                              ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
+                              return;
                             }
                           }
 

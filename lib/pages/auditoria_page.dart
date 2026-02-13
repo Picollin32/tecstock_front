@@ -164,6 +164,558 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     );
   }
 
+  void _mostrarSucesso(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _mostrarDialogExportarCSV() {
+    DateTime? diaSelecionado;
+    DateTime? dataInicioRange;
+    DateTime? dataFimRange;
+    String tipoFiltro = 'dia';
+    String? filtroUsuarioExport = filtroUsuario;
+    Set<String> filtroEntidadesExport = Set.from(entidadesSelecionadas);
+    String? filtroOperacaoExport = filtroOperacao;
+    String? filtroIdExport = filtroIdController.text.isNotEmpty ? filtroIdController.text : null;
+    DateTime? anoMesSelecionado = mesSelecionado ?? DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 650, maxHeight: 700),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.file_download,
+                          color: Color(0xFF0EA5E9),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Exportar Auditoria',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Configure os filtros e período',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Período',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildOpcaoPeriodonDialog(
+                          'Dia Específico',
+                          Icons.calendar_today,
+                          tipoFiltro == 'dia',
+                          () => setState(() => tipoFiltro = 'dia'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildOpcaoPeriodonDialog(
+                          'Intervalo',
+                          Icons.date_range,
+                          tipoFiltro == 'intervalo',
+                          () => setState(() => tipoFiltro = 'intervalo'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildOpcaoPeriodonDialog(
+                          'Mês Inteiro',
+                          Icons.calendar_month,
+                          tipoFiltro == 'mes',
+                          () => setState(() => tipoFiltro = 'mes'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (tipoFiltro == 'dia') ...[
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: diaSelecionado ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          locale: const Locale('pt', 'BR'),
+                        );
+                        if (picked != null) {
+                          setState(() => diaSelecionado = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 18, color: Color(0xFF64748B)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                diaSelecionado != null ? _formatarData(diaSelecionado!) : 'Selecione um dia',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: diaSelecionado != null ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else if (tipoFiltro == 'intervalo') ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: dataInicioRange ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: dataFimRange ?? DateTime.now(),
+                                locale: const Locale('pt', 'BR'),
+                              );
+                              if (picked != null) {
+                                setState(() => dataInicioRange = picked);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('De:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    dataInicioRange != null ? _formatarData(dataInicioRange!) : 'Selecione',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: dataInicioRange != null ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final DateTime? picked = await showDatePicker(
+                                context: context,
+                                initialDate: dataFimRange ?? DateTime.now(),
+                                firstDate: dataInicioRange ?? DateTime(2020),
+                                lastDate: DateTime.now(),
+                                locale: const Locale('pt', 'BR'),
+                              );
+                              if (picked != null) {
+                                setState(() => dataFimRange = picked);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Até:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    dataFimRange != null ? _formatarData(dataFimRange!) : 'Selecione',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: dataFimRange != null ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    InkWell(
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: anoMesSelecionado!,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          initialDatePickerMode: DatePickerMode.year,
+                          locale: const Locale('pt', 'BR'),
+                        );
+                        if (picked != null) {
+                          setState(() => anoMesSelecionado = DateTime(picked.year, picked.month, 1));
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_month, size: 18, color: Color(0xFF64748B)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _formatarMesAno(anoMesSelecionado!),
+                                style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Filtros Avançados (Opcional)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Usuário', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  value: filtroUsuarioExport,
+                                  isExpanded: true,
+                                  isDense: true,
+                                  items: [
+                                    const DropdownMenuItem(value: null, child: Text('Todos', style: TextStyle(fontSize: 13))),
+                                    ...usuariosDisponiveis
+                                        .map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontSize: 13)))),
+                                  ],
+                                  onChanged: (valor) => setState(() => filtroUsuarioExport = valor),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Operação', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  value: filtroOperacaoExport,
+                                  isExpanded: true,
+                                  isDense: true,
+                                  items: const [
+                                    DropdownMenuItem(value: null, child: Text('Todas', style: TextStyle(fontSize: 13))),
+                                    DropdownMenuItem(value: 'CREATE', child: Text('Criação', style: TextStyle(fontSize: 13))),
+                                    DropdownMenuItem(value: 'UPDATE', child: Text('Atualização', style: TextStyle(fontSize: 13))),
+                                    DropdownMenuItem(value: 'DELETE', child: Text('Exclusão', style: TextStyle(fontSize: 13))),
+                                  ],
+                                  onChanged: (valor) => setState(() => filtroOperacaoExport = valor),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (entidadesDisponiveis.isNotEmpty) ...[
+                    const Text('Entidades', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: entidadesDisponiveis.map((entidade) {
+                          final selecionado = filtroEntidadesExport.contains(entidade);
+                          return FilterChip(
+                            label: Text(entidade, style: const TextStyle(fontSize: 12)),
+                            selected: selecionado,
+                            onSelected: (valor) {
+                              setState(() {
+                                if (valor) {
+                                  filtroEntidadesExport.add(entidade);
+                                } else {
+                                  filtroEntidadesExport.remove(entidade);
+                                }
+                              });
+                            },
+                            selectedColor: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+                            checkmarkColor: const Color(0xFF0EA5E9),
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: selecionado ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0)),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF64748B),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        child: const Text('Cancelar'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (tipoFiltro == 'dia' && diaSelecionado == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Selecione um dia'), backgroundColor: Color(0xFFDC2626)),
+                            );
+                            return;
+                          }
+                          if (tipoFiltro == 'intervalo' && (dataInicioRange == null || dataFimRange == null)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Selecione o intervalo completo'), backgroundColor: Color(0xFFDC2626)),
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(context);
+                          await _exportarCSV(
+                            tipoFiltro: tipoFiltro,
+                            dia: diaSelecionado,
+                            dataInicio: dataInicioRange,
+                            dataFim: dataFimRange,
+                            anoMes: anoMesSelecionado,
+                            usuario: filtroUsuarioExport,
+                            entidades: filtroEntidadesExport,
+                            operacao: filtroOperacaoExport,
+                            entidadeId: filtroIdExport,
+                          );
+                        },
+                        icon: const Icon(Icons.download, size: 18),
+                        label: const Text('Exportar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0EA5E9),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpcaoPeriodonDialog(String titulo, IconData icone, bool selecionado, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: selecionado ? const Color(0xFF0EA5E9).withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selecionado ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0),
+            width: selecionado ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icone,
+              color: selecionado ? const Color(0xFF0EA5E9) : const Color(0xFF64748B),
+              size: 20,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              titulo,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selecionado ? FontWeight.w600 : FontWeight.normal,
+                color: selecionado ? const Color(0xFF0EA5E9) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportarCSV({
+    required String tipoFiltro,
+    DateTime? dia,
+    DateTime? dataInicio,
+    DateTime? dataFim,
+    DateTime? anoMes,
+    String? usuario,
+    Set<String>? entidades,
+    String? operacao,
+    String? entidadeId,
+  }) async {
+    if (token == null) return;
+
+    try {
+      await AuditoriaService.exportarRegistrosCSV(
+        token!,
+        tipoFiltro: tipoFiltro,
+        dia: dia,
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        ano: anoMes?.year,
+        mes: anoMes?.month,
+        usuario: usuario,
+        entidade: entidades?.isNotEmpty == true ? entidades!.join(',') : null,
+        operacao: operacao,
+        entidadeId: entidadeId != null ? int.tryParse(entidadeId) : null,
+      );
+
+      if (mounted) {
+        _mostrarSucesso('Arquivo CSV exportado com sucesso!');
+      }
+    } catch (e) {
+      if (mounted) {
+        _mostrarErro('Erro ao exportar CSV: $e');
+      }
+    }
+  }
+
+  String _formatarMesAno(DateTime data) {
+    const meses = [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro'
+    ];
+    return '${meses[data.month - 1]} ${data.year}';
+  }
+
+  String _formatarData(DateTime data) {
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+  }
+
   Future<void> _carregarMesesDisponiveis() async {
     if (token == null) return;
 
@@ -953,6 +1505,25 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               fontSize: 20,
             ),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: ElevatedButton.icon(
+                onPressed: _mostrarDialogExportarCSV,
+                icon: const Icon(Icons.file_download, size: 18),
+                label: const Text('Exportar CSV'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0EA5E9),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
             child: Container(

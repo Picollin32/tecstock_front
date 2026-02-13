@@ -581,7 +581,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
               padding: const EdgeInsets.all(20),
               child: TableCalendar<Agendamento>(
                 locale: 'pt_BR',
-                startingDayOfWeek: StartingDayOfWeek.monday,
+                startingDayOfWeek: StartingDayOfWeek.sunday,
                 daysOfWeekHeight: 45,
                 rowHeight: 55,
                 availableCalendarFormats: const {

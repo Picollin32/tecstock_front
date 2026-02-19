@@ -849,8 +849,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   const SizedBox(height: 24),
                   _buildStatsCards(),
                   const SizedBox(height: 24),
-                  _buildQuickActions(),
-                  const SizedBox(height: 24),
                   _buildRecentActivity(),
                   const SizedBox(height: 100),
                 ],
@@ -893,65 +891,154 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Image.asset(
-                  'assets/images/TecStock_icone.png',
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Lado esquerdo: identidade ──────────────────────────────────
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      greeting,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Image.asset(
+                        'assets/images/TecStock_icone.png',
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    const Text(
-                      'Bem-vindo ao TecStock',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$greeting,',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _nomeUsuarioLogado,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _nomeEmpresa.isNotEmpty ? _nomeEmpresa : 'TecStock',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.95),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Sistema de Gerenciamento de Oficina',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today_outlined, color: Colors.white.withValues(alpha: 0.65), size: 13),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Hoje, ${_formatDate(DateTime.now())}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Hoje, ${_formatDate(DateTime.now())}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 14,
+
+          // Divisor vertical
+          Container(
+            width: 1,
+            height: 90,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
+
+          // ── Lado direito: atalhos rápidos ─────────────────────────────
+          Expanded(
+            flex: 6,
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              children: _quickActions.map((action) {
+                return InkWell(
+                  onTap: () {
+                    if (action['page'] != null) {
+                      setState(() {
+                        _isDashboardActive = false;
+                        _currentPageWidget = action['page'];
+                        _currentTitle = action['title'];
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          action['icon'] as IconData,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          action['title'] as String,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -1004,196 +1091,95 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _buildStatCard(String title, int value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border(
+          top: BorderSide(color: color, width: 3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.06),
             spreadRadius: 0,
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getIconForStat(title),
+                    color: color,
+                    size: 22,
+                  ),
                 ),
-                child: Icon(
-                  _getIconForStat(title),
-                  color: color,
-                  size: 24,
-                ),
-              ),
-              if (!_isLoadingStats)
-                Icon(
-                  Icons.trending_up,
-                  color: color.withValues(alpha: 0.6),
-                  size: 16,
-                ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _isLoadingStats
-                  ? Container(
-                      width: 40,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                if (!_isLoadingStats)
+                  Icon(
+                    Icons.trending_up,
+                    color: color.withValues(alpha: 0.5),
+                    size: 16,
+                  ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _isLoadingStats
+                    ? Container(
+                        width: 40,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                            ),
                           ),
                         ),
+                      )
+                    : Text(
+                        value.toString(),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          color: color,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    )
-                  : Text(
-                      value.toString(),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF6B7280),
+                const SizedBox(height: 2),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Ações Rápidas',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2E3440),
-          ),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 800 ? 4 : 2;
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: _quickActions.length,
-              itemBuilder: (context, index) {
-                final action = _quickActions[index];
-                return _buildQuickActionCard(action);
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionCard(Map<String, dynamic> action) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          if (action['page'] != null) {
-            setState(() {
-              _isDashboardActive = false;
-              _currentPageWidget = action['page'];
-              _currentTitle = action['title'];
-            });
-          }
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                spreadRadius: 0,
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: (action['color'] as Color).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  action['icon'],
-                  color: action['color'],
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                action['title'],
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2E3440),
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                action['subtitle'],
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );

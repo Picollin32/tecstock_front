@@ -1841,7 +1841,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
     double valorParcelaCalculado = 0.0;
-    final bool mostrarParcelamento = (tipoPagamento?.codigo == 4 && numeroParcelas != null && numeroParcelas > 0);
+    final bool mostrarParcelamento = (tipoPagamento?.idFormaPagamento == 1 && numeroParcelas != null && numeroParcelas > 0);
 
     if (mostrarParcelamento) {
       final raw = totalGeral / numeroParcelas;
@@ -3543,17 +3543,16 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                             } on StateError {
                               _tipoPagamentoSelecionado = null;
                             }
-                            if (_tipoPagamentoSelecionado == null ||
-                                (_tipoPagamentoSelecionado?.codigo != 3 && _tipoPagamentoSelecionado?.codigo != 4)) {
+                            if (_tipoPagamentoSelecionado?.idFormaPagamento != 1) {
                               _numeroParcelas = null;
                             }
-                            if (_tipoPagamentoSelecionado == null || _tipoPagamentoSelecionado?.codigo != 6) {
+                            if (_tipoPagamentoSelecionado?.idFormaPagamento != 2) {
                               _prazoFiadoDias = null;
                             }
                           });
                         },
                 ),
-                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
+                if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Número de Parcelas',
@@ -3597,7 +3596,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                           },
                   ),
                 ],
-                if (_tipoPagamentoSelecionado?.codigo == 5) ...[
+                if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Prazo (meses)',

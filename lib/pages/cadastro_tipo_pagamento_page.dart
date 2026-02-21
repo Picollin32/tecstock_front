@@ -26,6 +26,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -81,6 +82,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
         setState(() {
           _tiposPagamentoFiltrados = resultado['content'] as List<TipoPagamento>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         _showVisibleError('Erro ao buscar tipos de pagamento');
@@ -116,6 +118,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
           _tiposPagamento = resultado['content'] as List<TipoPagamento>;
           _tiposPagamentoFiltrados = _tiposPagamento;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -559,44 +562,6 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                           textCapitalization: TextCapitalization.words,
                         ),
                         const SizedBox(height: 24),
-                        if (_tipoPagamentoEmEdicao != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: primaryColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.info_outline, color: primaryColor),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Código Atual',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: primaryColor,
-                                        ),
-                                      ),
-                                      Text(
-                                        _tipoPagamentoEmEdicao!.codigo?.toString().padLeft(2, '0') ?? '--',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
                         const SizedBox(height: 32),
                         SizedBox(
                           width: double.infinity,
@@ -756,7 +721,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingTipos)
                 Text(
-                  'Resultados da Busca (${_tiposPagamentoFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

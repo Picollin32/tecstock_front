@@ -51,6 +51,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -145,6 +146,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           setState(() {
             _clientesFiltrados = List<Cliente>.from(resultado['content']);
             _totalPages = resultado['totalPages'] ?? 0;
+            _totalElements = resultado['totalElements'] ?? 0;
           });
         }
       }
@@ -165,6 +167,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           _clientes = List<Cliente>.from(resultado['content']);
           _clientesFiltrados = _clientes;
           _totalPages = resultado['totalPages'] ?? 0;
+          _totalElements = resultado['totalElements'] ?? 0;
         });
       }
     } catch (e) {
@@ -1133,7 +1136,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingClientes)
                 Text(
-                  'Resultados da Busca (${_clientesFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

@@ -36,6 +36,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -129,6 +130,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
         setState(() {
           _servicosFiltrados = servicosFiltrados;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -166,6 +168,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
           _servicos = resultado['content'] as List<Servico>;
           _servicosFiltrados = _servicos;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -1086,7 +1089,7 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingServicos)
                 Text(
-                  'Resultados da Busca (${_servicosFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

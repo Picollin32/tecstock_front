@@ -30,6 +30,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -85,6 +86,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         setState(() {
           _marcasFiltradas = resultado['content'] as List<Marca>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -122,6 +124,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
           _marcas = resultado['content'] as List<Marca>;
           _marcasFiltradas = _marcas;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -780,7 +783,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingMarcas)
                 Text(
-                  'Resultados da Busca (${_marcasFiltradas.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

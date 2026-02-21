@@ -54,6 +54,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -155,6 +156,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         setState(() {
           _funcionariosFiltrados = resultado['content'] as List<Funcionario>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -202,6 +204,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           _funcionarios = resultado['content'] as List<Funcionario>;
           _funcionariosFiltrados = _funcionarios;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -1240,7 +1243,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingFuncionarios)
                 Text(
-                  'Resultados da Busca (${_funcionariosFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

@@ -177,4 +177,34 @@ class EmpresaService {
       };
     }
   }
+
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
+    final token = await _getToken();
+    try {
+      final base = Uri.parse('${ApiConfig.empresasUrl}/buscarPaginado');
+      final url = base.replace(queryParameters: {
+        'query': query,
+        'page': page.toString(),
+        'size': size.toString(),
+      });
+      final response = await http.get(url, headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'] ?? [];
+        return {
+          'success': true,
+          'content': jsonList.map((e) => Empresa.fromJson(e)).toList(),
+          'totalElements': jsonResponse['totalElements'] ?? 0,
+          'totalPages': jsonResponse['totalPages'] ?? 1,
+          'currentPage': jsonResponse['number'] ?? page,
+        };
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0, 'currentPage': 0};
+    } catch (e) {
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0, 'currentPage': 0};
+    }
+  }
 }

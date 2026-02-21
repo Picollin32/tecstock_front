@@ -121,16 +121,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ── Layout largo (desktop/tablet wide) ─────────────────────────────────────
   Widget _buildWideLayout() {
     return Row(
       children: [
-        // Painel esquerdo — marca
         Expanded(
           flex: 5,
           child: _buildBrandPanel(),
         ),
-        // Painel direito — formulário
         Expanded(
           flex: 4,
           child: Container(
@@ -147,7 +144,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ── Layout estreito (mobile / tablet narrow) ────────────────────────────────
   Widget _buildNarrowLayout() {
     return Container(
       decoration: const BoxDecoration(
@@ -187,7 +183,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ── Painel de marca (esquerdo) ──────────────────────────────────────────────
   Widget _buildBrandPanel() {
     return Container(
       decoration: const BoxDecoration(
@@ -206,7 +201,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Logo
                 Image.asset(
                   'assets/images/TecStock_icone.png',
                   width: 110,
@@ -315,7 +309,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ── Formulário de login ─────────────────────────────────────────────────────
   Widget _buildFormPanel({required double maxWidth}) {
     final inputDecoration = InputDecorationTheme(
       filled: true,
@@ -359,7 +352,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Cabeçalho do formulário
                   const Text(
                     'Bem-vindo!',
                     style: TextStyle(
@@ -379,8 +371,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Campo usuário
                   const Text(
                     'Usuário',
                     style: TextStyle(
@@ -403,8 +393,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     enabled: !_isLoading,
                   ),
                   const SizedBox(height: 20),
-
-                  // Campo senha
                   const Text(
                     'Senha',
                     style: TextStyle(
@@ -435,8 +423,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     enabled: !_isLoading,
                   ),
                   const SizedBox(height: 28),
-
-                  // Botão entrar
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -479,8 +465,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Rodapé
                   Center(
                     child: Text(
                       '© ${DateTime.now().year} TecStock · Todos os direitos reservados',

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tecstock/model/usuario.dart';
 import 'package:tecstock/model/funcionario.dart';
@@ -19,9 +20,12 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   final TextEditingController _confirmarSenhaController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
-  List<Usuario> _usuarios = [];
   List<Usuario> _usuariosFiltrados = [];
   List<Funcionario> _consultores = [];
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  Timer? _debounceTimer;
   Usuario? _usuarioEmEdicao;
   Funcionario? _consultorSelecionado;
 
@@ -43,7 +47,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     super.initState();
     _initializeAnimations();
     _carregarDados();
-    _searchController.addListener(_filtrarUsuarios);
+    _searchController.addListener(_onSearchChanged);
   }
 
   void _initializeAnimations() {
@@ -58,7 +62,8 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   @override
   void dispose() {
     _fadeController.dispose();
-    _searchController.removeListener(_filtrarUsuarios);
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeUsuarioController.dispose();
     _senhaController.dispose();
@@ -66,19 +71,63 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     super.dispose();
   }
 
-  void _filtrarUsuarios() {
-    final query = _searchController.text.toLowerCase().trim();
-    setState(() {
-      if (query.isEmpty) {
-        _usuariosFiltrados = _usuarios.take(6).toList();
-      } else {
-        _usuariosFiltrados = _usuarios.where((usuario) {
-          final nomeUsuarioMatch = usuario.nomeUsuario.toLowerCase().contains(query);
-          final consultorMatch = usuario.consultor?.nome.toLowerCase().contains(query) ?? false;
-          return nomeUsuarioMatch || consultorMatch;
-        }).toList();
-      }
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() => _currentPage = 0);
+      _filtrarUsuarios();
     });
+  }
+
+  Future<void> _filtrarUsuarios() async {
+    final query = _searchController.text.trim();
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final resultado = await UsuarioService.buscarPaginado(query, _currentPage);
+      if (resultado['success'] == true) {
+        setState(() {
+          _usuariosFiltrados = List<Usuario>.from(resultado['content']);
+          _totalElements = resultado['totalElements'] as int? ?? 0;
+          _totalPages = resultado['totalPages'] as int? ?? 1;
+        });
+      }
+    } catch (e) {
+      if (mounted) ErrorUtils.showVisibleError(context, 'Erro ao buscar usuários');
+    } finally {
+      if (mounted) setState(() => _isLoadingUsuarios = false);
+    }
+  }
+
+  Future<void> _carregarUsuarios() async {
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final resultado = await UsuarioService.buscarPaginado('', 0);
+      if (resultado['success'] == true) {
+        setState(() {
+          _usuariosFiltrados = List<Usuario>.from(resultado['content']);
+          _totalElements = resultado['totalElements'] as int? ?? 0;
+          _totalPages = resultado['totalPages'] as int? ?? 1;
+        });
+      }
+    } catch (e) {
+      if (mounted) ErrorUtils.showVisibleError(context, 'Erro ao carregar usuários');
+    } finally {
+      if (mounted) setState(() => _isLoadingUsuarios = false);
+    }
+  }
+
+  void _paginaAnterior() {
+    if (_currentPage > 0) {
+      setState(() => _currentPage--);
+      _filtrarUsuarios();
+    }
+  }
+
+  void _proximaPagina() {
+    if (_currentPage < _totalPages - 1) {
+      setState(() => _currentPage++);
+      _filtrarUsuarios();
+    }
   }
 
   Future<void> _carregarDados() async {
@@ -86,26 +135,16 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     try {
       final todosFuncionarios = await Funcionarioservice.listarFuncionarios();
       _consultores = todosFuncionarios.where((f) => f.nivelAcesso == 2).toList();
-
       if (_consultores.isNotEmpty) {
         _consultorSelecionado = _consultores.first;
       }
-
-      final lista = await UsuarioService.listarUsuarios();
-
-      final listaFiltrada = lista.where((u) => u.nivelAcesso != 0).toList();
-      listaFiltrada.sort((a, b) =>
-          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)));
-      setState(() {
-        _usuarios = listaFiltrada;
-        _filtrarUsuarios();
-      });
     } catch (e) {
       if (!mounted) return;
-      ErrorUtils.showVisibleError(context, 'Erro ao carregar dados');
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar consultores');
     } finally {
       setState(() => _isLoadingUsuarios = false);
     }
+    await _carregarUsuarios();
   }
 
   void _salvarUsuario() async {
@@ -120,23 +159,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     if (_consultorSelecionado == null) {
       ErrorUtils.showVisibleError(context, 'Selecione um consultor');
       return;
-    }
-
-    final nomeUsuarioJaExiste = _usuarios
-        .any((u) => u.nomeUsuario.toLowerCase() == _nomeUsuarioController.text.trim().toLowerCase() && u.id != _usuarioEmEdicao?.id);
-
-    if (nomeUsuarioJaExiste) {
-      ErrorUtils.showVisibleError(context, 'Já existe um usuário com este nome');
-      return;
-    }
-
-    if (_consultorSelecionado != null) {
-      final consultorJaPossuiUsuario = _usuarios.any((u) => u.consultor?.id == _consultorSelecionado!.id && u.id != _usuarioEmEdicao?.id);
-
-      if (consultorJaPossuiUsuario) {
-        ErrorUtils.showVisibleError(context, 'Este consultor já possui um usuário cadastrado');
-        return;
-      }
     }
 
     setState(() => _isLoading = true);
@@ -159,7 +181,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
 
       if (result['success'] == true) {
         _limparFormulario();
-        await _carregarDados();
+        await _carregarUsuarios();
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -619,7 +641,6 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                   icon: Icon(Icons.clear, color: Colors.grey[400]),
                   onPressed: () {
                     _searchController.clear();
-                    _filtrarUsuarios();
                   },
                 )
               : null,
@@ -858,6 +879,42 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  Widget _buildPaginationControls() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: _currentPage > 0 ? _paginaAnterior : null,
+            color: _currentPage > 0 ? primaryColor : Colors.grey[400],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Página ${_currentPage + 1} de $_totalPages',
+              style: TextStyle(
+                color: primaryColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+            color: _currentPage < _totalPages - 1 ? primaryColor : Colors.grey[400],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -922,7 +979,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingUsuarios)
                 Text(
-                  'Resultados da Busca (${_usuariosFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -931,6 +988,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                 ),
               const SizedBox(height: 16),
               _buildUsuariosGrid(),
+              if (_totalPages > 1) _buildPaginationControls(),
             ],
           ),
         ),

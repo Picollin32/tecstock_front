@@ -48,6 +48,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -115,6 +116,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           _pecas = resultado['content'] as List<Peca>;
           _pecasFiltradas = _pecas;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -184,6 +186,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         setState(() {
           _pecasFiltradas = pecasFiltradas;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -1817,7 +1820,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingPecas)
                 Text(
-                  'Resultados da Busca${_filtroEstoque != 'todos' ? ' - ${_filtroEstoque == 'critico' ? 'Apenas Críticas' : 'Sem Estoque'}' : ''} (${_pecasFiltradas.length})',
+                  'Resultados da Busca${_filtroEstoque != 'todos' ? ' - ${_filtroEstoque == 'critico' ? 'Apenas Críticas' : 'Sem Estoque'}' : ''} ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

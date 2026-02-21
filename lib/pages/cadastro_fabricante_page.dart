@@ -29,6 +29,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -83,6 +84,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
         setState(() {
           _fabricantesFiltrados = resultado['content'] as List<Fabricante>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -120,6 +122,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
           _fabricantes = resultado['content'] as List<Fabricante>;
           _fabricantesFiltrados = _fabricantes;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -769,7 +772,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingFabricantes)
                 Text(
-                  'Resultados da Busca (${_fabricantesFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

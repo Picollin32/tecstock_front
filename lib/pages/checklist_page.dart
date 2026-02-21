@@ -127,6 +127,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   Timer? _searchDebounce;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
   static const int _pageSize = 10;
   List<Checklist> _recentFiltrados = [];
 
@@ -198,6 +199,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           _recent = resultado['content'] as List<Checklist>;
           _recentFiltrados = _recent;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int? ?? 0;
           _currentPage = resultado['currentPage'] as int? ?? _currentPage;
         });
       }
@@ -1465,7 +1467,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               Icon(Icons.history, color: Colors.purple.shade600),
               const SizedBox(width: 12),
               Text(
-                _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca',
+                _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca ($_totalElements)',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],

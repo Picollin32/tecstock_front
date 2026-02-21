@@ -138,4 +138,31 @@ class UsuarioService {
       return {'success': false, 'message': 'Erro de conexão: $e'};
     }
   }
+
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
+    try {
+      final base = Uri.parse('${ApiConfig.usuariosUrl}/buscarPaginado');
+      final url = base.replace(queryParameters: {
+        'query': query,
+        'page': page.toString(),
+        'size': size.toString(),
+      });
+      final response = await http.get(url, headers: await AuthService.getAuthHeaders());
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'] ?? [];
+        return {
+          'success': true,
+          'content': jsonList.map((e) => Usuario.fromJson(e)).toList(),
+          'totalElements': jsonResponse['totalElements'] ?? 0,
+          'totalPages': jsonResponse['totalPages'] ?? 1,
+          'currentPage': jsonResponse['number'] ?? page,
+        };
+      }
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0, 'currentPage': 0};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao buscar usuarios paginado: $e');
+      return {'success': false, 'content': [], 'totalElements': 0, 'totalPages': 0, 'currentPage': 0};
+    }
+  }
 }

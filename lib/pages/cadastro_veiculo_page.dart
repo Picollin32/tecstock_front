@@ -56,6 +56,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -118,6 +119,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         setState(() {
           _veiculosFiltrados = resultado['content'] as List<Veiculo>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -155,6 +157,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           _veiculos = resultado['content'] as List<Veiculo>;
           _veiculosFiltrados = _veiculos;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -1046,7 +1049,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingVeiculos)
                 Text(
-                  'Resultados da Busca (${_veiculosFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

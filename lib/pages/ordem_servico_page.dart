@@ -116,6 +116,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   Timer? _searchDebounce;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
   static const int _pageSize = 10;
   int? _editingOSId;
   double _precoTotal = 0.0;
@@ -323,6 +324,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _recent = resultado['content'] as List<OrdemServico>;
           _recentFiltrados = _recent;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int? ?? 0;
           _currentPage = resultado['currentPage'] as int? ?? _currentPage;
         });
       }
@@ -1104,7 +1106,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               Icon(Icons.history, color: Colors.orange.shade600),
               const SizedBox(width: 12),
               Text(
-                _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca',
+                _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca ($_totalElements)',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
@@ -3433,13 +3435,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       : (value) {
                           setState(() {
                             _tipoPagamentoSelecionado = value;
-                            if (value?.codigo != 3 && value?.codigo != 4) {
+                            if (value?.idFormaPagamento != 1) {
                               _numeroParcelas = null;
                             }
                           });
                         },
                 ),
-                if (_tipoPagamentoSelecionado?.codigo == 4) ...[
+                if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Número de Parcelas',
@@ -3483,7 +3485,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           },
                   ),
                 ],
-                if (_tipoPagamentoSelecionado?.codigo == 5) ...[
+                if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Prazo (meses)',
@@ -4644,7 +4646,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
     double valorParcelaCalculado = 0.0;
-    final bool mostrarParcelamento = (tipoPagamento?.codigo == 4 && numeroParcelas != null && numeroParcelas > 0);
+    final bool mostrarParcelamento = (tipoPagamento?.idFormaPagamento == 1 && numeroParcelas != null && numeroParcelas > 0);
 
     if (mostrarParcelamento) {
       final raw = totalGeral / numeroParcelas;
@@ -4864,8 +4866,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                           }(), isTotal: true),
                           if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado) != null)
                             _buildResumoItem('Pagamento:', (os?.tipoPagamento ?? _tipoPagamentoSelecionado)!.nome),
-                          if (((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 3 ||
-                                  (os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.codigo == 4) &&
+                          if ((os?.tipoPagamento ?? _tipoPagamentoSelecionado)?.idFormaPagamento == 1 &&
                               (os?.numeroParcelas ?? _numeroParcelas) != null)
                             _buildResumoItem('Parcelas:', () {
                               final parcelas = (os?.numeroParcelas ?? _numeroParcelas)!;

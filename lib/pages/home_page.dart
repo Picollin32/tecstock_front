@@ -894,7 +894,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Lado esquerdo: identidade ──────────────────────────────────
           Expanded(
             flex: 5,
             child: Column(
@@ -981,16 +980,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ],
             ),
           ),
-
-          // Divisor vertical
           Container(
             width: 1,
             height: 90,
             margin: const EdgeInsets.symmetric(horizontal: 24),
             color: Colors.white.withValues(alpha: 0.2),
           ),
-
-          // ── Lado direito: atalhos rápidos ─────────────────────────────
           Expanded(
             flex: 6,
             child: Wrap(

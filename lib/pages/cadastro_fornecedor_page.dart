@@ -65,6 +65,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   Timer? _debounceTimer;
   int _currentPage = 0;
   int _totalPages = 0;
+  int _totalElements = 0;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -162,6 +163,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         setState(() {
           _fornecedoresFiltrados = resultado['content'] as List<Fornecedor>;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
         });
       } else {
         if (!mounted) return;
@@ -199,6 +201,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           _fornecedores = resultado['content'] as List<Fornecedor>;
           _fornecedoresFiltrados = _fornecedores;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
         });
       } else {
@@ -1168,7 +1171,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 ),
               if (_searchController.text.isNotEmpty && !_isLoadingFornecedores)
                 Text(
-                  'Resultados da Busca (${_fornecedoresFiltrados.length})',
+                  'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

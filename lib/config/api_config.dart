@@ -11,6 +11,7 @@ class ApiConfig {
   static String get auditoriaUrl => '$baseUrl/api/auditoria';
   static String get checklistUrl => '$baseUrl/api/checklists';
   static String get clientesUrl => '$baseUrl/api/clientes';
+  static String get empresasUrl => '$baseUrl/api/empresas';
   static String get fabricantesUrl => '$baseUrl/api/fabricantes';
   static String get fornecedoresUrl => '$baseUrl/api/fornecedores';
   static String get funcionariosUrl => '$baseUrl/api/funcionarios';

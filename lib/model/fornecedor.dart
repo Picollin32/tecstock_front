@@ -5,11 +5,14 @@ class Fornecedor {
   String telefone;
   String email;
   double? margemLucro;
+  String? cep;
   String? rua;
   String? numeroCasa;
+  String? complemento;
   String? bairro;
   String? cidade;
   String? uf;
+  String? codigoMunicipio;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -20,11 +23,14 @@ class Fornecedor {
     required this.telefone,
     required this.email,
     this.margemLucro,
+    this.cep,
     this.rua,
     this.numeroCasa,
+    this.complemento,
     this.bairro,
     this.cidade,
     this.uf,
+    this.codigoMunicipio,
     this.createdAt,
     this.updatedAt,
   });
@@ -37,11 +43,14 @@ class Fornecedor {
       telefone: json['telefone'],
       email: json['email'],
       margemLucro: (json['margemLucro'] as num?)?.toDouble(),
+      cep: json['cep'],
       rua: json['rua'],
       numeroCasa: json['numeroCasa'],
+      complemento: json['complemento'],
       bairro: json['bairro'],
       cidade: json['cidade'],
       uf: json['uf'],
+      codigoMunicipio: json['codigoMunicipio'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -55,11 +64,14 @@ class Fornecedor {
       'telefone': telefone,
       'email': email,
       'margemLucro': margemLucro,
+      'cep': cep,
       'rua': rua,
       'numeroCasa': numeroCasa,
+      'complemento': complemento,
       'bairro': bairro,
       'cidade': cidade,
       'uf': uf,
+      'codigoMunicipio': codigoMunicipio,
     };
   }
 

@@ -269,34 +269,30 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   Widget _buildDecorativeCircles() {
     return Positioned.fill(
-      child: OverflowBox(
-        alignment: Alignment.center,
-        maxWidth: double.infinity,
-        maxHeight: double.infinity,
-        child: Stack(
-          children: [
-            Positioned(
-              top: -80,
-              right: -60,
-              child: _circle(220, Colors.white.withValues(alpha: 0.06)),
-            ),
-            Positioned(
-              bottom: -100,
-              left: -80,
-              child: _circle(280, Colors.white.withValues(alpha: 0.05)),
-            ),
-            Positioned(
-              top: 120,
-              right: -40,
-              child: _circle(140, Colors.white.withValues(alpha: 0.04)),
-            ),
-            Positioned(
-              bottom: 80,
-              right: 40,
-              child: _circle(90, Colors.white.withValues(alpha: 0.07)),
-            ),
-          ],
-        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -80,
+            right: -60,
+            child: _circle(220, Colors.white.withValues(alpha: 0.06)),
+          ),
+          Positioned(
+            bottom: -100,
+            left: -80,
+            child: _circle(280, Colors.white.withValues(alpha: 0.05)),
+          ),
+          Positioned(
+            top: 120,
+            right: -40,
+            child: _circle(140, Colors.white.withValues(alpha: 0.04)),
+          ),
+          Positioned(
+            bottom: 80,
+            right: 40,
+            child: _circle(90, Colors.white.withValues(alpha: 0.07)),
+          ),
+        ],
       ),
     );
   }

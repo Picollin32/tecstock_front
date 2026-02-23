@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
+import '../services/cep_service.dart';
 import '../services/cliente_service.dart';
 import '../services/funcionario_service.dart';
 import 'package:tecstock/model/funcionario.dart';
@@ -30,11 +31,20 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   final TextEditingController _numeroCasaController = TextEditingController();
   final TextEditingController _bairroController = TextEditingController();
   final TextEditingController _cidadeController = TextEditingController();
+  final TextEditingController _cepController = TextEditingController();
+  final TextEditingController _complementoController = TextEditingController();
+  final TextEditingController _codigoMunicipioController = TextEditingController();
   String _ufSelecionada = 'GO';
+  final ValueNotifier<String> _ufNotifier = ValueNotifier('GO');
 
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
   final _maskCpf = MaskTextInputFormatter(
     mask: '###.###.###-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+  final _maskCep = MaskTextInputFormatter(
+    mask: '#####-###',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
@@ -47,6 +57,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
   bool _isLoadingClientes = true;
   bool _isSaving = false;
+
+  final ValueNotifier<bool> _isLoadingCep = ValueNotifier(false);
+  final ValueNotifier<bool> _cepAutoPreenchido = ValueNotifier(false);
+  String _lastSearchedCep = '';
 
   Timer? _debounceTimer;
   int _currentPage = 0;
@@ -98,6 +112,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _limparFormulario();
     _carregarClientes();
     _searchController.addListener(_onSearchChanged);
+    _cepController.addListener(_onCepChanged);
   }
 
   void _initializeAnimations() {
@@ -124,6 +139,13 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _numeroCasaController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
+    _cepController.removeListener(_onCepChanged);
+    _cepController.dispose();
+    _complementoController.dispose();
+    _codigoMunicipioController.dispose();
+    _isLoadingCep.dispose();
+    _cepAutoPreenchido.dispose();
+    _ufNotifier.dispose();
     super.dispose();
   }
 
@@ -132,6 +154,68 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       _filtrarClientes();
     });
+  }
+
+  void _onCepChanged() {
+    final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8 && digits != _lastSearchedCep) _buscarCep(digits);
+  }
+
+  Future<void> _buscarCep(String digits) async {
+    if (!mounted) return;
+    _lastSearchedCep = digits;
+    _isLoadingCep.value = true;
+    try {
+      final result = await CepService.buscar(digits);
+      if (!mounted) return;
+      setState(() {
+        _ruaController.text = result.logradouro;
+        _complementoController.text = result.complemento;
+        _bairroController.text = result.bairro;
+        _cidadeController.text = result.cidade;
+        if (_ufs.contains(result.uf.toUpperCase())) {
+          _ufSelecionada = result.uf.toUpperCase();
+          _ufNotifier.value = _ufSelecionada;
+        }
+        if (result.codigoIBGE.isNotEmpty) {
+          _codigoMunicipioController.text = result.codigoIBGE;
+        }
+      });
+      _cepAutoPreenchido.value = true;
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showVisibleError(
+          context,
+          e.toString().contains('não encontrado')
+              ? 'CEP não encontrado. Preencha o endereço manualmente.'
+              : 'Não foi possível consultar o CEP. Preencha manualmente.',
+        );
+      }
+    } finally {
+      _isLoadingCep.value = false;
+    }
+  }
+
+  void _limparEnderecoAutomatico() {
+    setState(() {
+      _cepController.clear();
+      _ruaController.clear();
+      _complementoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _codigoMunicipioController.clear();
+      _ufSelecionada = 'GO';
+      _ufNotifier.value = 'GO';
+    });
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCep = '';
+  }
+
+  String _formatarCEP(String? cep) {
+    if (cep == null || cep.isEmpty) return '';
+    final digits = cep.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8) return '${digits.substring(0, 5)}-${digits.substring(5)}';
+    return cep;
   }
 
   void _filtrarClientes() async {
@@ -264,7 +348,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         numeroCasa: _numeroCasaController.text.isNotEmpty ? _numeroCasaController.text : null,
         bairro: _bairroController.text.isNotEmpty ? _bairroController.text : null,
         cidade: _cidadeController.text.isNotEmpty ? _cidadeController.text : null,
+        cep:
+            _cepController.text.replaceAll(RegExp(r'[^0-9]'), '').isNotEmpty ? _cepController.text.replaceAll(RegExp(r'[^0-9]'), '') : null,
         uf: _ufSelecionada,
+        complemento: _complementoController.text.isNotEmpty ? _complementoController.text : null,
+        codigoMunicipio: _codigoMunicipioController.text.isNotEmpty ? _codigoMunicipioController.text : null,
       );
 
       final resultado = _clienteEmEdicao != null
@@ -309,7 +397,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       _numeroCasaController.text = cliente.numeroCasa ?? '';
       _bairroController.text = cliente.bairro ?? '';
       _cidadeController.text = cliente.cidade ?? '';
+      _cepController.text = _formatarCEP(cliente.cep);
+      _complementoController.text = cliente.complemento ?? '';
+      _codigoMunicipioController.text = cliente.codigoMunicipio ?? '';
       _ufSelecionada = cliente.uf ?? 'GO';
+      _ufNotifier.value = _ufSelecionada;
       _clienteEmEdicao = cliente;
     });
     _showFormModal();
@@ -384,7 +476,13 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     _numeroCasaController.clear();
     _bairroController.clear();
     _cidadeController.clear();
+    _cepController.clear();
+    _complementoController.clear();
+    _codigoMunicipioController.clear();
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCep = '';
     _ufSelecionada = 'GO';
+    _ufNotifier.value = 'GO';
     _clienteEmEdicao = null;
   }
 
@@ -562,11 +660,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.5;
+          childAspectRatio = 3.0;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.3;
+          childAspectRatio = 2.0;
         } else {
-          childAspectRatio = 1.6;
+          childAspectRatio = 1.4;
         }
 
         return GridView.builder(
@@ -691,7 +789,8 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   ],
                 ),
                 const SizedBox(height: 10),
-                Expanded(
+                Flexible(
+                  fit: FlexFit.loose,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -699,6 +798,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                       _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
                       _buildInfoRow(Icons.email, cliente.email),
                       _buildInfoRow(Icons.cake, '$idade anos'),
+                      if (cliente.cep != null && cliente.cep!.isNotEmpty) _buildInfoRow(Icons.pin_drop, _formatarCEP(cliente.cep!)),
                       if (cliente.rua != null && cliente.rua!.isNotEmpty)
                         _buildInfoRow(
                           Icons.location_on,
@@ -911,6 +1011,67 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             ),
           ),
           const SizedBox(height: 16),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isLoadingCep,
+            builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
+              valueListenable: _cepAutoPreenchido,
+              builder: (context, autoPreenchido, _) => TextFormField(
+                controller: _cepController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [_maskCep],
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'CEP',
+                  prefixIcon: Icon(Icons.location_on, color: primaryColor),
+                  suffixIcon: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+                          ),
+                        )
+                      : autoPreenchido
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              tooltip: 'Limpar endere\u00e7o preenchido automaticamente',
+                              onPressed: _limparEnderecoAutomatico,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search, color: primaryColor, size: 20),
+                              tooltip: 'Buscar CEP',
+                              onPressed: () {
+                                _lastSearchedCep = '';
+                                _onCepChanged();
+                              },
+                            ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  enabledBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: errorColor)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
+                    if (cep.length != 8) return 'CEP inv\u00e1lido';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _complementoController,
+            label: 'Complemento',
+            icon: Icons.add_location_alt,
+          ),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
@@ -960,36 +1121,49 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _ufSelecionada,
-                  decoration: InputDecoration(
-                    labelText: 'UF',
-                    prefixIcon: Icon(Icons.map, color: primaryColor),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _ufNotifier,
+                  builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
+                    initialValue: ufAtual,
+                    decoration: InputDecoration(
+                      labelText: 'UF',
+                      prefixIcon: Icon(Icons.map, color: primaryColor),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: primaryColor, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
+                    items: _ufs
+                        .map((uf) => DropdownMenuItem(
+                              value: uf,
+                              child: Text(uf),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() {
+                      _ufSelecionada = value!;
+                      _ufNotifier.value = value;
+                    }),
                   ),
-                  items: _ufs
-                      .map((uf) => DropdownMenuItem(
-                            value: uf,
-                            child: Text(uf),
-                          ))
-                      .toList(),
-                  onChanged: (value) => setState(() => _ufSelecionada = value!),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _codigoMunicipioController,
+            label: 'Código IBGE do Município',
+            icon: Icons.code,
+            keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 32),
           SizedBox(

@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../utils/adaptive_phone_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
+import '../services/cep_service.dart';
+import '../services/cnpj_service.dart';
 import '../model/fornecedor.dart';
 import '../services/fornecedor_service.dart';
 import '../utils/error_utils.dart';
@@ -27,11 +29,20 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   final _numeroCasaController = TextEditingController();
   final _bairroController = TextEditingController();
   final _cidadeController = TextEditingController();
+  final _cepController = TextEditingController();
+  final _complementoController = TextEditingController();
+  final _codigoMunicipioController = TextEditingController();
   final _searchController = TextEditingController();
   String _ufSelecionada = 'GO';
+  final ValueNotifier<String> _ufNotifier = ValueNotifier('GO');
 
   final _maskCnpj = MaskTextInputFormatter(
     mask: '##.###.###/####-##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+  final _maskCep = MaskTextInputFormatter(
+    mask: '#####-###',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
@@ -61,6 +72,14 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
   bool _isLoading = false;
   bool _isLoadingFornecedores = true;
+
+  final ValueNotifier<bool> _isLoadingCep = ValueNotifier(false);
+  final ValueNotifier<bool> _cepAutoPreenchido = ValueNotifier(false);
+  String _lastSearchedCep = '';
+
+  final ValueNotifier<bool> _isLoadingCnpj = ValueNotifier(false);
+  final ValueNotifier<bool> _cnpjAutoPreenchido = ValueNotifier(false);
+  String _lastSearchedCnpj = '';
 
   Timer? _debounceTimer;
   int _currentPage = 0;
@@ -113,6 +132,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _limparFormulario();
     _carregarFornecedores();
     _searchController.addListener(_onSearchChanged);
+    _cepController.addListener(_onCepChanged);
+    _cnpjController.addListener(_onCnpjChanged);
   }
 
   void _initializeAnimations() {
@@ -139,6 +160,16 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _numeroCasaController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
+    _cepController.removeListener(_onCepChanged);
+    _cepController.dispose();
+    _cnpjController.removeListener(_onCnpjChanged);
+    _complementoController.dispose();
+    _codigoMunicipioController.dispose();
+    _isLoadingCep.dispose();
+    _cepAutoPreenchido.dispose();
+    _isLoadingCnpj.dispose();
+    _cnpjAutoPreenchido.dispose();
+    _ufNotifier.dispose();
     super.dispose();
   }
 
@@ -147,6 +178,139 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       _filtrarFornecedores();
     });
+  }
+
+  void _onCnpjChanged() {
+    final digits = _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 14 && digits != _lastSearchedCnpj) _buscarCnpj(digits);
+  }
+
+  Future<void> _buscarCnpj(String digits) async {
+    if (!mounted) return;
+    _lastSearchedCnpj = digits;
+    _isLoadingCnpj.value = true;
+    try {
+      final result = await CnpjService.buscar(digits);
+      if (!mounted) return;
+      setState(() {
+        // Nome: prefere Nome Fantasia, cai na Razão Social
+        final nome = result.nomeFantasia.isNotEmpty ? result.nomeFantasia : result.razaoSocial;
+        if (nome.isNotEmpty) _nomeController.text = nome;
+        if (result.telefone.isNotEmpty) _telefoneController.text = _maskTelefone.maskText(result.telefone);
+        if (result.email.isNotEmpty) _emailController.text = result.email;
+        if (result.cep.isNotEmpty) {
+          _cepController.text = '${result.cep.substring(0, 5)}-${result.cep.substring(5)}';
+          _lastSearchedCep = result.cep;
+        }
+        if (result.logradouro.isNotEmpty) _ruaController.text = result.logradouro;
+        if (result.numero.isNotEmpty) _numeroCasaController.text = result.numero;
+        if (result.complemento.isNotEmpty) _complementoController.text = result.complemento;
+        if (result.bairro.isNotEmpty) _bairroController.text = result.bairro;
+        if (result.cidade.isNotEmpty) _cidadeController.text = result.cidade;
+        if (result.codigoMunicipio.isNotEmpty) _codigoMunicipioController.text = result.codigoMunicipio;
+        if (_ufs.contains(result.uf)) {
+          _ufSelecionada = result.uf;
+          _ufNotifier.value = result.uf;
+        }
+      });
+      _cnpjAutoPreenchido.value = true;
+      _cepAutoPreenchido.value = result.cep.isNotEmpty;
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showVisibleError(
+          context,
+          e.toString().contains('não encontrado')
+              ? 'CNPJ não encontrado na Receita Federal.'
+              : 'Não foi possível consultar o CNPJ. Preencha manualmente.',
+        );
+      }
+    } finally {
+      if (mounted) _isLoadingCnpj.value = false;
+    }
+  }
+
+  void _limparDadosCnpjAutomatico() {
+    setState(() {
+      _cnpjController.clear();
+      _nomeController.clear();
+      _telefoneController.clear();
+      _emailController.clear();
+      _cepController.clear();
+      _ruaController.clear();
+      _numeroCasaController.clear();
+      _complementoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _codigoMunicipioController.clear();
+      _ufSelecionada = 'GO';
+      _ufNotifier.value = 'GO';
+    });
+    _cnpjAutoPreenchido.value = false;
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCnpj = '';
+    _lastSearchedCep = '';
+  }
+
+  void _onCepChanged() {
+    final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8 && digits != _lastSearchedCep) _buscarCep(digits);
+  }
+
+  Future<void> _buscarCep(String digits) async {
+    if (!mounted) return;
+    _lastSearchedCep = digits;
+    _isLoadingCep.value = true;
+    try {
+      final result = await CepService.buscar(digits);
+      if (!mounted) return;
+      setState(() {
+        _ruaController.text = result.logradouro;
+        _complementoController.text = result.complemento;
+        _bairroController.text = result.bairro;
+        _cidadeController.text = result.cidade;
+        if (_ufs.contains(result.uf.toUpperCase())) {
+          _ufSelecionada = result.uf.toUpperCase();
+          _ufNotifier.value = _ufSelecionada;
+        }
+        if (result.codigoIBGE.isNotEmpty) {
+          _codigoMunicipioController.text = result.codigoIBGE;
+        }
+      });
+      _cepAutoPreenchido.value = true;
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showVisibleError(
+          context,
+          e.toString().contains('não encontrado')
+              ? 'CEP não encontrado. Preencha o endereço manualmente.'
+              : 'Não foi possível consultar o CEP. Preencha manualmente.',
+        );
+      }
+    } finally {
+      _isLoadingCep.value = false;
+    }
+  }
+
+  void _limparEnderecoAutomatico() {
+    setState(() {
+      _cepController.clear();
+      _ruaController.clear();
+      _complementoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _codigoMunicipioController.clear();
+      _ufSelecionada = 'GO';
+      _ufNotifier.value = 'GO';
+    });
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCep = '';
+  }
+
+  String _formatarCEP(String? cep) {
+    if (cep == null || cep.isEmpty) return '';
+    final digits = cep.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8) return '${digits.substring(0, 5)}-${digits.substring(5)}';
+    return cep;
   }
 
   Future<void> _filtrarFornecedores() async {
@@ -263,7 +427,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         numeroCasa: _numeroCasaController.text,
         bairro: _bairroController.text,
         cidade: _cidadeController.text,
+        cep:
+            _cepController.text.replaceAll(RegExp(r'[^0-9]'), '').isNotEmpty ? _cepController.text.replaceAll(RegExp(r'[^0-9]'), '') : null,
         uf: _ufSelecionada,
+        complemento: _complementoController.text.isNotEmpty ? _complementoController.text : null,
+        codigoMunicipio: _codigoMunicipioController.text.isNotEmpty ? _codigoMunicipioController.text : null,
       );
 
       final resultado = _fornecedorEmEdicao != null
@@ -301,6 +469,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
   void _editarFornecedor(Fornecedor fornecedor) {
     setState(() {
+      _lastSearchedCnpj = fornecedor.cnpj.replaceAll(RegExp(r'[^0-9]'), '');
       _nomeController.text = fornecedor.nome;
       _emailController.text = fornecedor.email;
 
@@ -311,7 +480,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       _numeroCasaController.text = fornecedor.numeroCasa ?? '';
       _bairroController.text = fornecedor.bairro ?? '';
       _cidadeController.text = fornecedor.cidade ?? '';
+      _cepController.text = _formatarCEP(fornecedor.cep);
+      _complementoController.text = fornecedor.complemento ?? '';
+      _codigoMunicipioController.text = fornecedor.codigoMunicipio ?? '';
       _ufSelecionada = fornecedor.uf ?? 'GO';
+      _ufNotifier.value = _ufSelecionada;
 
       if (fornecedor.cnpj.isNotEmpty) {
         _cnpjController.text = fornecedor.cnpj.length == 14 ? _maskCnpj.maskText(fornecedor.cnpj) : fornecedor.cnpj;
@@ -403,7 +576,15 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _numeroCasaController.clear();
     _bairroController.clear();
     _cidadeController.clear();
+    _cepController.clear();
+    _complementoController.clear();
+    _codigoMunicipioController.clear();
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCep = '';
+    _cnpjAutoPreenchido.value = false;
+    _lastSearchedCnpj = '';
     _ufSelecionada = 'GO';
+    _ufNotifier.value = 'GO';
     _fornecedorEmEdicao = null;
   }
 
@@ -581,11 +762,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
         double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.5;
+          childAspectRatio = 3.0;
         } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.3;
+          childAspectRatio = 2.0;
         } else {
-          childAspectRatio = 1.6;
+          childAspectRatio = 1.4;
         }
 
         return GridView.builder(
@@ -717,13 +898,16 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   ],
                 ),
                 const SizedBox(height: 10),
-                Expanded(
+                Flexible(
+                  fit: FlexFit.loose,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildInfoRow(Icons.badge, _maskCnpj.maskText(fornecedor.cnpj)),
                       _buildInfoRow(Icons.phone, _maskTelefone.maskText(fornecedor.telefone)),
                       _buildInfoRow(Icons.email, fornecedor.email),
+                      if (fornecedor.cep != null && fornecedor.cep!.isNotEmpty)
+                        _buildInfoRow(Icons.pin_drop, _formatarCEP(fornecedor.cep!)),
                       if (fornecedor.rua != null && fornecedor.rua!.isNotEmpty)
                         _buildInfoRow(
                           Icons.location_on,
@@ -856,25 +1040,65 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       key: _formKey,
       child: Column(
         children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: _isLoadingCnpj,
+            builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
+              valueListenable: _cnpjAutoPreenchido,
+              builder: (context, autoPreenchido, _) => TextFormField(
+                controller: _cnpjController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [_maskCnpj],
+                readOnly: _fornecedorEmEdicao != null,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'CNPJ',
+                  prefixIcon: Icon(Icons.badge, color: primaryColor),
+                  suffixIcon: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+                          ),
+                        )
+                      : autoPreenchido
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              tooltip: 'Limpar dados preenchidos automaticamente',
+                              onPressed: _limparDadosCnpjAutomatico,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search, color: primaryColor, size: 20),
+                              tooltip: 'Buscar CNPJ',
+                              onPressed: () {
+                                _lastSearchedCnpj = '';
+                                _onCnpjChanged();
+                              },
+                            ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  enabledBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: errorColor)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Informe o CNPJ';
+                  if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
+                  return null;
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildTextField(
             controller: _nomeController,
             label: 'Nome do Fornecedor',
             icon: Icons.store,
             validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _cnpjController,
-            label: 'CNPJ',
-            icon: Icons.badge,
-            keyboardType: TextInputType.number,
-            inputFormatters: [_maskCnpj],
-            readOnly: _fornecedorEmEdicao != null,
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Informe o CNPJ';
-              if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
-              return null;
-            },
           ),
           const SizedBox(height: 16),
           Row(
@@ -942,6 +1166,67 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             ),
           ),
           const SizedBox(height: 16),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isLoadingCep,
+            builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
+              valueListenable: _cepAutoPreenchido,
+              builder: (context, autoPreenchido, _) => TextFormField(
+                controller: _cepController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [_maskCep],
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'CEP',
+                  prefixIcon: Icon(Icons.location_on, color: primaryColor),
+                  suffixIcon: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+                          ),
+                        )
+                      : autoPreenchido
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              tooltip: 'Limpar endere\u00e7o preenchido automaticamente',
+                              onPressed: _limparEnderecoAutomatico,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search, color: primaryColor, size: 20),
+                              tooltip: 'Buscar CEP',
+                              onPressed: () {
+                                _lastSearchedCep = '';
+                                _onCepChanged();
+                              },
+                            ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  enabledBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                  errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: errorColor)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
+                    if (cep.length != 8) return 'CEP inv\u00e1lido';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _complementoController,
+            label: 'Complemento',
+            icon: Icons.add_location_alt,
+          ),
+          const SizedBox(height: 16),
           _buildTextField(
             controller: _ruaController,
             label: 'Rua',
@@ -991,36 +1276,49 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
               const SizedBox(width: 16),
               Expanded(
                 flex: 1,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _ufSelecionada,
-                  decoration: InputDecoration(
-                    labelText: 'UF',
-                    prefixIcon: Icon(Icons.map, color: primaryColor),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _ufNotifier,
+                  builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
+                    initialValue: ufAtual,
+                    decoration: InputDecoration(
+                      labelText: 'UF',
+                      prefixIcon: Icon(Icons.map, color: primaryColor),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: primaryColor, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
+                    items: _ufs
+                        .map((uf) => DropdownMenuItem(
+                              value: uf,
+                              child: Text(uf),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() {
+                      _ufSelecionada = value!;
+                      _ufNotifier.value = value;
+                    }),
                   ),
-                  items: _ufs
-                      .map((uf) => DropdownMenuItem(
-                            value: uf,
-                            child: Text(uf),
-                          ))
-                      .toList(),
-                  onChanged: (value) => setState(() => _ufSelecionada = value!),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _codigoMunicipioController,
+            label: 'Código IBGE do Município',
+            icon: Icons.code,
+            keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 32),
           SizedBox(

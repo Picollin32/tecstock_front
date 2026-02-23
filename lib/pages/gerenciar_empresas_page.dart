@@ -4,6 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import '../utils/adaptive_phone_formatter.dart';
+import '../utils/validators.dart';
+import '../utils/cnae_formatter.dart';
+import '../services/cep_service.dart';
+import '../services/cnpj_service.dart';
 import 'package:tecstock/model/empresa.dart';
 import 'package:tecstock/model/usuario.dart';
 import '../services/empresa_service.dart';
@@ -50,11 +54,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
-  final _maskInscricaoEstadual = MaskTextInputFormatter(
-    mask: '###.###.###',
-    filter: {"#": RegExp(r'[0-9]')},
-    type: MaskAutoCompletionType.lazy,
-  );
+  final _cnaeFormatter = CnaeFormatter();
   final AdaptivePhoneFormatter _maskTelefone = AdaptivePhoneFormatter();
 
   List<Empresa> _empresasFiltradas = [];
@@ -64,10 +64,18 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   Timer? _debounceTimer;
   Empresa? _empresaEmEdicao;
   String _ufSelecionada = 'GO';
+  final ValueNotifier<String> _ufNotifier = ValueNotifier('GO');
   String _regimeTributarioSelecionado = '1';
 
   bool _isLoading = false;
   bool _isLoadingEmpresas = true;
+  final ValueNotifier<bool> _isLoadingCep = ValueNotifier(false);
+  final ValueNotifier<bool> _cepAutoPreenchido = ValueNotifier(false);
+  String _lastSearchedCep = '';
+
+  final ValueNotifier<bool> _isLoadingCnpj = ValueNotifier(false);
+  final ValueNotifier<bool> _cnpjAutoPreenchido = ValueNotifier(false);
+  String _lastSearchedCnpj = '';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -110,8 +118,9 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
 
   final List<Map<String, String>> _regimesTributarios = [
     {'value': '1', 'label': 'Simples Nacional'},
-    {'value': '2', 'label': 'Simples Nacional - Excesso'},
-    {'value': '3', 'label': 'Regime Normal'},
+    {'value': '2', 'label': 'Lucro Presumido'},
+    {'value': '3', 'label': 'Lucro Real'},
+    {'value': '4', 'label': 'MEI'},
   ];
 
   @override
@@ -120,6 +129,9 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     _initializeAnimations();
     _carregarEmpresas();
     _searchController.addListener(_onSearchChanged);
+    _cepController.addListener(_onCepChanged);
+    _cnpjController.addListener(_onCnpjChanged);
+    _ufNotifier.value = _ufSelecionada;
   }
 
   void _initializeAnimations() {
@@ -149,6 +161,8 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     _debounceTimer?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _cepController.removeListener(_onCepChanged);
+    _cnpjController.removeListener(_onCnpjChanged);
     _cnpjController.dispose();
     _razaoSocialController.dispose();
     _nomeFantasiaController.dispose();
@@ -165,6 +179,11 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     _cidadeController.dispose();
     _codigoMunicipioController.dispose();
     _cnaeController.dispose();
+    _ufNotifier.dispose();
+    _isLoadingCep.dispose();
+    _cepAutoPreenchido.dispose();
+    _isLoadingCnpj.dispose();
+    _cnpjAutoPreenchido.dispose();
     super.dispose();
   }
 
@@ -174,6 +193,140 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       setState(() => _currentPage = 0);
       _filtrarEmpresas();
     });
+  }
+
+  void _limparDadosCnpjAutomatico() {
+    setState(() {
+      _cnpjController.clear();
+      _razaoSocialController.clear();
+      _nomeFantasiaController.clear();
+      _telefoneController.clear();
+      _emailController.clear();
+      _inscricaoEstadualController.clear();
+      _cepController.clear();
+      _logradouroController.clear();
+      _complementoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _codigoMunicipioController.clear();
+      _cnaeController.clear();
+      _regimeTributarioSelecionado = '1';
+      _ufSelecionada = 'GO';
+      _ufNotifier.value = _ufSelecionada;
+    });
+    _cnpjAutoPreenchido.value = false;
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCnpj = '';
+    _lastSearchedCep = '';
+  }
+
+  void _onCnpjChanged() {
+    final digits = _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 14 && digits != _lastSearchedCnpj) {
+      _buscarCnpj(digits);
+    }
+  }
+
+  Future<void> _buscarCnpj(String digits) async {
+    if (!mounted) return;
+    _lastSearchedCnpj = digits;
+    _isLoadingCnpj.value = true;
+    try {
+      final result = await CnpjService.buscar(digits);
+      if (!mounted) return;
+      setState(() {
+        _razaoSocialController.text = result.razaoSocial;
+        if (result.nomeFantasia.isNotEmpty) {
+          _nomeFantasiaController.text = result.nomeFantasia;
+        }
+        if (result.email.isNotEmpty) _emailController.text = result.email;
+        if (result.telefone.isNotEmpty) _telefoneController.text = _maskTelefone.maskText(result.telefone);
+        if (result.cnae.isNotEmpty) _cnaeController.text = result.cnae;
+        if (result.cep.isNotEmpty) {
+          _cepController.text = '${result.cep.substring(0, 5)}-${result.cep.substring(5)}';
+          _lastSearchedCep = result.cep;
+        }
+        if (result.logradouro.isNotEmpty) _logradouroController.text = result.logradouro;
+        if (result.numero.isNotEmpty) _numeroController.text = result.numero;
+        if (result.complemento.isNotEmpty) _complementoController.text = result.complemento;
+        if (result.bairro.isNotEmpty) _bairroController.text = result.bairro;
+        if (result.cidade.isNotEmpty) _cidadeController.text = result.cidade;
+        if (result.codigoMunicipio.isNotEmpty) _codigoMunicipioController.text = result.codigoMunicipio;
+        if (_ufs.contains(result.uf)) {
+          _ufSelecionada = result.uf;
+          _ufNotifier.value = result.uf;
+        }
+        _regimeTributarioSelecionado = result.regimeTributario;
+      });
+      _cnpjAutoPreenchido.value = true;
+      _cepAutoPreenchido.value = result.cep.isNotEmpty;
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showVisibleError(
+          context,
+          e.toString().contains('não encontrado')
+              ? 'CNPJ não encontrado na Receita Federal.'
+              : 'Não foi possível consultar o CNPJ. Preencha manualmente.',
+        );
+      }
+    } finally {
+      if (mounted) _isLoadingCnpj.value = false;
+    }
+  }
+
+  void _limparEnderecoAutomatico() {
+    setState(() {
+      _cepController.clear();
+      _logradouroController.clear();
+      _complementoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _codigoMunicipioController.clear();
+      _ufSelecionada = 'GO';
+      _ufNotifier.value = _ufSelecionada;
+    });
+    _cepAutoPreenchido.value = false;
+    _lastSearchedCep = '';
+  }
+
+  void _onCepChanged() {
+    final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8 && digits != _lastSearchedCep) {
+      _buscarCep(digits);
+    }
+  }
+
+  Future<void> _buscarCep(String digits) async {
+    if (!mounted) return;
+    _lastSearchedCep = digits;
+    _isLoadingCep.value = true;
+    try {
+      final result = await CepService.buscar(digits);
+      if (!mounted) return;
+      setState(() {
+        _logradouroController.text = result.logradouro;
+        _complementoController.text = result.complemento;
+        _bairroController.text = result.bairro;
+        _cidadeController.text = result.cidade;
+        if (_ufs.contains(result.uf.toUpperCase())) {
+          _ufSelecionada = result.uf.toUpperCase();
+          _ufNotifier.value = _ufSelecionada;
+        }
+        if (result.codigoIBGE.isNotEmpty) {
+          _codigoMunicipioController.text = result.codigoIBGE;
+        }
+      });
+      _cepAutoPreenchido.value = true;
+    } catch (e) {
+      if (mounted) {
+        ErrorUtils.showVisibleError(
+          context,
+          e.toString().contains('não encontrado') ? 'CEP não encontrado' : 'Erro ao buscar CEP',
+        );
+      }
+    } finally {
+      if (mounted) _isLoadingCep.value = false;
+    }
   }
 
   Future<void> _filtrarEmpresas() async {
@@ -210,7 +363,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       if (mounted) {
         String errorMessage = 'Erro ao carregar dados';
         if (e.toString().contains('403') || e.toString().contains('Proibido')) {
-          errorMessage = 'Acesso negado. FaÃ§a login novamente.';
+          errorMessage = 'Acesso negado. Faça login novamente.';
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) Navigator.of(context).pushReplacementNamed('/login');
           });
@@ -241,7 +394,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
 
     final cnpjLimpo = _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (cnpjLimpo.length != 14) {
-      ErrorUtils.showVisibleError(context, 'CNPJ deve conter 14 dÃ­gitos');
+      ErrorUtils.showVisibleError(context, 'CNPJ deve conter 14 dígitos');
       return;
     }
 
@@ -286,7 +439,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message'] ?? 'OperaÃ§Ã£o realizada com sucesso'),
+              content: Text(result['message'] ?? 'Operação realizada com sucesso'),
               backgroundColor: successColor,
               behavior: SnackBarBehavior.floating,
             ),
@@ -327,7 +480,12 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       _cnaeController.clear();
       _empresaEmEdicao = null;
       _ufSelecionada = 'GO';
+      _ufNotifier.value = _ufSelecionada;
       _regimeTributarioSelecionado = '1';
+      _cepAutoPreenchido.value = false;
+      _lastSearchedCep = '';
+      _cnpjAutoPreenchido.value = false;
+      _lastSearchedCnpj = '';
     });
   }
 
@@ -335,11 +493,12 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     setState(() {
       _empresaEmEdicao = empresa;
       _cnpjController.text = _formatarCNPJ(empresa.cnpj);
+      _lastSearchedCnpj = empresa.cnpj.replaceAll(RegExp(r'[^0-9]'), '');
       _razaoSocialController.text = empresa.razaoSocial;
       _nomeFantasiaController.text = empresa.nomeFantasia;
       _inscricaoEstadualController.text = empresa.inscricaoEstadual ?? '';
       _inscricaoMunicipalController.text = empresa.inscricaoMunicipal ?? '';
-      _telefoneController.text = empresa.telefone ?? '';
+      _telefoneController.text = _maskTelefone.maskText(empresa.telefone);
       _emailController.text = empresa.email ?? '';
       _siteController.text = empresa.site ?? '';
       _cepController.text = _formatarCEP(empresa.cep);
@@ -350,8 +509,10 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       _cidadeController.text = empresa.cidade;
       _codigoMunicipioController.text = empresa.codigoMunicipio ?? '';
       _ufSelecionada = empresa.uf;
-      _regimeTributarioSelecionado = empresa.regimeTributario ?? '1';
-      _cnaeController.text = empresa.cnae ?? '';
+      _ufNotifier.value = _ufSelecionada;
+      final validRegimes = {'1', '2', '3', '4'};
+      _regimeTributarioSelecionado = validRegimes.contains(empresa.regimeTributario) ? empresa.regimeTributario! : '1';
+      _cnaeController.text = empresa.cnae != null ? BrazilianValidators.formatarCNAE(empresa.cnae!) : '';
     });
     _showFormModal();
   }
@@ -437,30 +598,83 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
         children: [
           _buildSectionTitle('Dados da Empresa'),
           const SizedBox(height: 16),
-          _buildTextField(
-            controller: _cnpjController,
-            label: 'CNPJ',
-            icon: Icons.badge,
-            inputFormatters: [_maskCnpj],
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'CNPJ Ã© obrigatÃ³rio';
-              }
-              if (!CNPJValidator.isValid(value)) {
-                return 'CNPJ invÃ¡lido';
-              }
-              return null;
-            },
+          ValueListenableBuilder<bool>(
+            valueListenable: _isLoadingCnpj,
+            builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
+              valueListenable: _cnpjAutoPreenchido,
+              builder: (context, autoPreenchido, _) => TextFormField(
+                controller: _cnpjController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [_maskCnpj],
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                decoration: InputDecoration(
+                  labelText: 'CNPJ',
+                  prefixIcon: const Icon(Icons.badge, color: primaryColor),
+                  suffixIcon: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: primaryColor,
+                            ),
+                          ),
+                        )
+                      : autoPreenchido
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              tooltip: 'Limpar dados preenchidos automaticamente',
+                              onPressed: _limparDadosCnpjAutomatico,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.search, color: primaryColor, size: 20),
+                              tooltip: 'Buscar CNPJ',
+                              onPressed: () {
+                                _lastSearchedCnpj = '';
+                                _onCnpjChanged();
+                              },
+                            ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: primaryColor, width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: errorColor),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'CNPJ é obrigatório';
+                  }
+                  if (!CNPJValidator.isValid(value)) {
+                    return 'CNPJ inválido';
+                  }
+                  return null;
+                },
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           _buildTextField(
             controller: _razaoSocialController,
-            label: 'RazÃ£o Social',
+            label: 'Razão Social',
             icon: Icons.business,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'RazÃ£o Social Ã© obrigatÃ³ria';
+                return 'Razão Social é obrigatória';
               }
               return null;
             },
@@ -472,7 +686,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             icon: Icons.store,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Nome Fantasia Ã© obrigatÃ³rio';
+                return 'Nome Fantasia é obrigatório';
               }
               return null;
             },
@@ -483,43 +697,33 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               Expanded(
                 child: _buildTextField(
                   controller: _inscricaoEstadualController,
-                  label: 'InscriÃ§Ã£o Estadual',
+                  label: 'Inscrição Estadual',
                   icon: Icons.receipt_long,
-                  inputFormatters: [_maskInscricaoEstadual],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(14),
+                  ],
                   keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value != null && value.trim().isNotEmpty) {
-                      final ie = value.replaceAll(RegExp(r'[^0-9]'), '');
-                      if (ie.length != 9) {
-                        return 'IE deve conter 9 dÃ­gitos';
-                      }
-                    }
-                    return null;
-                  },
+                  validator: (value) => BrazilianValidators.validarInscricaoEstadual(
+                    value?.trim() ?? '',
+                    _ufSelecionada,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildTextField(
                   controller: _inscricaoMunicipalController,
-                  label: 'InscriÃ§Ã£o Municipal *',
+                  label: 'Inscrição Municipal *',
                   icon: Icons.receipt,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
                     LengthLimitingTextInputFormatter(15),
                   ],
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'InscriÃ§Ã£o Municipal Ã© obrigatÃ³ria';
-                    }
-                    if (value.trim().isNotEmpty) {
-                      if (value.length < 5) {
-                        return 'IM invÃ¡lida (mÃ­n. 5 dÃ­gitos)';
-                      }
-                    }
-                    return null;
-                  },
+                  validator: (value) => BrazilianValidators.validarInscricaoMunicipal(
+                    value?.trim() ?? '',
+                  ),
                 ),
               ),
             ],
@@ -544,7 +748,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               if (value != null && value.trim().isNotEmpty) {
                 final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                 if (!emailRegex.hasMatch(value)) {
-                  return 'E-mail invÃ¡lido';
+                  return 'E-mail inválido';
                 }
               }
               return null;
@@ -558,28 +762,81 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             keyboardType: TextInputType.url,
           ),
           const SizedBox(height: 24),
-          _buildSectionTitle('EndereÃ§o'),
+          _buildSectionTitle('Endereço'),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 flex: 2,
-                child: _buildTextField(
-                  controller: _cepController,
-                  label: 'CEP',
-                  icon: Icons.location_on,
-                  inputFormatters: [_maskCep],
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'CEP Ã© obrigatÃ³rio';
-                    }
-                    final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
-                    if (cep.length != 8) {
-                      return 'CEP invÃ¡lido';
-                    }
-                    return null;
-                  },
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _isLoadingCep,
+                  builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
+                    valueListenable: _cepAutoPreenchido,
+                    builder: (context, autoPreenchido, _) => TextFormField(
+                      controller: _cepController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_maskCep],
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      decoration: InputDecoration(
+                        labelText: 'CEP',
+                        prefixIcon: const Icon(Icons.location_on, color: primaryColor),
+                        suffixIcon: isLoading
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                              )
+                            : autoPreenchido
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, color: Colors.grey),
+                                    tooltip: 'Limpar endereço preenchido automaticamente',
+                                    onPressed: _limparEnderecoAutomatico,
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.search, color: primaryColor, size: 20),
+                                    tooltip: 'Buscar CEP',
+                                    onPressed: () {
+                                      _lastSearchedCep = '';
+                                      _onCepChanged();
+                                    },
+                                  ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: primaryColor, width: 2),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: errorColor),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'CEP é obrigatório';
+                        }
+                        final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
+                        if (cep.length != 8) {
+                          return 'CEP inválido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -595,7 +852,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                   icon: Icons.place,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Logradouro Ã© obrigatÃ³rio';
+                      return 'Logradouro é obrigatório';
                     }
                     return null;
                   },
@@ -606,11 +863,11 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                 flex: 1,
                 child: _buildTextField(
                   controller: _numeroController,
-                  label: 'NÃºmero',
+                  label: 'Número',
                   icon: Icons.pin,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'NÃºmero Ã© obrigatÃ³rio';
+                      return 'Número é obrigatório';
                     }
                     return null;
                   },
@@ -631,7 +888,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             icon: Icons.home_work,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Bairro Ã© obrigatÃ³rio';
+                return 'Bairro é obrigatório';
               }
               return null;
             },
@@ -647,7 +904,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                   icon: Icons.location_city,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Cidade Ã© obrigatÃ³ria';
+                      return 'Cidade é obrigatória';
                     }
                     return null;
                   },
@@ -656,12 +913,20 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               const SizedBox(width: 12),
               Expanded(
                 flex: 1,
-                child: _buildDropdown(
-                  value: _ufSelecionada,
-                  items: _ufs,
-                  label: 'UF',
-                  icon: Icons.map,
-                  onChanged: (value) => setState(() => _ufSelecionada = value!),
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _ufNotifier,
+                  builder: (context, val, _) {
+                    return _buildDropdown(
+                      value: val,
+                      items: _ufs,
+                      label: 'UF',
+                      icon: Icons.map,
+                      onChanged: (value) => setState(() {
+                        _ufSelecionada = value!;
+                        _ufNotifier.value = value;
+                      }),
+                    );
+                  },
                 ),
               ),
             ],
@@ -669,22 +934,16 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
           const SizedBox(height: 16),
           _buildTextField(
             controller: _codigoMunicipioController,
-            label: 'CÃ³digo do MunicÃ­pio (IBGE) *',
+            label: 'Código do Município (IBGE) *',
             icon: Icons.numbers,
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(7),
             ],
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'CÃ³digo do MunicÃ­pio Ã© obrigatÃ³rio';
-              }
-              if (value.length != 7) {
-                return 'CÃ³digo IBGE deve ter 7 dÃ­gitos';
-              }
-              return null;
-            },
+            validator: (value) => BrazilianValidators.validarCodigoIBGE(
+              value?.trim() ?? '',
+            ),
           ),
           const SizedBox(height: 24),
           _buildSectionTitle('Dados Fiscais'),
@@ -693,7 +952,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             value: _regimeTributarioSelecionado,
             items: _regimesTributarios.map((e) => e['value']!).toList(),
             itemLabels: _regimesTributarios.map((e) => e['label']!).toList(),
-            label: 'Regime TributÃ¡rio',
+            label: 'Regime Tributário',
             icon: Icons.account_balance,
             onChanged: (value) => setState(() => _regimeTributarioSelecionado = value!),
           ),
@@ -702,12 +961,11 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             controller: _cnaeController,
             label: 'CNAE (Ex: 4520-0/01) *',
             icon: Icons.category,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'CNAE Ã© obrigatÃ³rio para emissÃ£o de NF';
-              }
-              return null;
-            },
+            keyboardType: TextInputType.number,
+            inputFormatters: [_cnaeFormatter],
+            validator: (value) => BrazilianValidators.validarCNAE(
+              value?.trim() ?? '',
+            ),
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -746,7 +1004,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
           children: [
             Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
             const SizedBox(width: 12),
-            const Text('Confirmar ExclusÃ£o'),
+            const Text('Confirmar Exclusão'),
           ],
         ),
         content: Text('Deseja excluir a empresa "${empresa.nomeFantasia}"?'),
@@ -778,7 +1036,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       if (result['success'] == true) {
         await _carregarEmpresas();
         if (!mounted) return;
-        _showSuccessSnackBar('Empresa excluÃ­da com sucesso');
+        _showSuccessSnackBar('Empresa excluída com sucesso');
       } else {
         if (!mounted) return;
         ErrorUtils.showVisibleError(context, result['message'] ?? 'Erro ao excluir empresa');
@@ -870,12 +1128,14 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: primaryColor),
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -1563,12 +1823,12 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
 
     final senhaPreenchida = _senhaController.text.isNotEmpty;
     if (senhaPreenchida && _senhaController.text != _confirmarSenhaController.text) {
-      ErrorUtils.showVisibleError(context, 'As senhas nÃ£o coincidem');
+      ErrorUtils.showVisibleError(context, 'As senhas não coincidem');
       return;
     }
 
     if (_adminEmEdicao == null && !senhaPreenchida) {
-      ErrorUtils.showVisibleError(context, 'Senha Ã© obrigatÃ³ria para novo administrador');
+      ErrorUtils.showVisibleError(context, 'Senha é obrigatória para novo administrador');
       return;
     }
 
@@ -1597,7 +1857,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message'] ?? 'OperaÃ§Ã£o realizada com sucesso'),
+              content: Text(result['message'] ?? 'Operação realizada com sucesso'),
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
             ),
@@ -1642,7 +1902,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Confirmar ExclusÃ£o'),
+        title: const Text('Confirmar Exclusão'),
         content: Text('Deseja excluir o administrador "${admin.nomeUsuario}"?'),
         actions: [
           TextButton(
@@ -1670,7 +1930,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(resultado['message'] ?? 'Administrador excluÃ­do com sucesso'),
+                content: Text(resultado['message'] ?? 'Administrador excluído com sucesso'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
               ),
@@ -1762,7 +2022,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
-                                      return 'Nome Ã© obrigatÃ³rio';
+                                      return 'Nome é obrigatório';
                                     }
                                     if (value.trim().length < 3) {
                                       return 'Nome deve ter pelo menos 3 caracteres';
@@ -1794,7 +2054,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                       return null;
                                     }
                                     if (value == null || value.isEmpty) {
-                                      return 'Senha Ã© obrigatÃ³ria';
+                                      return 'Senha é obrigatória';
                                     }
                                     if (value.length < 4) {
                                       return 'Senha deve ter pelo menos 4 caracteres';
@@ -1823,7 +2083,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                   ),
                                   validator: (value) {
                                     if (_senhaController.text.isNotEmpty && value != _senhaController.text) {
-                                      return 'As senhas nÃ£o coincidem';
+                                      return 'As senhas não coincidem';
                                     }
                                     return null;
                                   },
@@ -1897,7 +2157,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                       admin.nomeUsuario,
                                       style: const TextStyle(fontWeight: FontWeight.w600),
                                     ),
-                                    subtitle: const Text('Administrador - NÃ­vel 1'),
+                                    subtitle: const Text('Administrador - Nível 1'),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [

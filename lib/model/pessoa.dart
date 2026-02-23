@@ -5,11 +5,14 @@ abstract class Pessoa {
   String email;
   String cpf;
   DateTime dataNascimento;
+  String? cep;
   String? rua;
   String? numeroCasa;
+  String? complemento;
   String? bairro;
   String? cidade;
   String? uf;
+  String? codigoMunicipio;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -20,11 +23,14 @@ abstract class Pessoa {
     required this.email,
     required this.cpf,
     required this.dataNascimento,
+    this.cep,
     this.rua,
     this.numeroCasa,
+    this.complemento,
     this.bairro,
     this.cidade,
     this.uf,
+    this.codigoMunicipio,
     this.createdAt,
     this.updatedAt,
   });
@@ -39,11 +45,14 @@ abstract class Pessoa {
       'dataNascimento': dataNascimento.toIso8601String(),
     };
 
+    if (cep != null) map['cep'] = cep;
     if (rua != null) map['rua'] = rua;
     if (numeroCasa != null) map['numeroCasa'] = numeroCasa;
+    if (complemento != null) map['complemento'] = complemento;
     if (bairro != null) map['bairro'] = bairro;
     if (cidade != null) map['cidade'] = cidade;
     if (uf != null) map['uf'] = uf;
+    if (codigoMunicipio != null) map['codigoMunicipio'] = codigoMunicipio;
 
     return map;
   }

@@ -312,7 +312,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   void _onSearchChanged() {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      _currentPage = 0;
+      setState(() {
+        _currentPage = 0;
+      });
       _carregarOrcamentosPaginados();
     });
   }

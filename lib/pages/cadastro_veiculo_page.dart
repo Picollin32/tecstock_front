@@ -103,6 +103,9 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   void _onSearchChanged() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _currentPage = 0;
+      });
       _filtrarVeiculos();
     });
   }

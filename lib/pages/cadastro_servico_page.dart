@@ -109,6 +109,9 @@ class _CadastroServicoPageState extends State<CadastroServicoPage> with TickerPr
   void _onSearchChanged() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _currentPage = 0;
+      });
       _filtrarServicos();
     });
   }

@@ -160,6 +160,9 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   void _onSearchChanged() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _currentPage = 0;
+      });
       _filtrarFuncionarios();
     });
   }

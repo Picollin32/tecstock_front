@@ -152,6 +152,9 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   void _onSearchChanged() {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _currentPage = 0;
+      });
       _filtrarClientes();
     });
   }

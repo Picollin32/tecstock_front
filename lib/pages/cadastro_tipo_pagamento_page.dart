@@ -67,6 +67,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   void _onSearchChanged() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _currentPage = 0;
+      });
       _filtrarTiposPagamento();
     });
   }

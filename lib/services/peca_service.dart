@@ -218,11 +218,18 @@ class PecaService {
     }
   }
 
-  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
-    String url = '${ApiConfig.pecasUrl}/buscarPaginado?query=$query&page=$page&size=$size';
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30, int? fornecedorId, int? fabricanteId}) async {
+    final params = {
+      'query': query,
+      'page': '$page',
+      'size': '$size',
+      if (fornecedorId != null) 'fornecedorId': '$fornecedorId',
+      if (fabricanteId != null) 'fabricanteId': '$fabricanteId',
+    };
+    final uri = Uri.parse('${ApiConfig.pecasUrl}/buscarPaginado').replace(queryParameters: params);
     try {
       final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(Uri.parse(url), headers: headers);
+      final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));

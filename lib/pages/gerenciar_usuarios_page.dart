@@ -5,6 +5,7 @@ import 'package:tecstock/model/funcionario.dart';
 import '../services/usuario_service.dart';
 import '../services/funcionario_service.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class GerenciarUsuariosPage extends StatefulWidget {
   const GerenciarUsuariosPage({super.key});
@@ -25,6 +26,8 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
   Timer? _debounceTimer;
   Usuario? _usuarioEmEdicao;
   Funcionario? _consultorSelecionado;
@@ -41,6 +44,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   static const Color errorColor = Color(0xFFDC2626);
   static const Color successColor = Color(0xFF16A34A);
   static const Color shadowColor = Color(0x1A000000);
+  String _lastSearchQuery = '';
 
   @override
   void initState() {
@@ -71,7 +75,11 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -85,7 +93,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     final query = _searchController.text.trim();
     setState(() => _isLoadingUsuarios = true);
     try {
-      final resultado = await UsuarioService.buscarPaginado(query, _currentPage);
+      final resultado = await UsuarioService.buscarPaginado(query, _currentPage, size: _pageSize);
       if (resultado['success'] == true) {
         setState(() {
           _usuariosFiltrados = List<Usuario>.from(resultado['content']);
@@ -103,7 +111,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
   Future<void> _carregarUsuarios() async {
     setState(() => _isLoadingUsuarios = true);
     try {
-      final resultado = await UsuarioService.buscarPaginado('', 0);
+      final resultado = await UsuarioService.buscarPaginado('', 0, size: _pageSize);
       if (resultado['success'] == true) {
         setState(() {
           _usuariosFiltrados = List<Usuario>.from(resultado['content']);
@@ -118,18 +126,18 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarUsuarios();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarUsuarios();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarUsuarios();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarUsuarios();
   }
 
   Future<void> _carregarDados() async {
@@ -881,39 +889,16 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            color: _currentPage > 0 ? primaryColor : Colors.grey[400],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            color: _currentPage < _totalPages - 1 ? primaryColor : Colors.grey[400],
-          ),
-        ],
-      ),
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
     );
   }
 
@@ -989,8 +974,12 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                _buildPaginationControls(compact: true),
+                const SizedBox(height: 10),
+              ],
               _buildUsuariosGrid(),
-              if (_totalPages > 1) _buildPaginationControls(),
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
             ],
           ),
         ),

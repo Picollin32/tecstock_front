@@ -3,7 +3,6 @@ import 'package:tecstock/pages/login_page.dart';
 import 'package:tecstock/pages/gerenciar_empresas_page.dart';
 import 'package:tecstock/services/auth_service.dart';
 import 'package:tecstock/utils/http_helper.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -86,10 +85,6 @@ class AuthChecker extends StatelessWidget {
     int? nivelAcesso;
     if (isLoggedIn) {
       nivelAcesso = await AuthService.getNivelAcesso();
-    }
-
-    if (kDebugMode) {
-      print('AuthChecker - isLoggedIn: $isLoggedIn, nivelAcesso: $nivelAcesso');
     }
 
     return {

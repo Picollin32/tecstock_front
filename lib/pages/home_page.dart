@@ -8,7 +8,7 @@ import 'package:tecstock/pages/cadastro_peca_page.dart';
 import 'package:tecstock/pages/cadastro_servico_page.dart';
 import 'package:tecstock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:tecstock/pages/checklist_page.dart';
-import 'package:tecstock/pages/gerenciamento_fiados_page.dart';
+import 'package:tecstock/pages/contas_page.dart';
 import 'package:tecstock/pages/gerenciar_usuarios_page.dart';
 import 'package:tecstock/pages/login_page.dart';
 import 'package:tecstock/pages/ordem_servico_page.dart';
@@ -28,6 +28,7 @@ import 'package:tecstock/services/peca_service.dart';
 import 'package:tecstock/services/tipo_pagamento_service.dart';
 import 'package:tecstock/services/ordem_servico_service.dart';
 import 'package:tecstock/services/orcamento_service.dart';
+import 'package:tecstock/services/conta_service.dart';
 import 'package:tecstock/services/movimentacao_estoque_service.dart';
 import 'package:tecstock/model/movimentacao_estoque.dart';
 import 'package:flutter/foundation.dart';
@@ -58,11 +59,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int _nivelAcessoUsuarioLogado = 1;
   String _nomeEmpresa = '';
 
-  Map<String, int> _dashboardStats = {
+  Map<String, dynamic> _dashboardStats = {
+    'A Receber (Mês)': 0.0,
+    'A Pagar (Mês)': 0.0,
     'Agendamentos Hoje': 0,
-    'Clientes Ativos': 0,
-    'Veículos Cadastrados': 0,
-    'Serviços Cadastrados': 0,
+    'OS Abertas': 0,
   };
 
   bool _isLoadingStats = true;
@@ -113,9 +114,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ],
     },
     {
+      'group': 'Administração',
+      'items': [
+        {'title': 'Auditoria', 'icon': Icons.history, 'page': const AuditoriaPage()},
+        {'title': 'Funcionarios', 'icon': Icons.emoji_people, 'page': const CadastroFuncionarioPage()},
+        {'title': 'Gerenciar Usuários', 'icon': Icons.person, 'page': const GerenciarUsuariosPage()},
+        {'title': 'Tipos de Pagamento', 'icon': Icons.payment, 'page': const CadastroTipoPagamentoPage()},
+      ],
+    },
+    {
       'group': 'Cadastros',
       'items': [
-        {'title': 'Funcionarios', 'icon': Icons.emoji_people, 'page': const CadastroFuncionarioPage()},
         {'title': 'Clientes', 'icon': Icons.person_search, 'page': const CadastroClientePage()},
         {'title': 'Marcas', 'icon': Icons.loyalty, 'page': const CadastroMarcaPage()},
         {'title': 'Veículos', 'icon': Icons.directions_car, 'page': const CadastroVeiculoPage()},
@@ -123,7 +132,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         {'title': 'Fabricantes', 'icon': Icons.factory, 'page': const CadastroFabricantePage()},
         {'title': 'Peças', 'icon': Icons.settings, 'page': const CadastroPecaPage()},
         {'title': 'Serviços', 'icon': Icons.home_repair_service, 'page': const CadastroServicoPage()},
-        {'title': 'Tipos de Pagamento', 'icon': Icons.payment, 'page': const CadastroTipoPagamentoPage()},
+      ],
+    },
+    {
+      'group': 'Relatórios',
+      'items': [
+        {'title': 'Finanças', 'icon': Icons.account_balance_wallet, 'page': const ContasPage()},
+        {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
       ],
     },
     {
@@ -133,20 +148,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
         {'title': 'Orçamento', 'icon': Icons.receipt_long, 'page': const OrcamentoPage()},
         {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
-        {'title': 'Gerenciar Fiados', 'icon': Icons.credit_card, 'page': const GerenciamentoFiadosPage()},
-        {'title': 'Gerenciar Usuários', 'icon': Icons.person, 'page': const GerenciarUsuariosPage()},
-      ],
-    },
-    {
-      'group': 'Relatórios',
-      'items': [
-        {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
-      ],
-    },
-    {
-      'group': 'Administração',
-      'items': [
-        {'title': 'Auditoria', 'icon': Icons.history, 'page': const AuditoriaPage()},
       ],
     },
   ];
@@ -292,6 +293,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     try {
+      final hoje = DateTime.now();
+      final resumoContas = await ContaService.resumoMes(hoje.month, hoje.year);
+
       final futures = {
         'agendamentos': AgendamentoService.listarAgendamentos(),
         'clientes': ClienteService.listarClientes(),
@@ -344,12 +348,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         }
       }
 
+      final int osAbertas = ordens.where((os) => os.status?.trim() == 'Aberta').length;
+
       setState(() {
         _dashboardStats = {
           'Agendamentos Hoje': agendamentosHoje,
-          'Clientes Ativos': clientes.length,
-          'Veículos Cadastrados': veiculos.length,
-          'Serviços Cadastrados': servicos.length,
+          'OS Abertas': osAbertas,
+          'A Receber (Mês)': resumoContas['totalAReceber'] ?? 0.0,
+          'A Pagar (Mês)': resumoContas['totalAPagar'] ?? 0.0,
         };
         _recentActivities = [];
 
@@ -707,10 +713,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
       setState(() {
         _dashboardStats = {
+          'A Receber (Mês)': 0.0,
+          'A Pagar (Mês)': 0.0,
           'Agendamentos Hoje': 0,
-          'Clientes Ativos': 0,
-          'Veículos Cadastrados': 0,
-          'Serviços Cadastrados': 0,
+          'OS Abertas': 0,
         };
         _recentActivities = [];
         _isLoadingStats = false;
@@ -1069,13 +1075,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               itemCount: _dashboardStats.length,
               itemBuilder: (context, index) {
                 final entry = _dashboardStats.entries.elementAt(index);
-                final colors = [
-                  const Color(0xFF4CAF50),
-                  const Color(0xFF2196F3),
-                  const Color(0xFFFF9800),
-                  const Color(0xFF9C27B0),
-                ];
-                return _buildStatCard(entry.key, entry.value, colors[index % colors.length]);
+                Color cardColor;
+                switch (entry.key) {
+                  case 'A Pagar (Mês)':
+                    cardColor = const Color(0xFFDC2626);
+                    break;
+                  case 'A Receber (Mês)':
+                    cardColor = const Color(0xFF16A34A);
+                    break;
+                  case 'Agendamentos Hoje':
+                    cardColor = const Color(0xFF2196F3);
+                    break;
+                  case 'OS Abertas':
+                    cardColor = const Color(0xFFFF9800);
+                    break;
+                  default:
+                    cardColor = const Color(0xFF9C27B0);
+                }
+                return _buildStatCard(entry.key, entry.value, cardColor);
               },
             );
           },
@@ -1084,7 +1101,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatCard(String title, int value, Color color) {
+  Widget _buildStatCard(String title, dynamic value, Color color) {
+    final isCurrency = title == 'A Pagar (Mês)' || title == 'A Receber (Mês)';
+    final num numValue = (value as num?) ?? 0;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1153,13 +1172,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       )
                     : Text(
-                        value.toString(),
+                        isCurrency
+                            ? 'R\$ ${numValue.toStringAsFixed(2).replaceAll('.', ',').replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+,)'), (m) => '${m[1]}.')}'
+                            : numValue.toInt().toString(),
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: isCurrency ? 18 : 32,
                           fontWeight: FontWeight.w800,
                           color: color,
                           letterSpacing: -0.5,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                 const SizedBox(height: 2),
                 Text(
@@ -1456,12 +1479,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     switch (title) {
       case 'Agendamentos Hoje':
         return Icons.today;
-      case 'Clientes Ativos':
-        return Icons.people;
-      case 'Veículos Cadastrados':
-        return Icons.directions_car;
-      case 'Serviços Cadastrados':
-        return Icons.home_repair_service;
+      case 'OS Abertas':
+        return Icons.build_circle_outlined;
+      case 'A Pagar (Mês)':
+        return Icons.arrow_upward_rounded;
+      case 'A Receber (Mês)':
+        return Icons.arrow_downward_rounded;
       default:
         return Icons.analytics;
     }
@@ -1717,11 +1740,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   final title = item['title'] as String;
 
                   if (_nivelAcessoUsuarioLogado != 1) {
-                    if (title == 'Tipos de Pagamento' ||
-                        title == 'Gerenciar Usuários' ||
-                        title == 'Auditoria' ||
-                        title == 'Gerenciar Fiados' ||
-                        title == 'Funcionarios') {
+                    if (title == 'Tipos de Pagamento' || title == 'Gerenciar Usuários' || title == 'Auditoria' || title == 'Funcionarios') {
                       return false;
                     }
                   }

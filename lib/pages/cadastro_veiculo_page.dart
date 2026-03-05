@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../services/veiculo_service.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class CadastroVeiculoPage extends StatefulWidget {
   const CadastroVeiculoPage({super.key});
@@ -24,6 +25,9 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   final TextEditingController _modelo = TextEditingController();
   int? _marcaSelecionadaId;
   List<Marca> _marcas = [];
+  int? _marcaFiltroId;
+  final Set<int> _marcaIdsComVeiculos = {};
+  List<Marca> _marcasFiltroDisponiveis = [];
   final TextEditingController _cor = TextEditingController();
   final TextEditingController _quilometragem = TextEditingController();
 
@@ -46,7 +50,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   final _maxLength4Formatter = LengthLimitingTextInputFormatter(4);
 
   final TextEditingController _searchController = TextEditingController();
-  List<Veiculo> _veiculos = [];
+  String _searchMode = 'placa';
   List<Veiculo> _veiculosFiltrados = [];
   Veiculo? _veiculoEmEdicao;
 
@@ -57,6 +61,9 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -100,7 +107,12 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    final composite = '$_searchMode|$query';
+    if (!force && composite == _lastSearchQuery) return;
+    _lastSearchQuery = composite;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -110,19 +122,51 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     });
   }
 
+  bool _matchesVeiculoQuery(Veiculo veiculo, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return true;
+    if (_searchMode == 'nome') {
+      final nome = veiculo.nome.toLowerCase();
+      return nome.startsWith(normalizedQuery);
+    }
+    final placa = veiculo.placa.replaceAll('-', '').toUpperCase();
+    return placa.startsWith(normalizedQuery);
+  }
+
   Future<void> _filtrarVeiculos() async {
-    final unmaskedQuery = _maskPlaca.unmaskText(_searchController.text).toUpperCase();
+    final rawQuery = _searchController.text.trim();
+    final apiQuery = _searchMode == 'placa' ? rawQuery.toUpperCase() : rawQuery.toLowerCase();
+    final normalizedQuery = _searchMode == 'placa' ? rawQuery.replaceAll('-', '').toUpperCase() : rawQuery.toLowerCase();
 
     setState(() => _isLoadingVeiculos = true);
 
     try {
-      final resultado = await VeiculoService.buscarPaginado(unmaskedQuery, _currentPage, size: 30);
+      final resultado = await VeiculoService.buscarPaginado(
+        apiQuery,
+        _currentPage,
+        size: _pageSize,
+        marcaId: _marcaFiltroId,
+        searchMode: _searchMode,
+      );
 
       if (resultado['success']) {
+        final veiculos = resultado['content'] as List<Veiculo>;
+        final marcasEncontradas = veiculos.map((v) => v.marca?.id).whereType<int>().toSet();
+        final filtrados = veiculos.where((v) {
+          final matchesMarca = _marcaFiltroId == null || v.marca?.id == _marcaFiltroId;
+          final matchesQuery = _matchesVeiculoQuery(v, normalizedQuery);
+          return matchesMarca && matchesQuery;
+        }).toList();
         setState(() {
-          _veiculosFiltrados = resultado['content'] as List<Veiculo>;
+          _veiculosFiltrados = filtrados;
           _totalPages = resultado['totalPages'] as int;
           _totalElements = resultado['totalElements'] as int;
+          _marcaIdsComVeiculos
+            ..clear()
+            ..addAll(marcasEncontradas);
+          if (_marcaFiltroId != null && !_marcaIdsComVeiculos.contains(_marcaFiltroId)) {
+            _marcaFiltroId = null;
+          }
+          _marcasFiltroDisponiveis = _marcas.where((m) => _marcaIdsComVeiculos.contains(m.id)).toList();
         });
       } else {
         if (!mounted) return;
@@ -136,32 +180,44 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarVeiculos();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarVeiculos();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarVeiculos();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarVeiculos();
   }
 
   Future<void> _carregarVeiculos() async {
     setState(() => _isLoadingVeiculos = true);
     try {
-      final resultado = await VeiculoService.buscarPaginado('', 0, size: 30);
+      final resultado = await VeiculoService.buscarPaginado('', 0, size: _pageSize, marcaId: _marcaFiltroId);
 
       if (resultado['success']) {
+        final veiculos = resultado['content'] as List<Veiculo>;
+        final marcasEncontradas = veiculos.map((v) => v.marca?.id).whereType<int>().toSet();
+        final filtrados = veiculos.where((v) {
+          final matchesMarca = _marcaFiltroId == null || v.marca?.id == _marcaFiltroId;
+          return matchesMarca;
+        }).toList();
         setState(() {
-          _veiculos = resultado['content'] as List<Veiculo>;
-          _veiculosFiltrados = _veiculos;
+          _veiculosFiltrados = filtrados;
           _totalPages = resultado['totalPages'] as int;
           _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
+          _marcaIdsComVeiculos
+            ..clear()
+            ..addAll(marcasEncontradas);
+          if (_marcaFiltroId != null && !_marcaIdsComVeiculos.contains(_marcaFiltroId)) {
+            _marcaFiltroId = null;
+          }
+          _marcasFiltroDisponiveis = _marcas.where((m) => _marcaIdsComVeiculos.contains(m.id)).toList();
         });
       } else {
         if (!mounted) return;
@@ -181,6 +237,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
       lista.sort((a, b) => a.marca.toLowerCase().compareTo(b.marca.toLowerCase()));
       setState(() {
         _marcas = lista;
+        _marcasFiltroDisponiveis = _marcas.where((m) => _marcaIdsComVeiculos.contains(m.id)).toList();
       });
     } catch (e) {
       if (!mounted) return;
@@ -429,7 +486,14 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
   }
 
   Widget _buildSearchBar() {
+    final marcasDropdown = List<Marca>.from(_marcasFiltroDisponiveis);
+    if (_marcaFiltroId != null && marcasDropdown.every((m) => m.id != _marcaFiltroId)) {
+      final selected = _marcas.firstWhere((m) => m.id == _marcaFiltroId, orElse: () => Marca(id: _marcaFiltroId!, marca: ''));
+      marcasDropdown.insert(0, selected);
+    }
+
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -441,26 +505,119 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           ),
         ],
       ),
-      child: TextField(
-        controller: _searchController,
-        inputFormatters: [_maskPlaca, _upperCaseFormatter],
-        decoration: InputDecoration(
-          hintText: 'Pesquisar por placa...',
-          prefixIcon: Icon(Icons.search, color: primaryColor),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextField(
+              controller: _searchController,
+              inputFormatters: _searchMode == 'placa' ? [_upperCaseFormatter, _maskPlaca] : [],
+              keyboardType: _searchMode == 'placa' ? TextInputType.text : TextInputType.name,
+              decoration: InputDecoration(
+                hintText: _searchMode == 'placa' ? 'Pesquisar por placa...' : 'Pesquisar por nome...',
+                prefixIcon: Icon(Icons.search, color: primaryColor),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged(force: true);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
           ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
+          const SizedBox(width: 12),
+          ToggleButtons(
+            isSelected: [_searchMode == 'placa', _searchMode == 'nome'],
+            onPressed: (index) {
+              final mode = index == 0 ? 'placa' : 'nome';
+              if (_searchMode == mode) return;
+              setState(() {
+                _searchMode = mode;
+                _searchController.clear();
+                _currentPage = 0;
+              });
+              _onSearchChanged(force: true);
+            },
+            borderRadius: BorderRadius.circular(12),
+            selectedBorderColor: primaryColor,
+            selectedColor: Colors.white,
+            fillColor: primaryColor,
+            color: Colors.grey[700],
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text('Placa'),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text('Nome'),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<int?>(
+              initialValue: _marcaFiltroId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Filtrar por marca',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todas as marcas'),
+                ),
+                ...marcasDropdown.map(
+                  (marca) => DropdownMenuItem<int?>(
+                    value: marca.id,
+                    child: Text(marca.marca),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _marcaFiltroId = value;
+                  _currentPage = 0;
+                });
+                _onSearchChanged(force: true);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -722,54 +879,16 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text('Anterior'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text('Próxima'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
     );
   }
 
@@ -993,6 +1112,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(
           'Gestão de Veículos',
           style: TextStyle(
@@ -1060,8 +1180,15 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                _buildPaginationControls(compact: true),
+                const SizedBox(height: 10),
+              ],
               _buildVehicleGrid(),
-              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                const SizedBox(height: 16),
+                _buildPaginationControls(),
+              ],
             ],
           ),
         ),

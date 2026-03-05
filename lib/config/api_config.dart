@@ -1,9 +1,14 @@
-class ApiConfig {
-  static const String _defaultBaseUrl = 'http://localhost:8081';
+import 'package:flutter/foundation.dart';
 
+class ApiConfig {
   static String get baseUrl {
-    const apiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _defaultBaseUrl);
-    return apiUrl;
+    const apiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+    if (apiUrl.isNotEmpty) {
+      return apiUrl;
+    }
+
+    final fallbackBaseUrl = kReleaseMode ? 'https://tecstock.app' : 'http://localhost:8081';
+    return fallbackBaseUrl;
   }
 
   static String get authUrl => '$baseUrl/api/auth';
@@ -25,4 +30,5 @@ class ApiConfig {
   static String get tiposPagamentoUrl => '$baseUrl/api/tipos-pagamento';
   static String get usuariosUrl => '$baseUrl/api/usuarios';
   static String get veiculosUrl => '$baseUrl/api/veiculos';
+  static String get contasUrl => '$baseUrl/api/contas';
 }

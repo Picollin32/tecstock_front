@@ -4,6 +4,8 @@ class PecaOrdemServico {
   int? id;
   final Peca peca;
   int quantidade;
+
+  final int originalQuantidade;
   double? valorUnitario;
   double? valorTotal;
 
@@ -13,6 +15,7 @@ class PecaOrdemServico {
     this.id,
     required this.peca,
     required this.quantidade,
+    this.originalQuantidade = 0,
     this.valorUnitario,
     this.valorTotal,
   }) {

@@ -25,6 +25,7 @@ import '../model/peca.dart';
 import '../model/funcionario.dart';
 import '../model/veiculo.dart';
 import '../utils/pdf_logo_helper.dart';
+import '../widgets/pagination_controls.dart';
 
 extension IterableExtension<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
@@ -115,9 +116,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   final TextEditingController _searchController = TextEditingController();
   String _tipoPesquisa = 'numero';
   Timer? _searchDebounce;
+  String _lastSearchQuery = '';
   int _currentPage = 0;
   int _totalPages = 0;
-  static const int _pageSize = 10;
+  int _totalElements = 0;
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
   int? _editingOrcamentoId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
@@ -309,7 +313,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     }
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -337,6 +345,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           _recent = resultado['content'] as List<Orcamento>;
           _recentFiltrados = _recent;
           _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int? ?? 0;
           _currentPage = resultado['currentPage'] as int? ?? _currentPage;
         });
       }
@@ -355,44 +364,34 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() {
-        _currentPage -= 1;
-      });
-      _carregarOrcamentosPaginados();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _carregarOrcamentosPaginados();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() {
-        _currentPage += 1;
-      });
-      _carregarOrcamentosPaginados();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _carregarOrcamentosPaginados();
   }
 
-  Widget _buildPaginationControls() {
-    if (_totalPages <= 1) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildPaginationControls({bool compact = false}) {
+    if (_totalPages <= 1) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          Text('Pagina ${_currentPage + 1} de $_totalPages'),
-          IconButton(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
+      child: PaginationControls(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        pageSize: _pageSize,
+        pageSizeOptions: _pageSizeOptions,
+        onPageChange: _irParaPagina,
+        onPageSizeChange: _alterarPageSize,
+        primaryColor: Colors.blue.shade700,
+        compact: compact,
       ),
     );
   }
@@ -693,7 +692,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                         _tipoPesquisa = value;
                         _searchController.clear();
                       });
-                      _onSearchChanged();
+                      _onSearchChanged(force: true);
                     }
                   },
                 ),
@@ -797,6 +796,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
     return Column(
       children: [
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+          _buildPaginationControls(compact: true),
+          const SizedBox(height: 10),
+        ],
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -806,7 +809,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             return _buildOrcamentoCard(orcamento);
           },
         ),
-        _buildPaginationControls(),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
       ],
     );
   }
@@ -2723,9 +2726,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                             Text(
                               'Estoque: ${_pecaEncontrada!.quantidadeEstoque} unid.',
                               style: TextStyle(
-                                color: _pecaEncontrada!.quantidadeEstoque <= 5
+                                color: _pecaEncontrada!.quantidadeEstoque <= 0
                                     ? Colors.red[600]
-                                    : _pecaEncontrada!.quantidadeEstoque <= 10
+                                    : _pecaEncontrada!.quantidadeEstoque < _pecaEncontrada!.estoqueSeguranca
                                         ? Colors.orange[600]
                                         : Colors.green[600],
                                 fontSize: 12,

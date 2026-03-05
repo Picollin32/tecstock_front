@@ -14,6 +14,7 @@ import '../services/empresa_service.dart';
 import '../services/usuario_service.dart';
 import '../services/auth_service.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class GerenciarEmpresasPage extends StatefulWidget {
   const GerenciarEmpresasPage({super.key});
@@ -43,6 +44,8 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   final TextEditingController _cnaeController = TextEditingController();
 
   final TextEditingController _searchController = TextEditingController();
+  final List<int> _pageSizeOptions = [30, 50, 100];
+  int _pageSize = 30;
 
   final _maskCnpj = MaskTextInputFormatter(
     mask: '##.###.###/####-##',
@@ -61,6 +64,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  String _lastSearchQuery = '';
   Timer? _debounceTimer;
   Empresa? _empresaEmEdicao;
   String _ufSelecionada = 'GO';
@@ -187,7 +191,11 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -224,6 +232,10 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
 
   void _onCnpjChanged() {
     final digits = _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      _lastSearchedCnpj = '';
+      return;
+    }
     if (digits.length == 14 && digits != _lastSearchedCnpj) {
       _buscarCnpj(digits);
     }
@@ -293,6 +305,10 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
 
   void _onCepChanged() {
     final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      _lastSearchedCep = '';
+      return;
+    }
     if (digits.length == 8 && digits != _lastSearchedCep) {
       _buscarCep(digits);
     }
@@ -335,7 +351,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     final query = _searchController.text.trim();
     setState(() => _isLoadingEmpresas = true);
     try {
-      final resultado = await EmpresaService.buscarPaginado(query, _currentPage);
+      final resultado = await EmpresaService.buscarPaginado(query, _currentPage, size: _pageSize);
       if (resultado['success'] == true) {
         setState(() {
           _empresasFiltradas = List<Empresa>.from(resultado['content']);
@@ -353,7 +369,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   Future<void> _carregarEmpresas() async {
     setState(() => _isLoadingEmpresas = true);
     try {
-      final resultado = await EmpresaService.buscarPaginado('', 0);
+      final resultado = await EmpresaService.buscarPaginado('', 0, size: _pageSize);
       if (resultado['success'] == true) {
         setState(() {
           _empresasFiltradas = List<Empresa>.from(resultado['content']);
@@ -377,18 +393,18 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarEmpresas();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarEmpresas();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarEmpresas();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarEmpresas();
   }
 
   void _salvarEmpresa() async {
@@ -504,6 +520,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       _emailController.text = empresa.email ?? '';
       _siteController.text = empresa.site ?? '';
       _cepController.text = _formatarCEP(empresa.cep);
+      _lastSearchedCep = empresa.cep.replaceAll(RegExp(r'[^0-9]'), '');
       _logradouroController.text = empresa.logradouro;
       _numeroController.text = empresa.numero;
       _complementoController.text = empresa.complemento ?? '';
@@ -1517,6 +1534,10 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             ],
           ),
         ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+          const SizedBox(height: 10),
+          _buildPaginationControls(compact: true),
+        ],
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1548,44 +1569,21 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             },
           ),
         ),
-        if (_totalPages > 1) _buildPaginationControls(),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
       ],
     );
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            color: _currentPage > 0 ? primaryColor : Colors.grey[400],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                color: primaryColor,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            color: _currentPage < _totalPages - 1 ? primaryColor : Colors.grey[400],
-          ),
-        ],
-      ),
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
     );
   }
 

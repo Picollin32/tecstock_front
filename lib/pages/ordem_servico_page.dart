@@ -27,6 +27,7 @@ import '../model/peca.dart';
 import '../model/funcionario.dart';
 import '../model/veiculo.dart';
 import '../utils/pdf_logo_helper.dart';
+import '../widgets/pagination_controls.dart';
 
 class OrdemServicoPage extends StatelessWidget {
   const OrdemServicoPage({super.key});
@@ -114,14 +115,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final TextEditingController _searchController = TextEditingController();
   String _tipoPesquisa = 'numero';
   Timer? _searchDebounce;
+  String _lastSearchQuery = '';
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
-  static const int _pageSize = 10;
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
   int? _editingOSId;
   double _precoTotal = 0.0;
   double _precoTotalServicos = 0.0;
   double _precoTotalPecas = 0.0;
+  String? _tipoOrdem;
+  double _precoDiagnostico = 0.0;
+  final TextEditingController _precoDiagnosticoController = TextEditingController();
   String? _categoriaSelecionada;
   bool _isViewMode = false;
   double _descontoServicos = 0.0;
@@ -221,6 +227,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
       _descontoServicosController.dispose();
       _descontoPecasController.dispose();
+      _precoDiagnosticoController.dispose();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
     }
@@ -302,7 +309,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -337,44 +348,34 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() {
-        _currentPage -= 1;
-      });
-      _carregarOrdensPaginadas();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _carregarOrdensPaginadas();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() {
-        _currentPage += 1;
-      });
-      _carregarOrdensPaginadas();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _carregarOrdensPaginadas();
   }
 
-  Widget _buildPaginationControls() {
-    if (_totalPages <= 1) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildPaginationControls({bool compact = false}) {
+    if (_totalPages <= 1) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          Text('Pagina ${_currentPage + 1} de $_totalPages'),
-          IconButton(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
+      child: PaginationControls(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        pageSize: _pageSize,
+        pageSizeOptions: _pageSizeOptions,
+        onPageChange: _irParaPagina,
+        onPageSizeChange: _alterarPageSize,
+        primaryColor: Colors.orange.shade700,
+        compact: compact,
       ),
     );
   }
@@ -463,6 +464,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   void _calcularPrecoTotal() {
+    if (_tipoOrdem == 'diagnostico') {
+      setState(() {
+        _precoTotalServicos = _precoDiagnostico;
+        _precoTotalPecas = 0.0;
+        _precoTotal = _precoDiagnostico;
+      });
+      return;
+    }
+
     double totalServicos = 0.0;
 
     if (_categoriaSelecionada != null) {
@@ -473,6 +483,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           totalServicos += servico.precoPasseio ?? 0.0;
         }
       }
+    }
+
+    if (_tipoOrdem == 'diagnostico_servico') {
+      totalServicos += _precoDiagnostico;
     }
 
     double totalPecas = _calcularTotalPecas();
@@ -598,31 +612,26 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   double _calcularTotalServicosOS(OrdemServico? os) {
     if (os != null) {
-      final servicosParaPDF = os.servicosRealizados;
+      if (os.tipoDiagnostico == 'diagnostico') {
+        return os.precoDiagnostico ?? 0.0;
+      }
+
       final categoriaVeiculo = os.veiculoCategoria;
       double totalServicos = 0.0;
-
-      for (var servico in servicosParaPDF) {
+      for (var servico in os.servicosRealizados) {
         if (categoriaVeiculo == 'Caminhonete') {
           totalServicos += servico.precoCaminhonete ?? 0.0;
         } else if (categoriaVeiculo == 'Passeio') {
           totalServicos += servico.precoPasseio ?? 0.0;
         }
       }
-      return totalServicos;
-    } else {
-      double totalServicos = 0.0;
 
-      if (_categoriaSelecionada != null) {
-        for (var servico in _servicosSelecionados) {
-          if (_categoriaSelecionada == 'Caminhonete') {
-            totalServicos += servico.precoCaminhonete ?? 0.0;
-          } else if (_categoriaSelecionada == 'Passeio') {
-            totalServicos += servico.precoPasseio ?? 0.0;
-          }
-        }
+      if (os.tipoDiagnostico == 'diagnostico_servico') {
+        totalServicos += os.precoDiagnostico ?? 0.0;
       }
       return totalServicos;
+    } else {
+      return _precoTotalServicos;
     }
   }
 
@@ -641,27 +650,32 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       if (peca != null) {
         int quantidade = 1;
 
-        if (peca.quantidadeEstoque <= 0) {
-          _showErrorSnackBar('Peça ${peca.nome} está sem estoque (${peca.quantidadeEstoque} unidades disponíveis)');
-          return;
-        }
+        final disponivelLivre = peca.quantidadeEstoque - (peca.unidadesUsadasEmOS ?? 0);
         int totalJaUsado = _pecasSelecionadas.where((p) => p.peca.id == peca.id).fold(0, (total, p) => total + p.quantidade);
+        final pecaJaAdicionada = _pecasSelecionadas.where((p) => p.peca.id == peca.id).firstOrNull;
+        final originalQtd = pecaJaAdicionada?.originalQuantidade ?? 0;
+        final maxPermitido = disponivelLivre + originalQtd;
 
-        if (quantidade + totalJaUsado > peca.quantidadeEstoque) {
-          _showErrorSnackBar('Não é possível adicionar mais desta peça. Total usado: $totalJaUsado, Estoque: ${peca.quantidadeEstoque}');
+        if (maxPermitido <= 0) {
+          _showErrorSnackBar(
+              'Peça ${peca.nome} está sem estoque disponível (${peca.quantidadeEstoque} total, ${peca.unidadesUsadasEmOS ?? 0} comprometidas em outras OS)');
           return;
         }
 
-        final pecaJaAdicionada = _pecasSelecionadas.where((p) => p.peca.id == peca.id).firstOrNull;
+        if (totalJaUsado + quantidade > maxPermitido) {
+          _showErrorSnackBar('Não é possível adicionar mais desta peça. Disponível para esta OS: ${maxPermitido - totalJaUsado} unid.');
+          return;
+        }
+
         if (pecaJaAdicionada != null) {
           final quantidadeTotal = pecaJaAdicionada.quantidade + quantidade;
 
           int totalUsadoOutrasPecas =
               _pecasSelecionadas.where((p) => p.peca.id == peca.id && p != pecaJaAdicionada).fold(0, (total, p) => total + p.quantidade);
 
-          if (quantidadeTotal + totalUsadoOutrasPecas > peca.quantidadeEstoque) {
+          if (quantidadeTotal + totalUsadoOutrasPecas > maxPermitido) {
             _showErrorSnackBar(
-                'Quantidade total (${quantidadeTotal + totalUsadoOutrasPecas}) excederia o estoque disponível (${peca.quantidadeEstoque} unidades)');
+                'Quantidade total (${quantidadeTotal + totalUsadoOutrasPecas}) excederia o estoque disponível ($maxPermitido unidades para esta OS)');
             return;
           }
 
@@ -728,6 +742,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _servicoSearchController.clear();
     _descontoServicosController.clear();
     _descontoPecasController.clear();
+    _precoDiagnosticoController.clear();
 
     setState(() {
       _checklistSelecionado = null;
@@ -749,6 +764,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _isViewMode = false;
       _descontoServicos = 0.0;
       _descontoPecas = 0.0;
+      _tipoOrdem = null;
+      _precoDiagnostico = 0.0;
     });
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
@@ -989,7 +1006,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         _tipoPesquisa = value;
                         _searchController.clear();
                       });
-                      _onSearchChanged();
+                      _onSearchChanged(force: true);
                     }
                   },
                 ),
@@ -1133,6 +1150,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
         ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+          const SizedBox(height: 10),
+          _buildPaginationControls(compact: true),
+        ],
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1164,7 +1185,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             },
           ),
         ),
-        _buildPaginationControls(),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
       ],
     );
   }
@@ -1316,8 +1337,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                 ],
               ),
-            if (os.precoTotal > 0) ...[
-              if (os.pecasUtilizadas.isNotEmpty)
+            if (os.precoTotal > 0 || (os.precoDiagnostico ?? 0) > 0) ...[
+              if (os.pecasUtilizadas.isNotEmpty && os.tipoDiagnostico != 'diagnostico')
                 Row(
                   children: [
                     Icon(Icons.build_circle, size: 16, color: Colors.grey[600]),
@@ -1331,16 +1352,35 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ],
                 ),
-              if (os.servicosRealizados.isNotEmpty)
+              if (os.servicosRealizados.isNotEmpty || os.tipoDiagnostico != null)
                 Row(
                   children: [
-                    Icon(Icons.handyman, size: 16, color: Colors.grey[600]),
+                    Icon(
+                      os.tipoDiagnostico == 'diagnostico' ? Icons.search : Icons.handyman,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
                     const SizedBox(width: 6),
                     Text(
-                      'Serviços: R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}',
+                      '${os.tipoDiagnostico == 'diagnostico' ? 'Diagnóstico' : 'Serviços'}: R\$ ${_calcularTotalServicosOS(os).toStringAsFixed(2)}',
                       style: TextStyle(
                         color: Colors.green[700],
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              if (os.tipoDiagnostico == 'diagnostico_servico' && (os.precoDiagnostico ?? 0) > 0)
+                Row(
+                  children: [
+                    Icon(Icons.search, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Taxa diag.: R\$ ${(os.precoDiagnostico ?? 0).toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Colors.indigo[600],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -1638,19 +1678,21 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 const SizedBox(height: 16),
                 _buildServicesSelection(),
                 const SizedBox(height: 32),
-                _buildFormSection('6. Peças Utilizadas', Icons.inventory_outlined),
-                const SizedBox(height: 16),
-                _buildPartsSelection(),
+                if (_tipoOrdem != 'diagnostico') ...[
+                  _buildFormSection('6. Peças Utilizadas', Icons.inventory_outlined),
+                  const SizedBox(height: 16),
+                  _buildPartsSelection(),
+                ],
                 const SizedBox(height: 32),
-                _buildFormSection('7. Resumo de Valores', Icons.receipt_long_outlined),
+                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '6' : '7'}. Resumo de Valores', Icons.receipt_long_outlined),
                 const SizedBox(height: 16),
                 _buildPriceSummarySection(),
                 const SizedBox(height: 32),
-                _buildFormSection('8. Garantia e Forma de Pagamento', Icons.payment_outlined),
+                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '7' : '8'}. Garantia e Forma de Pagamento', Icons.payment_outlined),
                 const SizedBox(height: 16),
                 _buildWarrantyAndPayment(),
                 const SizedBox(height: 32),
-                _buildFormSection('9. Observações Adicionais', Icons.notes_outlined),
+                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '8' : '9'}. Observações Adicionais', Icons.notes_outlined),
                 const SizedBox(height: 16),
                 _buildObservationsSection(),
                 const SizedBox(height: 32),
@@ -2349,30 +2391,30 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 hintText: 'Digite o código, nome ou fabricante...',
                 prefixIcon: Icon(Icons.qr_code, color: Colors.grey[600]),
                 suffixIcon: _pecaEncontrada != null
-                    ? Container(
-                        margin: const EdgeInsets.all(4),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _pecaEncontrada!.quantidadeEstoque <= 5
-                              ? Colors.red[50]
-                              : _pecaEncontrada!.quantidadeEstoque <= 10
-                                  ? Colors.orange[50]
-                                  : Colors.green[50],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Estoque: ${_pecaEncontrada!.quantidadeEstoque}',
-                          style: TextStyle(
-                            color: _pecaEncontrada!.quantidadeEstoque <= 5
-                                ? Colors.red[700]
-                                : _pecaEncontrada!.quantidadeEstoque <= 10
-                                    ? Colors.orange[700]
-                                    : Colors.green[700],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                    ? Builder(builder: (_) {
+                        final disp = _pecaEncontrada!.quantidadeEstoque - (_pecaEncontrada!.unidadesUsadasEmOS ?? 0);
+                        final dispColor = disp <= 0
+                            ? Colors.red
+                            : disp < _pecaEncontrada!.estoqueSeguranca
+                                ? Colors.orange
+                                : Colors.green;
+                        return Container(
+                          margin: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: dispColor[50],
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        ),
-                      )
+                          child: Text(
+                            'Disponível: $disp',
+                            style: TextStyle(
+                              color: dispColor[700],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      })
                     : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -2408,32 +2450,32 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       final peca = optList[index];
                       return ListTile(
                         dense: true,
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: peca.quantidadeEstoque <= 5
-                                ? Colors.red[100]
-                                : peca.quantidadeEstoque <= 10
-                                    ? Colors.orange[100]
-                                    : Colors.green[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${peca.quantidadeEstoque}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: peca.quantidadeEstoque <= 5
-                                    ? Colors.red[700]
-                                    : peca.quantidadeEstoque <= 10
-                                        ? Colors.orange[700]
-                                        : Colors.green[700],
+                        leading: Builder(builder: (_) {
+                          final disp = peca.quantidadeEstoque - (peca.unidadesUsadasEmOS ?? 0);
+                          final dispColor = disp <= 0
+                              ? Colors.red
+                              : disp < peca.estoqueSeguranca
+                                  ? Colors.orange
+                                  : Colors.green;
+                          return Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: dispColor[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '$disp',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: dispColor[700],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
                         title: Text(
                           '${peca.codigoFabricante} - ${peca.nome}',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
@@ -2628,160 +2670,379 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+          if (!_isViewMode)
+            ...([
               Text(
-                'Selecione os serviços',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
+                'Tipo de Atendimento',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
               ),
-              if (_precoTotalServicos > 0)
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildTipoCheckbox(
+                    label: 'Apenas Diagnóstico',
+                    value: 'diagnostico',
+                    icon: Icons.search,
+                    iconColor: Colors.indigo,
+                  ),
+                  const SizedBox(width: 12),
+                  _buildTipoCheckbox(
+                    label: 'Diagnóstico + Serviço',
+                    value: 'diagnostico_servico',
+                    icon: Icons.build,
+                    iconColor: Colors.teal,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+            ]),
+          if (_tipoOrdem == 'diagnostico')
+            ...([
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.indigo.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.search, color: Colors.indigo.shade600, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Valor do Diagnóstico',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.indigo.shade800,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _precoDiagnosticoController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      enabled: !_isViewMode,
+                      decoration: InputDecoration(
+                        prefixText: 'R\$ ',
+                        hintText: '0,00',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.indigo.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.indigo.shade500, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _precoDiagnostico = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+                        });
+                        _calcularPrecoTotal();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ])
+          else ...[
+            if (_tipoOrdem == 'diagnostico_servico')
+              ...([
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.shade200),
+                    color: Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.teal.shade200),
                   ),
-                  child: Text(
-                    'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: TextField(
-              controller: _servicoSearchController,
-              enabled: !_isViewMode,
-              decoration: InputDecoration(
-                hintText: 'Pesquisar serviços...',
-                prefixIcon: Icon(Icons.search, color: Colors.orange.shade600),
-                suffixIcon: _servicoSearchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _servicoSearchController.clear(),
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_servicosDisponiveis.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange.shade600),
-                  const SizedBox(width: 8),
-                  const Text('Nenhum serviço cadastrado no sistema.'),
-                ],
-              ),
-            )
-          else if (_servicosFiltrados.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search_off, color: Colors.blue.shade600),
-                  const SizedBox(width: 8),
-                  const Text('Nenhum serviço encontrado com o termo pesquisado.'),
-                ],
-              ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _servicosFiltrados.map((servico) {
-                final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
-                return FilterChip(
-                  selected: isSelected,
-                  label: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        servico.nome,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          Icon(Icons.search, color: Colors.teal.shade600, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Taxa de Diagnóstico',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.teal.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (_categoriaSelecionada == 'Caminhonete')
-                        Text(
-                          'R\$ ${(servico.precoCaminhonete ?? 0.0).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isSelected ? Colors.white70 : Colors.grey[600],
-                            fontSize: 12,
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _precoDiagnosticoController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        enabled: !_isViewMode,
+                        decoration: InputDecoration(
+                          prefixText: 'R\$ ',
+                          hintText: '0,00',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.teal.shade300),
                           ),
-                        )
-                      else if (_categoriaSelecionada == 'Passeio')
-                        Text(
-                          'R\$ ${(servico.precoPasseio ?? 0.0).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isSelected ? Colors.white70 : Colors.grey[600],
-                            fontSize: 12,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.teal.shade500, width: 2),
                           ),
-                        )
-                      else
-                        Text(
-                          'Categoria não definida',
-                          style: TextStyle(
-                            color: isSelected ? Colors.white70 : Colors.orange[600],
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
-                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         ),
+                        onChanged: (value) {
+                          setState(() {
+                            _precoDiagnostico = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
+                          });
+                          _calcularPrecoTotal();
+                        },
+                      ),
                     ],
                   ),
-                  onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
-                  selectedColor: Colors.orange.shade400,
-                  backgroundColor: Colors.white,
-                  checkmarkColor: Colors.white,
-                  side: BorderSide(
-                    color: isSelected ? Colors.orange.shade400 : Colors.grey[300]!,
+                ),
+                const SizedBox(height: 16),
+              ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Selecione os serviços',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                ),
+                if (_precoTotalServicos > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Text(
+                      'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                );
-              }).toList(),
+              ],
             ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _servicoSearchController,
+                enabled: !_isViewMode,
+                decoration: InputDecoration(
+                  hintText: 'Pesquisar serviços...',
+                  prefixIcon: Icon(Icons.search, color: Colors.orange.shade600),
+                  suffixIcon: _servicoSearchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => _servicoSearchController.clear(),
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_servicosDisponiveis.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange.shade600),
+                    const SizedBox(width: 8),
+                    const Text('Nenhum serviço cadastrado no sistema.'),
+                  ],
+                ),
+              )
+            else if (_servicosFiltrados.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search_off, color: Colors.blue.shade600),
+                    const SizedBox(width: 8),
+                    const Text('Nenhum serviço encontrado com o termo pesquisado.'),
+                  ],
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _servicosFiltrados.map((servico) {
+                  final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
+                  return FilterChip(
+                    selected: isSelected,
+                    label: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          servico.nome,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (_categoriaSelecionada == 'Caminhonete')
+                          Text(
+                            'R\$ ${(servico.precoCaminhonete ?? 0.0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isSelected ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          )
+                        else if (_categoriaSelecionada == 'Passeio')
+                          Text(
+                            'R\$ ${(servico.precoPasseio ?? 0.0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isSelected ? Colors.white70 : Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          )
+                        else
+                          Text(
+                            'Categoria não definida',
+                            style: TextStyle(
+                              color: isSelected ? Colors.white70 : Colors.orange[600],
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                      ],
+                    ),
+                    onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
+                    selectedColor: Colors.orange.shade400,
+                    backgroundColor: Colors.white,
+                    checkmarkColor: Colors.white,
+                    side: BorderSide(
+                      color: isSelected ? Colors.orange.shade400 : Colors.grey[300]!,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  );
+                }).toList(),
+              ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildTipoCheckbox({
+    required String label,
+    required String value,
+    required IconData icon,
+    required MaterialColor iconColor,
+  }) {
+    final isSelected = _tipoOrdem == value;
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          setState(() {
+            _tipoOrdem = isSelected ? null : value;
+            if (_tipoOrdem != 'diagnostico' && _tipoOrdem != 'diagnostico_servico') {
+              _precoDiagnostico = 0.0;
+              _precoDiagnosticoController.clear();
+              if (_tipoOrdem == null) {
+                _descontoServicos = 0.0;
+                _descontoServicosController.clear();
+              }
+            }
+            if (_tipoOrdem == 'diagnostico') {
+              _servicosSelecionados.clear();
+              _pecasSelecionadas.clear();
+              _descontoPecas = 0.0;
+              _descontoPecasController.clear();
+              _descontoServicos = 0.0;
+              _descontoServicosController.clear();
+            }
+          });
+          _calcularPrecoTotal();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? iconColor.shade50 : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? iconColor.shade400 : Colors.grey.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                color: isSelected ? iconColor.shade600 : Colors.grey.shade400,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, color: isSelected ? iconColor.shade600 : Colors.grey.shade500, size: 16),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected ? iconColor.shade700 : Colors.grey.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -2878,9 +3139,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             Text(
                               'Estoque: ${_pecaEncontrada!.quantidadeEstoque} unid.',
                               style: TextStyle(
-                                color: _pecaEncontrada!.quantidadeEstoque <= 5
+                                color: _pecaEncontrada!.quantidadeEstoque <= 0
                                     ? Colors.red[600]
-                                    : _pecaEncontrada!.quantidadeEstoque <= 10
+                                    : _pecaEncontrada!.quantidadeEstoque < _pecaEncontrada!.estoqueSeguranca
                                         ? Colors.orange[600]
                                         : Colors.green[600],
                                 fontSize: 12,
@@ -2977,44 +3238,52 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                               fontSize: 12,
                             ),
                           ),
-                          Text(
-                            'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. (Usando: ${pecaOS.quantidade})',
-                            style: TextStyle(
-                              color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
-                                  ? Colors.red[600]
-                                  : pecaOS.peca.quantidadeEstoque <= 5
-                                      ? Colors.red[600]
-                                      : pecaOS.peca.quantidadeEstoque <= 10
-                                          ? Colors.orange[600]
-                                          : Colors.green[600],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Builder(builder: (_) {
+                            final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                            final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+                            final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                            final Color stockColor = estoqueRestante <= 0
+                                ? Colors.red[600]!
+                                : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                    ? Colors.orange[600]!
+                                    : Colors.green[600]!;
+                            return Text(
+                              'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. | Disponível: $maxPermitido unid. (Usando: ${pecaOS.quantidade})',
+                              style: TextStyle(
+                                color: stockColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            );
+                          }),
                           const SizedBox(height: 4),
-                          Container(
-                            height: 4,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(2),
-                              color: Colors.grey[300],
-                            ),
-                            child: FractionallySizedBox(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: pecaOS.peca.quantidadeEstoque > 0
-                                  ? (pecaOS.quantidade / pecaOS.peca.quantidadeEstoque).clamp(0.0, 1.0)
-                                  : 0.0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(2),
-                                  color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
-                                      ? Colors.red[400]
-                                      : pecaOS.quantidade / pecaOS.peca.quantidadeEstoque > 0.8
-                                          ? Colors.orange[400]
-                                          : Colors.green[400],
+                          Builder(builder: (_) {
+                            final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                            final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+                            final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                            final barColor = estoqueRestante <= 0
+                                ? Colors.red[400]!
+                                : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                    ? Colors.orange[400]!
+                                    : Colors.green[400]!;
+                            return Container(
+                              height: 4,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(2),
+                                color: Colors.grey[300],
+                              ),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: maxPermitido > 0 ? (pecaOS.quantidade / maxPermitido).clamp(0.0, 1.0) : 1.0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(2),
+                                    color: barColor,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -3083,9 +3352,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                     .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                     .fold(0, (total, p) => total + p.quantidade);
 
-                                if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
+                                final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                if (novaQuantidade + totalUsadoOutrasPecas > maxPermitido) {
                                   _showErrorSnackBar(
-                                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
+                                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o disponível para esta OS ($maxPermitido unidades)');
                                   return;
                                 }
 
@@ -3108,7 +3380,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                       .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
                                       .fold(0, (total, p) => total + p.quantidade);
 
-                                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
+                                  final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                  final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= maxPermitido) {
                                     setState(() {
                                       pecaOS.quantidade++;
                                       pecaOS.valorUnitario = pecaOS.peca.precoFinal;
@@ -3118,7 +3393,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                     _calcularPrecoTotal();
                                   } else {
                                     _showErrorSnackBar(
-                                        'Não é possível aumentar quantidade. Estoque disponível: ${pecaOS.peca.quantidadeEstoque} unidades');
+                                        'Não é possível aumentar quantidade. Disponível para esta OS: $maxPermitido unidades');
                                   }
                                 },
                           icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
@@ -3440,6 +3715,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                             if (value?.idFormaPagamento != 1) {
                               _numeroParcelas = null;
                             }
+                            if (value?.idFormaPagamento != 2) {
+                              _prazoFiadoDias = null;
+                            }
                           });
                         },
                 ),
@@ -3634,6 +3912,37 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ],
                 ),
+                if (_tipoOrdem == 'diagnostico_servico' && _precoDiagnostico > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const SizedBox(width: 28),
+                          Icon(Icons.search, color: Colors.green.shade500, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Taxa de diagnóstico:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green.shade700,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'R\$ ${_precoDiagnostico.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green.shade700,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (!_isViewMode) ...[
                   const SizedBox(height: 12),
                   Row(
@@ -3722,131 +4031,133 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total de Peças:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade800,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'R\$ ${totalPecas.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade800,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                if (!_isViewMode) ...[
-                  const SizedBox(height: 12),
+          if (_tipoOrdem != 'diagnostico') ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Desconto Peças (máx margem lucro):',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
-                              ),
+                      Row(
+                        children: [
+                          Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Total de Peças:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade800,
+                              fontSize: 16,
                             ),
-                            const SizedBox(height: 4),
-                            TextField(
-                              controller: _descontoPecasController,
-                              keyboardType: TextInputType.number,
-                              onChanged: _onDescontoPecasChanged,
-                              decoration: InputDecoration(
-                                prefixText: 'R\$ ',
-                                hintText: '0,00',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                isDense: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
                           ),
+                        ],
+                      ),
+                      Text(
+                        'R\$ ${totalPecas.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                          fontSize: 16,
                         ),
                       ),
                     ],
                   ),
-                ],
-                if (_descontoPecas > 0) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.shade300),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  if (!_isViewMode) ...[
+                    const SizedBox(height: 12),
+                    Row(
                       children: [
-                        Text(
-                          'Subtotal com desconto:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade800,
-                            fontSize: 14,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Desconto Peças (máx margem lucro):',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: _descontoPecasController,
+                                keyboardType: TextInputType.number,
+                                onChanged: _onDescontoPecasChanged,
+                                decoration: InputDecoration(
+                                  prefixText: 'R\$ ',
+                                  hintText: '0,00',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                  isDense: true,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          'R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
-                            fontSize: 14,
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
+                  if (_descontoPecas > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Subtotal com desconto:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           if (_descontoServicos > 0 || _descontoPecas > 0) ...[
             Container(
@@ -3989,8 +4300,23 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       return;
     }
 
-    if (_servicosSelecionados.isEmpty) {
+    if (_tipoOrdem == 'diagnostico') {
+      if (_precoDiagnostico <= 0) {
+        _showErrorSnackBar('Por favor, informe o valor do diagnóstico');
+        return;
+      }
+    } else if (_servicosSelecionados.isEmpty) {
       _showErrorSnackBar('Por favor, selecione pelo menos um serviço');
+      return;
+    }
+
+    if (_tipoOrdem == 'diagnostico_servico' && _precoDiagnostico <= 0) {
+      _showErrorSnackBar('Por favor, informe o valor da taxa de diagnóstico');
+      return;
+    }
+
+    if (_tipoOrdem == 'diagnostico_servico' && _pecasSelecionadas.isEmpty) {
+      _showErrorSnackBar('Por favor, adicione pelo menos uma peça para realizar o serviço');
       return;
     }
 
@@ -4016,11 +4342,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         veiculoCategoria: _categoriaSelecionada,
         checklistId: _checklistSelecionado?.id,
         queixaPrincipal: _queixaPrincipalController.text,
-        servicosRealizados: _servicosSelecionados,
-        pecasUtilizadas: _pecasSelecionadas,
+        servicosRealizados: _tipoOrdem == 'diagnostico' ? [] : _servicosSelecionados,
+        pecasUtilizadas: _tipoOrdem == 'diagnostico' ? [] : _pecasSelecionadas,
         precoTotal: _precoTotal,
         precoTotalServicos: _precoTotalServicos,
-        precoTotalPecas: _calcularTotalPecas(),
+        precoTotalPecas: _tipoOrdem == 'diagnostico' ? 0.0 : _calcularTotalPecas(),
         descontoServicos: _descontoServicos > 0 ? _descontoServicos : null,
         descontoPecas: _descontoPecas > 0 ? _descontoPecas : null,
         garantiaMeses: _garantiaMeses,
@@ -4030,6 +4356,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         mecanico: _mecanicoSelecionado,
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
+        tipoDiagnostico: _tipoOrdem,
+        precoDiagnostico: _tipoOrdem != null ? _precoDiagnostico : null,
       );
 
       bool sucesso;
@@ -4432,6 +4760,34 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   pw.Widget _buildPdfServicesSection(OrdemServico? os) {
     final servicosParaPDF = os?.servicosRealizados ?? _servicosSelecionados;
     final categoriaVeiculo = os?.veiculoCategoria ?? _categoriaSelecionada;
+    final tipoDiag = os?.tipoDiagnostico ?? _tipoOrdem;
+    final precoDiag = os?.precoDiagnostico ?? (_tipoOrdem != null ? _precoDiagnostico : null);
+
+    final ehSoDiagnostico = tipoDiag == 'diagnostico';
+    final ehDiagnosticoServico = tipoDiag == 'diagnostico_servico';
+
+    pw.TableRow buildDiagnosticoRow() {
+      return pw.TableRow(
+        decoration: pw.BoxDecoration(color: PdfColors.orange50),
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Text('Diagnóstico', style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Text('Taxa de Diagnóstico', style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic)),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(5),
+            child: pw.Text(
+              'R\$ ${(precoDiag ?? 0.0).toStringAsFixed(2)}',
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+        ],
+      );
+    }
 
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -4480,31 +4836,36 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   ),
                 ],
               ),
-              ...servicosParaPDF.map((servico) {
-                double preco = 0.0;
-                if (categoriaVeiculo == 'Caminhonete') {
-                  preco = servico.precoCaminhonete ?? 0.0;
-                } else if (categoriaVeiculo == 'Passeio') {
-                  preco = servico.precoPasseio ?? 0.0;
-                }
+              if (ehSoDiagnostico)
+                buildDiagnosticoRow()
+              else ...[
+                ...servicosParaPDF.map((servico) {
+                  double preco = 0.0;
+                  if (categoriaVeiculo == 'Caminhonete') {
+                    preco = servico.precoCaminhonete ?? 0.0;
+                  } else if (categoriaVeiculo == 'Passeio') {
+                    preco = servico.precoPasseio ?? 0.0;
+                  }
 
-                return pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(5),
-                      child: pw.Text(servico.nome, style: pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(5),
-                      child: pw.Text(categoriaVeiculo ?? 'Não definida', style: pw.TextStyle(fontSize: 8)),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(5),
-                      child: pw.Text('R\$ ${preco.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                    ),
-                  ],
-                );
-              }),
+                  return pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(servico.nome, style: pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(categoriaVeiculo ?? 'Não definida', style: pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text('R\$ ${preco.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      ),
+                    ],
+                  );
+                }),
+                if (ehDiagnosticoServico && (precoDiag ?? 0) > 0) buildDiagnosticoRow(),
+              ],
             ],
           ),
         ],
@@ -4635,13 +4996,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final numeroParcelas = os?.numeroParcelas ?? _numeroParcelas;
     final garantiaMeses = os?.garantiaMeses ?? _garantiaMeses;
 
+    final tipoDiagnostico = os?.tipoDiagnostico ?? _tipoOrdem;
+    final ehSoDiagnostico = tipoDiagnostico == 'diagnostico';
+
     final pecasParaPDF = os?.pecasUtilizadas ?? _pecasSelecionadas;
-    final totalPecas = pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
+    final totalPecas = ehSoDiagnostico ? 0.0 : pecasParaPDF.fold(0.0, (total, pecaOS) => total + pecaOS.valorTotalCalculado);
 
     final totalServicos = _calcularTotalServicosOS(os);
 
     final descontoServicos = os?.descontoServicos ?? _descontoServicos;
-    final descontoPecas = os?.descontoPecas ?? _descontoPecas;
+    final descontoPecas = ehSoDiagnostico ? 0.0 : (os?.descontoPecas ?? _descontoPecas);
 
     final totalServicosComDesconto = totalServicos - (descontoServicos > 0 ? descontoServicos : 0.0);
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
@@ -4697,33 +5061,35 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ],
             ),
           ],
-          pw.SizedBox(height: 4),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('Valor das Peças:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.Text('R\$ ${totalPecas.toStringAsFixed(2)}',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+          if (!ehSoDiagnostico) ...[
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Valor das Peças:', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                pw.Text('R\$ ${totalPecas.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+              ],
+            ),
+            if (descontoPecas > 0) ...[
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('(-) Desconto Peças:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                  pw.Text('-R\$ ${descontoPecas.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
+                ],
+              ),
+              pw.SizedBox(height: 2),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Subtotal Peças:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
+                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
+                ],
+              ),
             ],
-          ),
-          if (descontoPecas > 0) ...[
-            pw.SizedBox(height: 2),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('(-) Desconto Peças:', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
-                pw.Text('-R\$ ${descontoPecas.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.red700)),
-              ],
-            ),
-            pw.SizedBox(height: 2),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Subtotal Peças:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                pw.Text('R\$ ${totalPecasComDesconto.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
-              ],
-            ),
           ],
           pw.SizedBox(height: 8),
           if (descontoServicos > 0 || descontoPecas > 0) ...[
@@ -5061,6 +5427,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecas = osCompleta.descontoPecas ?? 0.0;
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
+          _tipoOrdem = osCompleta.tipoDiagnostico;
+          _precoDiagnostico = osCompleta.precoDiagnostico ?? 0.0;
+          _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
 
@@ -5115,6 +5484,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 id: pecaOS.id,
                 peca: pecaOS.peca,
                 quantidade: pecaOS.quantidade,
+                originalQuantidade: pecaOS.quantidade,
                 valorUnitario: pecaOS.valorUnitario,
                 valorTotal: pecaOS.valorTotal,
               ));
@@ -5233,6 +5603,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoPecas = osCompleta.descontoPecas ?? 0.0;
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
+          _tipoOrdem = osCompleta.tipoDiagnostico;
+          _precoDiagnostico = osCompleta.precoDiagnostico ?? 0.0;
+          _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
 

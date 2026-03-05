@@ -44,26 +44,9 @@ class ClienteService {
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.get(Uri.parse(baseUrl), headers: headers);
-      if (kDebugMode) {
-        print('Response status: ${response.statusCode}');
-      }
-      if (kDebugMode) {
-        print('Response body: ${response.body}');
-      }
-
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        if (kDebugMode) {
-          print('JSON List length: ${jsonList.length}');
-        }
-        if (kDebugMode) {
-          print('JSON List: $jsonList');
-        }
-
         final clientes = jsonList.map((e) => Cliente.fromJson(e)).toList();
-        if (kDebugMode) {
-          print('Clientes parsed: ${clientes.length}');
-        }
         return clientes;
       }
       return [];

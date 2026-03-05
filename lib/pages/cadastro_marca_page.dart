@@ -5,6 +5,7 @@ import 'package:tecstock/model/marca.dart';
 import 'package:intl/intl.dart';
 import '../services/marca_service.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class CadastroMarcaPage extends StatefulWidget {
   const CadastroMarcaPage({super.key});
@@ -31,6 +32,9 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -68,7 +72,11 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -83,7 +91,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     setState(() => _isLoadingMarcas = true);
 
     try {
-      final resultado = await MarcaService.buscarPaginado(query, _currentPage, size: 30);
+      final resultado = await MarcaService.buscarPaginado(query, _currentPage, size: _pageSize);
 
       if (resultado['success']) {
         setState(() {
@@ -103,24 +111,24 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarMarcas();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarMarcas();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarMarcas();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarMarcas();
   }
 
   Future<void> _carregarMarcas() async {
     setState(() => _isLoadingMarcas = true);
     try {
-      final resultado = await MarcaService.buscarPaginado('', 0, size: 30);
+      final resultado = await MarcaService.buscarPaginado('', 0, size: _pageSize);
 
       if (resultado['success']) {
         setState(() {
@@ -671,54 +679,16 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     );
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text('Anterior'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text('Próxima'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
     );
   }
 
@@ -794,8 +764,15 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                _buildPaginationControls(compact: true),
+                const SizedBox(height: 10),
+              ],
               _buildBrandGrid(),
-              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                const SizedBox(height: 16),
+                _buildPaginationControls(),
+              ],
             ],
           ),
         ),

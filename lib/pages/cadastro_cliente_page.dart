@@ -11,6 +11,7 @@ import '../services/cliente_service.dart';
 import '../services/funcionario_service.dart';
 import 'package:tecstock/model/funcionario.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class CadastroClientePage extends StatefulWidget {
   const CadastroClientePage({super.key});
@@ -66,6 +67,9 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -149,7 +153,11 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -161,6 +169,10 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
 
   void _onCepChanged() {
     final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      _lastSearchedCep = '';
+      return;
+    }
     if (digits.length == 8 && digits != _lastSearchedCep) _buscarCep(digits);
   }
 
@@ -228,7 +240,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       if (query.isEmpty) {
         await _carregarClientes();
       } else {
-        final resultado = await ClienteService.buscarPaginado(query, _currentPage, size: 30);
+        final resultado = await ClienteService.buscarPaginado(query, _currentPage, size: _pageSize);
         if (resultado['success'] == true) {
           setState(() {
             _clientesFiltrados = List<Cliente>.from(resultado['content']);
@@ -248,7 +260,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   Future<void> _carregarClientes() async {
     setState(() => _isLoadingClientes = true);
     try {
-      final resultado = await ClienteService.buscarPaginado('', _currentPage, size: 30);
+      final resultado = await ClienteService.buscarPaginado('', _currentPage, size: _pageSize);
       if (resultado['success'] == true) {
         setState(() {
           _clientes = List<Cliente>.from(resultado['content']);
@@ -265,18 +277,18 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarClientes();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarClientes();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarClientes();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarClientes();
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -401,6 +413,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       _bairroController.text = cliente.bairro ?? '';
       _cidadeController.text = cliente.cidade ?? '';
       _cepController.text = _formatarCEP(cliente.cep);
+      _lastSearchedCep = cliente.cep?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
       _complementoController.text = cliente.complemento ?? '';
       _codigoMunicipioController.text = cliente.codigoMunicipio ?? '';
       _ufSelecionada = cliente.uf ?? 'GO';
@@ -878,54 +891,16 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     );
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text('Anterior'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text('Próxima'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
     );
   }
 
@@ -1321,8 +1296,15 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                   ),
                 ),
               const SizedBox(height: 16),
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                _buildPaginationControls(compact: true),
+                const SizedBox(height: 10),
+              ],
               _buildClientGrid(),
-              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
+              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                const SizedBox(height: 16),
+                _buildPaginationControls(),
+              ],
             ],
           ),
         ),

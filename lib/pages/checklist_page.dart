@@ -18,6 +18,7 @@ import '../model/funcionario.dart';
 import '../services/checklist_service.dart';
 import '../model/checklist.dart';
 import '../utils/pdf_logo_helper.dart';
+import '../widgets/pagination_controls.dart';
 
 class ChecklistPage extends StatelessWidget {
   const ChecklistPage({super.key});
@@ -128,7 +129,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
-  static const int _pageSize = 10;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
   List<Checklist> _recentFiltrados = [];
 
   final Map<String, dynamic> _clienteByCpf = {};
@@ -335,7 +338,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -345,44 +352,34 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     });
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() {
-        _currentPage -= 1;
-      });
-      _loadRecentChecklists();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _loadRecentChecklists();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() {
-        _currentPage += 1;
-      });
-      _loadRecentChecklists();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _loadRecentChecklists();
   }
 
-  Widget _buildPaginationControls() {
-    if (_totalPages <= 1) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildPaginationControls({bool compact = false}) {
+    if (_totalPages <= 1) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          Text('Pagina ${_currentPage + 1} de $_totalPages'),
-          IconButton(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
+      child: PaginationControls(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        pageSize: _pageSize,
+        pageSizeOptions: _pageSizeOptions,
+        onPageChange: _irParaPagina,
+        onPageSizeChange: _alterarPageSize,
+        primaryColor: Colors.orange.shade700,
+        compact: compact,
       ),
     );
   }
@@ -1358,7 +1355,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                         _tipoPesquisa = value;
                         _searchController.clear();
                       });
-                      _onSearchChanged();
+                      _onSearchChanged(force: true);
                     }
                   },
                 ),
@@ -1494,6 +1491,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
         ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+          const SizedBox(height: 10),
+          _buildPaginationControls(compact: true),
+        ],
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -1739,7 +1740,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             },
           ),
         ),
-        _buildPaginationControls(),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
       ],
     );
   }

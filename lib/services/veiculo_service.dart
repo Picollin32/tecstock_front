@@ -123,11 +123,19 @@ class VeiculoService {
     }
   }
 
-  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
-    String baseUrl = '${ApiConfig.veiculosUrl}/buscarPaginado?query=$query&page=$page&size=$size';
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page,
+      {int size = 30, int? marcaId, String searchMode = 'placa'}) async {
+    final params = {
+      'query': query,
+      'page': '$page',
+      'size': '$size',
+      'searchMode': searchMode,
+      if (marcaId != null) 'marcaId': '$marcaId',
+    };
+    final uri = Uri.parse('${ApiConfig.veiculosUrl}/buscarPaginado').replace(queryParameters: params);
     try {
       final headers = await AuthService.getAuthHeaders();
-      final response = await http.get(Uri.parse(baseUrl), headers: headers);
+      final response = await http.get(uri, headers: headers);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));

@@ -30,6 +30,8 @@ class OrdemServico {
   double? precoTotalPecas;
   double? descontoServicos;
   double? descontoPecas;
+  String? tipoDiagnostico;
+  double? precoDiagnostico;
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
@@ -69,6 +71,8 @@ class OrdemServico {
     this.precoTotalPecas,
     this.descontoServicos,
     this.descontoPecas,
+    this.tipoDiagnostico,
+    this.precoDiagnostico,
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
@@ -112,6 +116,8 @@ class OrdemServico {
       precoTotalPecas: json['precoTotalPecas']?.toDouble(),
       descontoServicos: json['descontoServicos']?.toDouble(),
       descontoPecas: json['descontoPecas']?.toDouble(),
+      tipoDiagnostico: json['tipoDiagnostico'],
+      precoDiagnostico: json['precoDiagnostico']?.toDouble(),
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
@@ -155,6 +161,8 @@ class OrdemServico {
     if (precoTotalPecas != null) map['precoTotalPecas'] = precoTotalPecas;
     if (descontoServicos != null) map['descontoServicos'] = descontoServicos;
     if (descontoPecas != null) map['descontoPecas'] = descontoPecas;
+    if (tipoDiagnostico != null) map['tipoDiagnostico'] = tipoDiagnostico;
+    if (precoDiagnostico != null) map['precoDiagnostico'] = precoDiagnostico;
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;

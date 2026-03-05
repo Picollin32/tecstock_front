@@ -35,6 +35,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   List<Fornecedor> _fornecedores = [];
   Fabricante? _fabricanteSelecionado;
   List<Fabricante> _fabricantes = [];
+  int? _fornecedorFiltroId;
+  final Set<int> _fornecedorIdsComPecas = {};
+  List<Fornecedor> _fornecedoresFiltroDisponiveis = [];
+  int? _fabricanteFiltroId;
+  final Set<int> _fabricanteIdsComPecas = {};
+  List<Fabricante> _fabricantesFiltroDisponiveis = [];
 
   List<Peca> _pecas = [];
   List<Peca> _pecasFiltradas = [];
@@ -49,6 +55,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  final int _pageSize = 30;
+  String _lastSearchQuery = '';
+  String _pecaSearchMode = 'codigo';
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -109,15 +118,41 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   Future<void> _carregarPecas() async {
     try {
-      final resultado = await PecaService.buscarPaginado('', 0, size: 30);
+      final resultado = await PecaService.buscarPaginado('', 0, size: _pageSize);
 
       if (resultado['success']) {
+        final pecas = resultado['content'] as List<Peca>;
+        final Set<int> fornecedoresEncontrados = pecas.map((p) => p.fornecedor?.id).whereType<int>().toSet();
+        final Set<int> fabricantesEncontrados = pecas.map((p) => p.fabricante.id).whereType<int>().toSet();
+
+        final filtradas = pecas.where((p) {
+          final matchesFornecedor = _fornecedorFiltroId == null || p.fornecedor?.id == _fornecedorFiltroId;
+          final matchesFabricante = _fabricanteFiltroId == null || p.fabricante.id == _fabricanteFiltroId;
+          return matchesFornecedor && matchesFabricante;
+        }).toList();
+
         setState(() {
-          _pecas = resultado['content'] as List<Peca>;
-          _pecasFiltradas = _pecas;
+          _pecas = pecas;
+          _pecasFiltradas = filtradas;
           _totalPages = resultado['totalPages'] as int;
           _totalElements = resultado['totalElements'] as int;
           _currentPage = 0;
+          _fornecedorIdsComPecas
+            ..clear()
+            ..addAll(fornecedoresEncontrados);
+          _fabricanteIdsComPecas
+            ..clear()
+            ..addAll(fabricantesEncontrados);
+
+          if (_fornecedorFiltroId != null && !_fornecedorIdsComPecas.contains(_fornecedorFiltroId)) {
+            _fornecedorFiltroId = null;
+          }
+          if (_fabricanteFiltroId != null && !_fabricanteIdsComPecas.contains(_fabricanteFiltroId)) {
+            _fabricanteFiltroId = null;
+          }
+
+          _fornecedoresFiltroDisponiveis = _fornecedores.where((f) => _fornecedorIdsComPecas.contains(f.id)).toList();
+          _fabricantesFiltroDisponiveis = _fabricantes.where((f) => _fabricanteIdsComPecas.contains(f.id)).toList();
         });
       } else {
         _showError('Erro ao carregar peças');
@@ -137,6 +172,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         listaFornecedores.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
         _fornecedores = listaFornecedores;
         _fabricantes = listaFabricantes;
+        _fornecedoresFiltroDisponiveis = _fornecedores.where((f) => _fornecedorIdsComPecas.contains(f.id)).toList();
+        _fabricantesFiltroDisponiveis = _fabricantes.where((f) => _fabricanteIdsComPecas.contains(f.id)).toList();
       });
     } catch (e) {
       _showError('Erro ao carregar fornecedores e fabricantes');
@@ -156,7 +193,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     }
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    final composite = '$_pecaSearchMode|$query';
+    if (!force && composite == _lastSearchQuery) return;
+    _lastSearchQuery = composite;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -166,15 +208,41 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     });
   }
 
+  bool _matchesPecaQuery(Peca peca, String normalizedQuery) {
+    if (normalizedQuery.isEmpty) return true;
+    if (_pecaSearchMode == 'nome') {
+      final nome = peca.nome.toLowerCase();
+      return nome.startsWith(normalizedQuery);
+    }
+    final codigo = peca.codigoFabricante.toLowerCase();
+    return codigo.startsWith(normalizedQuery);
+  }
+
   Future<void> _filtrarPecas() async {
-    final query = _searchController.text;
+    final rawQuery = _searchController.text.trim();
+    final query = _pecaSearchMode == 'codigo' ? rawQuery.replaceAll(' ', '').toLowerCase() : rawQuery.toLowerCase();
     setState(() => _isLoadingPecas = true);
 
     try {
-      final resultado = await PecaService.buscarPaginado(query, _currentPage, size: 30);
+      final resultado = await PecaService.buscarPaginado(
+        query,
+        _currentPage,
+        size: _pageSize,
+        fornecedorId: _fornecedorFiltroId,
+        fabricanteId: _fabricanteFiltroId,
+      );
 
       if (resultado['success']) {
-        List<Peca> pecasFiltradas = resultado['content'] as List<Peca>;
+        final pecas = resultado['content'] as List<Peca>;
+        final Set<int> fornecedoresEncontrados = pecas.map((p) => p.fornecedor?.id).whereType<int>().toSet();
+        final Set<int> fabricantesEncontrados = pecas.map((p) => p.fabricante.id).whereType<int>().toSet();
+
+        List<Peca> pecasFiltradas = pecas.where((p) {
+          final matchesFornecedor = _fornecedorFiltroId == null || p.fornecedor?.id == _fornecedorFiltroId;
+          final matchesFabricante = _fabricanteFiltroId == null || p.fabricante.id == _fabricanteFiltroId;
+          final matchesQuery = _matchesPecaQuery(p, query);
+          return matchesFornecedor && matchesFabricante && matchesQuery;
+        }).toList();
 
         if (_filtroEstoque != 'todos') {
           pecasFiltradas = pecasFiltradas.where((peca) {
@@ -190,6 +258,22 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           _pecasFiltradas = pecasFiltradas;
           _totalPages = resultado['totalPages'] as int;
           _totalElements = resultado['totalElements'] as int;
+          _fornecedorIdsComPecas
+            ..clear()
+            ..addAll(fornecedoresEncontrados);
+          _fabricanteIdsComPecas
+            ..clear()
+            ..addAll(fabricantesEncontrados);
+
+          if (_fornecedorFiltroId != null && !_fornecedorIdsComPecas.contains(_fornecedorFiltroId)) {
+            _fornecedorFiltroId = null;
+          }
+          if (_fabricanteFiltroId != null && !_fabricanteIdsComPecas.contains(_fabricanteFiltroId)) {
+            _fabricanteFiltroId = null;
+          }
+
+          _fornecedoresFiltroDisponiveis = _fornecedores.where((f) => _fornecedorIdsComPecas.contains(f.id)).toList();
+          _fabricantesFiltroDisponiveis = _fabricantes.where((f) => _fabricanteIdsComPecas.contains(f.id)).toList();
         });
       } else {
         if (!mounted) return;
@@ -726,7 +810,24 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   Widget _buildSearchBar() {
+    final fornecedoresDropdown = List<Fornecedor>.from(_fornecedoresFiltroDisponiveis);
+    if (_fornecedorFiltroId != null && fornecedoresDropdown.every((f) => f.id != _fornecedorFiltroId)) {
+      final selected = _fornecedores.firstWhere(
+        (f) => f.id == _fornecedorFiltroId,
+        orElse: () => Fornecedor(id: _fornecedorFiltroId!, nome: '', cnpj: '', telefone: '', email: ''),
+      );
+      fornecedoresDropdown.insert(0, selected);
+    }
+
+    final fabricantesDropdown = List<Fabricante>.from(_fabricantesFiltroDisponiveis);
+    if (_fabricanteFiltroId != null && fabricantesDropdown.every((f) => f.id != _fabricanteFiltroId)) {
+      final selected =
+          _fabricantes.firstWhere((f) => f.id == _fabricanteFiltroId, orElse: () => Fabricante(id: _fabricanteFiltroId!, nome: ''));
+      fabricantesDropdown.insert(0, selected);
+    }
+
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -738,25 +839,167 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           ),
         ],
       ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Pesquisar por nome ou código...',
-          prefixIcon: Icon(Icons.search, color: primaryColor),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextField(
+              controller: _searchController,
+              inputFormatters: [],
+              decoration: InputDecoration(
+                hintText: _pecaSearchMode == 'codigo' ? 'Pesquisar por código...' : 'Pesquisar por nome...',
+                prefixIcon: Icon(Icons.search, color: primaryColor),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged(force: true);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
           ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
+          const SizedBox(width: 12),
+          ToggleButtons(
+            isSelected: [_pecaSearchMode == 'codigo', _pecaSearchMode == 'nome'],
+            onPressed: (index) {
+              final mode = index == 0 ? 'codigo' : 'nome';
+              if (_pecaSearchMode == mode) return;
+              setState(() {
+                _pecaSearchMode = mode;
+                _searchController.clear();
+                _currentPage = 0;
+              });
+              _onSearchChanged(force: true);
+            },
+            borderRadius: BorderRadius.circular(12),
+            selectedBorderColor: primaryColor,
+            selectedColor: Colors.white,
+            fillColor: primaryColor,
+            color: Colors.grey[700],
+            children: const [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text('Código'),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Text('Nome'),
+              ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<int?>(
+              initialValue: _fornecedorFiltroId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Fornecedor',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todos os fornecedores'),
+                ),
+                ...fornecedoresDropdown.map(
+                  (fornecedor) => DropdownMenuItem<int?>(
+                    value: fornecedor.id,
+                    child: Text(fornecedor.nome),
+                  ),
+                ),
+              ],
+              onChanged: fornecedoresDropdown.isEmpty
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _fornecedorFiltroId = value;
+                        _currentPage = 0;
+                      });
+                      _onSearchChanged(force: true);
+                    },
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<int?>(
+              initialValue: _fabricanteFiltroId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Fabricante',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todos os fabricantes'),
+                ),
+                ...fabricantesDropdown.map(
+                  (fabricante) => DropdownMenuItem<int?>(
+                    value: fabricante.id,
+                    child: Text(fabricante.nome),
+                  ),
+                ),
+              ],
+              onChanged: fabricantesDropdown.isEmpty
+                  ? null
+                  : (value) {
+                      setState(() {
+                        _fabricanteFiltroId = value;
+                        _currentPage = 0;
+                      });
+                      _onSearchChanged(force: true);
+                    },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1621,6 +1864,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           onPressed: () {
                             setState(() {
                               _filtroEstoque = _filtroEstoque == 'critico' ? 'todos' : 'critico';
+                              _searchController.clear();
+                              _lastSearchQuery = '';
+                              _fornecedorFiltroId = null;
+                              _fabricanteFiltroId = null;
+                              _currentPage = 0;
                             });
                             _filtrarPecas();
                           },
@@ -1680,6 +1928,11 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           onPressed: () {
                             setState(() {
                               _filtroEstoque = _filtroEstoque == 'sem_estoque' ? 'todos' : 'sem_estoque';
+                              _searchController.clear();
+                              _lastSearchQuery = '';
+                              _fornecedorFiltroId = null;
+                              _fabricanteFiltroId = null;
+                              _currentPage = 0;
                             });
                             _filtrarPecas();
                           },

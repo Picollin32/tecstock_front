@@ -12,6 +12,7 @@ import '../services/cliente_service.dart';
 import '../services/auth_service.dart';
 import 'package:tecstock/model/cliente.dart';
 import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
 
 class CadastroFuncionarioPage extends StatefulWidget {
   const CadastroFuncionarioPage({super.key});
@@ -56,6 +57,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   List<Funcionario> _funcionarios = [];
   List<Funcionario> _funcionariosFiltrados = [];
   Funcionario? _funcionarioEmEdicao;
+  int? _cargoFiltroId;
 
   bool _isLoading = false;
   bool _isLoadingFuncionarios = true;
@@ -69,6 +71,9 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -157,7 +162,12 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     super.dispose();
   }
 
-  void _onSearchChanged() {
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    final composite = '$_cargoFiltroId|$query';
+    if (!force && composite == _lastSearchQuery) return;
+    _lastSearchQuery = composite;
+
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       setState(() {
@@ -169,7 +179,13 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
   void _onCepChanged() {
     final digits = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length == 8 && digits != _lastSearchedCep) _buscarCep(digits);
+    if (digits.isEmpty) {
+      _lastSearchedCep = '';
+      return;
+    }
+    if (digits.length == 8 && digits != _lastSearchedCep) {
+      _buscarCep(digits);
+    }
   }
 
   Future<void> _buscarCep(String digits) async {
@@ -237,7 +253,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     setState(() => _isLoadingFuncionarios = true);
 
     try {
-      final resultado = await Funcionarioservice.buscarPaginado(queryParaBusca, _currentPage, size: 30);
+      final resultado = await Funcionarioservice.buscarPaginado(queryParaBusca, _currentPage, size: _pageSize, nivelAcesso: _cargoFiltroId);
 
       if (resultado['success']) {
         setState(() {
@@ -257,18 +273,18 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     }
   }
 
-  void _paginaAnterior() {
-    if (_currentPage > 0) {
-      setState(() => _currentPage--);
-      _filtrarFuncionarios();
-    }
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarFuncionarios();
   }
 
-  void _proximaPagina() {
-    if (_currentPage < _totalPages - 1) {
-      setState(() => _currentPage++);
-      _filtrarFuncionarios();
-    }
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarFuncionarios();
   }
 
   Future<void> _carregarFuncionarios() async {
@@ -284,7 +300,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
         return;
       }
 
-      final resultado = await Funcionarioservice.buscarPaginado('', 0, size: 30);
+      final resultado = await Funcionarioservice.buscarPaginado('', 0, size: _pageSize, nivelAcesso: _cargoFiltroId);
 
       if (resultado['success']) {
         setState(() {
@@ -447,6 +463,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       _bairroController.text = funcionario.bairro ?? '';
       _cidadeController.text = funcionario.cidade ?? '';
       _cepController.text = _formatarCEP(funcionario.cep);
+      _lastSearchedCep = funcionario.cep?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
       _complementoController.text = funcionario.complemento ?? '';
       _codigoMunicipioController.text = funcionario.codigoMunicipio ?? '';
       _ufSelecionada = funcionario.uf ?? 'GO';
@@ -624,6 +641,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
   Widget _buildSearchBar() {
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -635,25 +653,90 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           ),
         ],
       ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Pesquisar por nome ou CPF...',
-          prefixIcon: Icon(Icons.search, color: primaryColor),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _searchController.clear(),
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Pesquisar por nome ou CPF...',
+                prefixIcon: Icon(Icons.search, color: primaryColor),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged(force: true);
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
           ),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: DropdownButtonFormField<int?>(
+              initialValue: _cargoFiltroId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Filtrar por cargo',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: primaryColor, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              items: const [
+                DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Todos os cargos'),
+                ),
+                DropdownMenuItem<int?>(
+                  value: 2,
+                  child: Text('Consultor(a)'),
+                ),
+                DropdownMenuItem<int?>(
+                  value: 3,
+                  child: Text('Mecânico(a)'),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _cargoFiltroId = value;
+                  _currentPage = 0;
+                });
+                _onSearchChanged(force: true);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -675,20 +758,22 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           child: Column(
             children: [
               Icon(
-                _searchController.text.isEmpty ? Icons.people_outline : Icons.search_off,
+                (_searchController.text.isEmpty && _cargoFiltroId == null) ? Icons.people_outline : Icons.search_off,
                 size: 64,
                 color: Colors.grey[400],
               ),
               const SizedBox(height: 16),
               Text(
-                _searchController.text.isEmpty ? 'Nenhum funcionário cadastrado' : 'Nenhum resultado encontrado',
+                (_searchController.text.isEmpty && _cargoFiltroId == null)
+                    ? 'Nenhum funcionário cadastrado'
+                    : 'Nenhum resultado encontrado',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey[600],
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (_searchController.text.isEmpty) ...[
+              if (_searchController.text.isEmpty && _cargoFiltroId == null) ...[
                 const SizedBox(height: 8),
                 Text(
                   'Comece adicionando seu primeiro funcionário',
@@ -932,53 +1017,20 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     );
   }
 
-  Widget _buildPaginationControls() {
-    return Container(
+  Widget _buildPaginationControls({bool compact = false}) {
+    if (_totalPages <= 1) return const SizedBox.shrink();
+
+    return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text('Anterior'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text('Próxima'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
+      child: PaginationControls(
+        currentPage: _currentPage,
+        totalPages: _totalPages,
+        pageSize: _pageSize,
+        pageSizeOptions: _pageSizeOptions,
+        onPageChange: _irParaPagina,
+        onPageSizeChange: _alterarPageSize,
+        primaryColor: primaryColor,
+        compact: compact,
       ),
     );
   }
@@ -1410,7 +1462,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                 ],
               ),
               const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingFuncionarios && _funcionariosFiltrados.isNotEmpty)
+              if (_searchController.text.isEmpty && _cargoFiltroId == null && !_isLoadingFuncionarios && _funcionariosFiltrados.isNotEmpty)
                 Text(
                   'Últimos Funcionários Cadastrados',
                   style: TextStyle(
@@ -1419,7 +1471,7 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                     color: Colors.grey[800],
                   ),
                 ),
-              if (_searchController.text.isNotEmpty && !_isLoadingFuncionarios)
+              if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && !_isLoadingFuncionarios)
                 Text(
                   'Resultados da Busca ($_totalElements)',
                   style: TextStyle(
@@ -1429,8 +1481,15 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
                   ),
                 ),
               const SizedBox(height: 16),
+              if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && _totalElements > _pageSize) ...[
+                _buildPaginationControls(compact: true),
+                const SizedBox(height: 8),
+              ],
               _buildEmployeeGrid(),
-              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
+              if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && _totalElements > _pageSize) ...[
+                const SizedBox(height: 16),
+                _buildPaginationControls()
+              ],
             ],
           ),
         ),

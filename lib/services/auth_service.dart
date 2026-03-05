@@ -63,7 +63,11 @@ class AuthService {
             errorMessage = response.body;
           }
         }
-        return {'success': false, 'message': errorMessage};
+        return {
+          'success': false,
+          'message': errorMessage,
+          'isRateLimited': response.statusCode == 429,
+        };
       }
     } catch (e) {
       if (kDebugMode) {

@@ -71,11 +71,16 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           );
         }
       } else {
+        final isRateLimited = result['isRateLimited'] == true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                Icon(
+                  isRateLimited ? Icons.lock_clock : Icons.error_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(result['message'] ?? 'Usuário ou senha inválidos')),
               ],
@@ -83,7 +88,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             backgroundColor: const Color(0xFFD32F2F),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: isRateLimited ? 8 : 3),
           ),
         );
       }

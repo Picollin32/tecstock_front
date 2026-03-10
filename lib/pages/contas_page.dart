@@ -267,10 +267,16 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               children: [
                 TextFormField(
                   controller: descricaoCtrl,
-                  decoration: const InputDecoration(
+                  readOnly: conta.isCompra,
+                  decoration: InputDecoration(
                     labelText: 'Descrição',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    filled: conta.isCompra,
+                    fillColor: conta.isCompra ? Colors.grey.shade100 : null,
+                    helperText: conta.isCompra ? 'Altere o número pelo gerenciador de Notas de Entrada' : null,
+                    helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+                    suffixIcon: conta.isCompra ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey) : null,
                   ),
                   validator: (v) => v == null || v.trim().isEmpty ? 'Informe a descrição' : null,
                 ),
@@ -380,135 +386,382 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final valorCtrl = TextEditingController();
     DateTime vencimento = DateTime(_mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
 
+    bool isFrete = false;
+    String? fretePagamento;
+    int freteNumeroParcelas = 2;
+    DateTime? freteBoleto30Venc;
+
+    final freteFormas = [
+      (key: 'dinheiro', label: 'Dinheiro', backend: 'AVISTA', icon: Icons.payments_outlined),
+      (key: 'pix', label: 'Pix', backend: 'AVISTA', icon: Icons.pix),
+      (key: 'debito', label: 'Débito', backend: 'AVISTA', icon: Icons.credit_card),
+      (key: 'credito', label: 'Crédito', backend: 'CREDITO', icon: Icons.credit_score),
+      (key: 'boleto30', label: 'Boleto 30 dias', backend: 'BOLETO30', icon: Icons.receipt_long),
+    ];
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _corPagar.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.add_card, color: _corPagar, size: 20),
-              ),
-              const SizedBox(width: 12),
-              const Text('Nova Conta a Pagar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        builder: (ctx2, setDialogState) {
+          bool freteValido() {
+            if (!isFrete) return true;
+            final v = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
+            if (v <= 0 || fretePagamento == null || descricaoCtrl.text.trim().isEmpty) return false;
+            if (fretePagamento == 'boleto30' && freteBoleto30Venc == null) return false;
+            return true;
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                TextFormField(
-                  controller: descricaoCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome / Descrição *',
-                    prefixIcon: Icon(Icons.label_outline),
-                    border: OutlineInputBorder(),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (isFrete ? Colors.orange.shade700 : _corPagar).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
+                  child: Icon(
+                    isFrete ? Icons.local_shipping_outlined : Icons.add_card,
+                    color: isFrete ? Colors.orange.shade700 : _corPagar,
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: valorCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Valor (R\$) *',
-                    prefixIcon: Icon(Icons.attach_money),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Campo obrigatório';
-                    final n = double.tryParse(v.replaceAll(',', '.'));
-                    if (n == null || n <= 0) return 'Informe um valor válido';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: ctx2,
-                      initialDate: vencimento,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2035),
-                      locale: const Locale('pt', 'BR'),
-                    );
-                    if (picked != null) {
-                      setDialogState(() => vencimento = picked);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.event, color: Colors.grey),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Vencimento', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                            Text(
-                              DateFormat('dd/MM/yyyy').format(vencimento),
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                const SizedBox(width: 12),
+                Text(
+                  isFrete ? 'Novo Frete a Pagar' : 'Nova Conta a Pagar',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _corPagar,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setDialogState(() => isFrete = false),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !isFrete ? _corPagar : Colors.grey.shade100,
+                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                border: Border.all(color: !isFrete ? _corPagar : Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.receipt_outlined, size: 16, color: !isFrete ? Colors.white : Colors.grey.shade600),
+                                  const SizedBox(width: 6),
+                                  Text('Despesa',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                          color: !isFrete ? Colors.white : Colors.grey.shade600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setDialogState(() => isFrete = true),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isFrete ? Colors.orange.shade700 : Colors.grey.shade100,
+                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                                border: Border.all(color: isFrete ? Colors.orange.shade700 : Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.local_shipping_outlined, size: 16, color: isFrete ? Colors.white : Colors.grey.shade600),
+                                  const SizedBox(width: 6),
+                                  Text('Frete',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w600, fontSize: 13, color: isFrete ? Colors.white : Colors.grey.shade600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: descricaoCtrl,
+                      decoration: InputDecoration(
+                        labelText: isFrete ? 'Descrição do Frete *' : 'Nome / Descrição *',
+                        prefixIcon: Icon(isFrete ? Icons.local_shipping_outlined : Icons.label_outline),
+                        border: const OutlineInputBorder(),
+                      ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: valorCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Valor (R\$) *',
+                        prefixIcon: Icon(Icons.attach_money),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Campo obrigatório';
+                        final n = double.tryParse(v.replaceAll(',', '.'));
+                        if (n == null || n <= 0) return 'Informe um valor válido';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    if (!isFrete)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx2,
+                            initialDate: vencimento,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2035),
+                            locale: const Locale('pt', 'BR'),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => vencimento = picked);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.event, color: Colors.grey),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Vencimento', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                  Text(
+                                    DateFormat('dd/MM/yyyy').format(vencimento),
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    if (isFrete) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: fretePagamento,
+                        decoration: InputDecoration(
+                          labelText: 'Forma de Pagamento *',
+                          prefixIcon: Icon(Icons.payment, color: Colors.orange.shade700),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.orange.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.orange.shade700, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.orange.shade50,
+                        ),
+                        items: freteFormas.map((f) {
+                          return DropdownMenuItem<String>(
+                            value: f.key,
+                            child: Row(
+                              children: [
+                                Icon(f.icon, size: 18, color: Colors.orange.shade700),
+                                const SizedBox(width: 8),
+                                Text(f.label),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setDialogState(() {
+                          fretePagamento = v;
+                          freteBoleto30Venc = null;
+                          freteNumeroParcelas = 2;
+                        }),
+                        validator: (v) => isFrete && v == null ? 'Selecione a forma de pagamento' : null,
+                      ),
+                      if (fretePagamento == 'credito') ...[
+                        const SizedBox(height: 12),
+                        Builder(builder: (ctx3) {
+                          final val = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
+                          return DropdownButtonFormField<int>(
+                            initialValue: freteNumeroParcelas,
+                            decoration: InputDecoration(
+                              labelText: 'Número de Parcelas',
+                              prefixIcon: Icon(Icons.format_list_numbered, color: Colors.orange.shade700),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.orange.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.orange.shade700, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.orange.shade50,
+                            ),
+                            items: List.generate(12, (i) => i + 2).map((n) {
+                              final vp = val > 0 ? val / n : 0.0;
+                              return DropdownMenuItem<int>(
+                                value: n,
+                                child: Text('${n}x  (parcela ~R\$ ${vp.toStringAsFixed(2)})'),
+                              );
+                            }).toList(),
+                            onChanged: (v) => setDialogState(() => freteNumeroParcelas = v ?? 2),
+                          );
+                        }),
+                      ],
+                      if (fretePagamento == 'boleto30') ...[
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: ctx2,
+                              initialDate: DateTime.now().add(const Duration(days: 30)),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              locale: const Locale('pt', 'BR'),
+                            );
+                            if (picked != null) setDialogState(() => freteBoleto30Venc = picked);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: freteBoleto30Venc != null ? Colors.orange.shade400 : Colors.grey.shade400),
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.orange.shade50,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.event, color: Colors.orange.shade700),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Vencimento', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                    Text(
+                                      freteBoleto30Venc != null ? DateFormat('dd/MM/yyyy').format(freteBoleto30Venc!) : 'Selecionar data',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                        color: freteBoleto30Venc != null ? Colors.black87 : Colors.grey.shade500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (freteBoleto30Venc == null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, left: 4),
+                            child: Text('Selecione a data de vencimento', style: TextStyle(fontSize: 11, color: Colors.red.shade400)),
+                          ),
+                      ],
+                      if (fretePagamento != null && fretePagamento != 'credito' && fretePagamento != 'boleto30') ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 14, color: Colors.green.shade700),
+                              const SizedBox(width: 6),
+                              Text('Registrado como já pago',
+                                  style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
               ),
-              icon: const Icon(Icons.check, size: 18),
-              label: const Text('Adicionar'),
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(ctx);
-
-                final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
-                final nova = Conta(
-                  tipo: 'A_PAGAR',
-                  descricao: descricaoCtrl.text.trim(),
-                  valor: valor,
-                  mesReferencia: vencimento.month,
-                  anoReferencia: vencimento.year,
-                  dataVencimento: vencimento,
-                );
-
-                final result = await ContaService.adicionarContaPagar(nova);
-                if (result['sucesso'] == true) {
-                  _mostrarSucesso('Conta adicionada com sucesso!');
-                  _carregarDados();
-                } else {
-                  _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar conta');
-                }
-              },
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isFrete ? Colors.orange.shade700 : _corPagar,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Adicionar'),
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  if (!freteValido()) return;
+                  Navigator.pop(ctx);
+
+                  if (!isFrete) {
+                    final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
+                    final nova = Conta(
+                      tipo: 'A_PAGAR',
+                      descricao: descricaoCtrl.text.trim(),
+                      valor: valor,
+                      mesReferencia: vencimento.month,
+                      anoReferencia: vencimento.year,
+                      dataVencimento: vencimento,
+                    );
+                    final result = await ContaService.adicionarContaPagar(nova);
+                    if (result['sucesso'] == true) {
+                      _mostrarSucesso('Conta adicionada com sucesso!');
+                      _carregarDados();
+                    } else {
+                      _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar conta');
+                    }
+                  } else {
+                    final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
+                    final backend = freteFormas.firstWhere((f) => f.key == fretePagamento).backend;
+                    final pagamentoData = <String, dynamic>{'formaPagamento': backend};
+                    if (fretePagamento == 'credito') {
+                      pagamentoData['numeroParcelas'] = freteNumeroParcelas;
+                    } else if (fretePagamento == 'boleto30') {
+                      pagamentoData['boleto30Vencimento'] = freteBoleto30Venc!.toIso8601String().substring(0, 10);
+                    }
+                    final result = await ContaService.adicionarFrete(
+                      descricao: descricaoCtrl.text.trim(),
+                      valor: valor,
+                      pagamento: pagamentoData,
+                    );
+                    if (result['sucesso'] == true) {
+                      _mostrarSucesso('Frete adicionado com sucesso!');
+                      _carregarDados();
+                    } else {
+                      _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar frete');
+                    }
+                  }
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -672,6 +925,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   }
 
   Future<void> _confirmarExclusao(Conta conta) async {
+    if (conta.isCompra) {
+      _mostrarErro('Contas de compra não podem ser excluídas aqui. Gerencie pela página de Notas de Entrada.');
+      return;
+    }
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1217,43 +1474,63 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                           color: isAtrasada ? _corAtrasada : corBase,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Tooltip(
-                            message: 'Editar',
-                            child: IconButton(
-                              onPressed: () => _editarContaPagar(conta),
-                              icon: const Icon(Icons.edit_outlined),
-                              iconSize: 20,
-                              color: Colors.orange,
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.orange.withValues(alpha: 0.12),
-                                minimumSize: const Size(36, 36),
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      if (conta.isCompra) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.lock_outline, size: 12, color: Colors.grey.shade500),
+                              const SizedBox(width: 4),
+                              Text('Notas de Entrada', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (!conta.isCompra) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: 'Editar',
+                              child: IconButton(
+                                onPressed: () => _editarContaPagar(conta),
+                                icon: const Icon(Icons.edit_outlined),
+                                iconSize: 20,
+                                color: Colors.orange,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.orange.withValues(alpha: 0.12),
+                                  minimumSize: const Size(36, 36),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          Tooltip(
-                            message: 'Excluir',
-                            child: IconButton(
-                              onPressed: () => _confirmarExclusao(conta),
-                              icon: const Icon(Icons.delete_outline),
-                              iconSize: 20,
-                              color: Colors.red,
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.red.withValues(alpha: 0.1),
-                                minimumSize: const Size(36, 36),
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: 'Excluir',
+                              child: IconButton(
+                                onPressed: () => _confirmarExclusao(conta),
+                                icon: const Icon(Icons.delete_outline),
+                                iconSize: 20,
+                                color: Colors.red,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.red.withValues(alpha: 0.1),
+                                  minimumSize: const Size(36, 36),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   )
                 else if (conta.isFiado && !conta.pago)

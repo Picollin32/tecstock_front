@@ -116,6 +116,32 @@ class ContaService {
     }
   }
 
+  static Future<Map<String, dynamic>> adicionarFrete({
+    required String descricao,
+    required double valor,
+    required Map<String, dynamic> pagamento,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/a-pagar/frete'),
+        headers: await AuthService.getAuthHeaders(),
+        body: jsonEncode({'descricao': descricao, 'valor': valor, 'pagamento': pagamento}),
+      );
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'sucesso': true};
+      }
+      String msg = 'Erro ao adicionar frete';
+      try {
+        final err = jsonDecode(utf8.decode(response.bodyBytes));
+        if (err['message'] != null) msg = err['message'];
+      } catch (_) {}
+      return {'sucesso': false, 'mensagem': msg};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao adicionar frete: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> marcarComoPago(int id) async {
     try {
       final response = await http.patch(

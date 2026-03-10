@@ -12,6 +12,26 @@ import '../services/relatorio_service.dart';
 import '../services/auth_service.dart';
 import '../config/api_config.dart';
 import '../utils/pdf_logo_helper.dart';
+import '../model/conta.dart';
+import '../services/conta_service.dart';
+
+class RelatorioContasMes {
+  final int mes;
+  final int ano;
+  final List<Conta> contasAPagar;
+  final List<Conta> contasAReceber;
+  final List<Conta> contasAtrasadas;
+  final Map<String, double> resumo;
+
+  RelatorioContasMes({
+    required this.mes,
+    required this.ano,
+    required this.contasAPagar,
+    required this.contasAReceber,
+    required this.contasAtrasadas,
+    required this.resumo,
+  });
+}
 
 class RelatoriosPage extends StatefulWidget {
   const RelatoriosPage({super.key});
@@ -36,6 +56,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   List<Funcionario> _funcionarios = [];
   int? _mecanicoSelecionadoId;
   bool _isLoadingFuncionarios = false;
+  DateTime _mesContas = DateTime(DateTime.now().year, DateTime.now().month, 1);
 
   @override
   void initState() {
@@ -116,18 +137,20 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _gerarRelatorio() async {
-    if (_dataInicio == null || _dataFim == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione as datas de início e fim')),
-      );
-      return;
-    }
+    if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado') {
+      if (_dataInicio == null || _dataFim == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione as datas de início e fim')),
+        );
+        return;
+      }
 
-    if (_dataInicio!.isAfter(_dataFim!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data inicial deve ser anterior à data final')),
-      );
-      return;
+      if (_dataInicio!.isAfter(_dataFim!)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data inicial deve ser anterior à data final')),
+        );
+        return;
+      }
     }
 
     if (_tipoRelatorio == 'comissao' && _mecanicoSelecionadoId == null) {
@@ -164,6 +187,26 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           break;
         case 'consultores':
           relatorio = await _relatorioService.getRelatorioConsultores(_dataInicio!, _dataFim!);
+          break;
+        case 'fiado':
+          final todasAReceber = await ContaService.listarAReceberPorMesAno(_mesContas.month, _mesContas.year);
+          relatorio = todasAReceber.where((c) => c.isFiado).toList();
+          break;
+        case 'contas':
+          final results = await Future.wait([
+            ContaService.listarAPagarPorMesAno(_mesContas.month, _mesContas.year),
+            ContaService.listarAReceberPorMesAno(_mesContas.month, _mesContas.year),
+            ContaService.listarAtrasadas(),
+            ContaService.resumoMes(_mesContas.month, _mesContas.year),
+          ]);
+          relatorio = RelatorioContasMes(
+            mes: _mesContas.month,
+            ano: _mesContas.year,
+            contasAPagar: results[0] as List<Conta>,
+            contasAReceber: results[1] as List<Conta>,
+            contasAtrasadas: results[2] as List<Conta>,
+            resumo: results[3] as Map<String, double>,
+          );
           break;
       }
 
@@ -458,6 +501,26 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ],
                   ),
                 ),
+                DropdownMenuItem(
+                  value: 'fiado',
+                  child: Row(
+                    children: [
+                      Icon(Icons.receipt_long, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório de Fiados'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'contas',
+                  child: Row(
+                    children: [
+                      Icon(Icons.account_balance, size: 20),
+                      SizedBox(width: 12),
+                      Text('Contas a Pagar/Receber'),
+                    ],
+                  ),
+                ),
               ],
               onChanged: (value) {
                 setState(() {
@@ -513,61 +576,70 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ),
             ),
           if (_tipoRelatorio == 'comissao') const SizedBox(height: 16),
-          _buildModernCard(
-            context,
-            title: 'Período',
-            icon: Icons.date_range,
-            color: Colors.green,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _dataInicioController,
-                    decoration: InputDecoration(
-                      labelText: 'Data Início',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+          if (_tipoRelatorio == 'contas' || _tipoRelatorio == 'fiado')
+            _buildModernCard(
+              context,
+              title: 'Mês de Referência',
+              icon: Icons.calendar_month,
+              color: Colors.teal,
+              child: _buildMesContasPicker(),
+            )
+          else
+            _buildModernCard(
+              context,
+              title: 'Período',
+              icon: Icons.date_range,
+              color: Colors.green,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _dataInicioController,
+                      decoration: InputDecoration(
+                        labelText: 'Data Início',
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        suffixIcon: const Icon(Icons.calendar_today),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      suffixIcon: const Icon(Icons.calendar_today),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      readOnly: true,
+                      onTap: () => _selecionarData(context, true),
                     ),
-                    readOnly: true,
-                    onTap: () => _selecionarData(context, true),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _dataFimController,
-                    decoration: InputDecoration(
-                      labelText: 'Data Fim',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _dataFimController,
+                      decoration: InputDecoration(
+                        labelText: 'Data Fim',
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        suffixIcon: const Icon(Icons.calendar_today),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      suffixIcon: const Icon(Icons.calendar_today),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      readOnly: true,
+                      onTap: () => _selecionarData(context, false),
                     ),
-                    readOnly: true,
-                    onTap: () => _selecionarData(context, false),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 24),
           Container(
             height: 56,
@@ -722,6 +794,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             break;
           case 'consultores':
             await _printRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
+            break;
+          case 'fiado':
+            await _printRelatorioFiado(_relatorioAtual as List<Conta>);
+            break;
+          case 'contas':
+            await _printRelatorioContas(_relatorioAtual as RelatorioContasMes);
             break;
         }
       } catch (e) {
@@ -1455,6 +1533,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         return _buildRelatorioGarantias(_relatorioAtual as RelatorioGarantias);
       case 'consultores':
         return _buildRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
+      case 'fiado':
+        return _buildRelatorioFiado(_relatorioAtual as List<Conta>);
+      case 'contas':
+        return _buildRelatorioContas(_relatorioAtual as RelatorioContasMes);
       default:
         return const SizedBox();
     }
@@ -3393,6 +3475,619 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
       ),
     );
 
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Widget _buildMesContasPicker() {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(Icons.chevron_left, color: Colors.teal.shade600),
+          onPressed: () => setState(() {
+            _mesContas = DateTime(_mesContas.year, _mesContas.month - 1, 1);
+          }),
+        ),
+        Expanded(
+          child: Center(
+            child: Text(
+              DateFormat('MMMM yyyy', 'pt_BR').format(_mesContas),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.teal.shade700),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: Icon(Icons.chevron_right, color: Colors.teal.shade600),
+          onPressed: () => setState(() {
+            _mesContas = DateTime(_mesContas.year, _mesContas.month + 1, 1);
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRelatorioFiado(List<Conta> fiados) {
+    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(_mesContas.year, _mesContas.month));
+
+    final pagos = fiados.where((c) => c.pago).toList();
+    final pendentes = fiados.where((c) => !c.pago).toList();
+    final atrasados = fiados.where((c) => c.isAtrasada).toList();
+    final noPrazo = fiados.where((c) => !c.pago && !c.isAtrasada).toList();
+
+    final valorTotal = fiados.fold(0.0, (s, c) => s + c.valor);
+    final valorPago = pagos.fold(0.0, (s, c) => s + c.valor);
+    final valorPendente = pendentes.fold(0.0, (s, c) => s + c.valorPendente);
+    final valorAtrasado = atrasados.fold(0.0, (s, c) => s + c.valorPendente);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepOrange.shade400, Colors.deepOrange.shade600],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.receipt_long, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Relatório de Fiados',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    Text(mesLabel, style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Resumo', Icons.assessment, Colors.deepOrange),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total de Fiados',
+                fiados.length.toString(),
+                Icons.receipt_long,
+                Colors.deepOrange,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'No Prazo',
+                noPrazo.length.toString(),
+                Icons.check_circle_outline,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Atrasados',
+                atrasados.length.toString(),
+                Icons.warning_amber_rounded,
+                Colors.red,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Pagos',
+                pagos.length.toString(),
+                Icons.done_all,
+                Colors.teal,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Valores', Icons.attach_money, Colors.blue),
+        const SizedBox(height: 12),
+        _buildMetricCard(
+          'Valor Total em Fiado',
+          'R\$ ${valorTotal.toStringAsFixed(2)}',
+          Icons.monetization_on,
+          color: Colors.deepOrange,
+        ),
+        _buildMetricCard(
+          'Valor Recebido',
+          'R\$ ${valorPago.toStringAsFixed(2)}',
+          Icons.payments,
+          color: Colors.green,
+        ),
+        _buildMetricCard(
+          'Valor Pendente',
+          'R\$ ${valorPendente.toStringAsFixed(2)}',
+          Icons.pending_actions,
+          color: Colors.red,
+        ),
+        if (valorAtrasado > 0)
+          _buildMetricCard(
+            'Valor Atrasado',
+            'R\$ ${valorAtrasado.toStringAsFixed(2)}',
+            Icons.warning,
+            color: Colors.red.shade700,
+          ),
+        const SizedBox(height: 24),
+        if (fiados.isNotEmpty) ...[
+          _buildSectionHeader('Fiados do Mês', Icons.list_alt, Colors.deepOrange),
+          const SizedBox(height: 12),
+          ...fiados.map((conta) => _buildContaItem(conta)),
+        ] else
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhum fiado encontrado para este mês',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildRelatorioContas(RelatorioContasMes dados) {
+    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(dados.ano, dados.mes));
+
+    final totalAPagarPendente = dados.contasAPagar.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
+    final totalAReceberPendente = dados.contasAReceber.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
+    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
+    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
+    final saldo = (totalAReceberRecebido + totalAReceberPendente) - (totalAPagarPago + totalAPagarPendente);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal.shade500, Colors.teal.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Contas a Pagar / Receber',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    Text(mesLabel, style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: saldo >= 0 ? [Colors.green.shade400, Colors.green.shade600] : [Colors.red.shade400, Colors.red.shade600],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: (saldo >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(saldo >= 0 ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: 32),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      saldo >= 0 ? 'Saldo Positivo' : 'Saldo Negativo',
+                      style: const TextStyle(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'R\$ ${saldo.abs().toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'A Pagar (Pendente)',
+                'R\$ ${totalAPagarPendente.toStringAsFixed(2)}',
+                Icons.arrow_upward,
+                Colors.red,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'A Receber (Pendente)',
+                'R\$ ${totalAReceberPendente.toStringAsFixed(2)}',
+                Icons.arrow_downward,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Já Pago',
+                'R\$ ${totalAPagarPago.toStringAsFixed(2)}',
+                Icons.check_circle,
+                Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Já Recebido',
+                'R\$ ${totalAReceberRecebido.toStringAsFixed(2)}',
+                Icons.check_circle,
+                Colors.teal,
+              ),
+            ),
+          ],
+        ),
+        if (dados.contasAtrasadas.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildSectionHeader(
+            'Contas Atrasadas (${dados.contasAtrasadas.length})',
+            Icons.warning_amber_rounded,
+            Colors.red,
+          ),
+          const SizedBox(height: 12),
+          ...dados.contasAtrasadas.take(8).map((c) => _buildContaItem(c)),
+          if (dados.contasAtrasadas.length > 8)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: Text(
+                '+ ${dados.contasAtrasadas.length - 8} contas atrasadas',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+              ),
+            ),
+        ],
+        if (dados.contasAPagar.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildSectionHeader(
+            'Contas a Pagar (${dados.contasAPagar.length})',
+            Icons.payment,
+            Colors.red,
+          ),
+          const SizedBox(height: 12),
+          ...dados.contasAPagar.map((c) => _buildContaItem(c)),
+        ],
+        if (dados.contasAReceber.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _buildSectionHeader(
+            'Contas a Receber (${dados.contasAReceber.length})',
+            Icons.request_quote,
+            Colors.green,
+          ),
+          const SizedBox(height: 12),
+          ...dados.contasAReceber.map((c) => _buildContaItem(c)),
+        ],
+        if (dados.contasAPagar.isEmpty && dados.contasAReceber.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.account_balance, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhuma conta encontrada para este mês',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildContaItem(Conta conta) {
+    final Color cor = conta.isAPagar ? Colors.red : Colors.green;
+    final bool atrasada = conta.isAtrasada;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: conta.pago ? Colors.grey.shade50 : (atrasada ? Colors.red.shade50 : cor.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: conta.pago ? Colors.grey.shade200 : (atrasada ? Colors.red.shade300 : cor.withValues(alpha: 0.3)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            conta.pago ? Icons.check_circle : (atrasada ? Icons.warning_amber_rounded : Icons.schedule),
+            color: conta.pago ? Colors.grey : (atrasada ? Colors.red : cor),
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  conta.descricao,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: conta.pago ? Colors.grey.shade600 : Colors.black87,
+                  ),
+                ),
+                if (conta.dataVencimento != null)
+                  Text(
+                    conta.pago
+                        ? 'Pago em ${conta.dataPagamento != null ? DateFormat('dd/MM/yyyy').format(conta.dataPagamento!) : "—"}'
+                        : 'Vence em ${DateFormat('dd/MM/yyyy').format(conta.dataVencimento!)}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: conta.pago ? Colors.grey : (atrasada ? Colors.red.shade700 : Colors.grey.shade600),
+                    ),
+                  ),
+                if (conta.temPagamentoParcial)
+                  Text(
+                    'Parcial: R\$ ${conta.valorPagoParcial.toStringAsFixed(2)} pago',
+                    style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                  ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'R\$ ${(conta.pago ? conta.valor : conta.valorPendente).toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: conta.pago ? Colors.grey : cor,
+                  fontSize: 13,
+                ),
+              ),
+              if (conta.parcelaNumero != null && conta.totalParcelas != null)
+                Text(
+                  '${conta.parcelaNumero}/${conta.totalParcelas}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printRelatorioFiado(List<Conta> fiados) async {
+    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(_mesContas.year, _mesContas.month));
+    final pagos = fiados.where((c) => c.pago).toList();
+    final pendentes = fiados.where((c) => !c.pago).toList();
+    final atrasados = fiados.where((c) => c.isAtrasada).toList();
+    final noPrazo = fiados.where((c) => !c.pago && !c.isAtrasada).toList();
+    final valorTotal = fiados.fold(0.0, (s, c) => s + c.valor);
+    final valorPago = pagos.fold(0.0, (s, c) => s + c.valor);
+    final valorPendente = pendentes.fold(0.0, (s, c) => s + c.valorPendente);
+    final valorAtrasado = atrasados.fold(0.0, (s, c) => s + c.valorPendente);
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader(
+            'Relatório de Fiados',
+            Icons.receipt_long,
+            PdfColors.deepOrange600,
+            logoImage: PdfLogoHelper.getCachedLogo(),
+          ),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Mês de Referência', mesLabel),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Fiados', fiados.length.toString()),
+          _buildPdfMetricCard('No Prazo', noPrazo.length.toString()),
+          _buildPdfMetricCard('Atrasados', atrasados.length.toString()),
+          _buildPdfMetricCard('Pagos / Recebidos', pagos.length.toString()),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Valores'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Valor Total em Fiado', 'R\$ ${valorTotal.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor Recebido', 'R\$ ${valorPago.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Valor Pendente', 'R\$ ${valorPendente.toStringAsFixed(2)}'),
+          if (valorAtrasado > 0) _buildPdfMetricCard('Valor Atrasado', 'R\$ ${valorAtrasado.toStringAsFixed(2)}'),
+          if (fiados.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            _buildPdfSectionTitle('Fiados do Mês'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Descrição', 'OS', 'Vencimento', 'Valor', 'Status'],
+              rows: fiados
+                  .map((c) => [
+                        c.descricao,
+                        c.ordemServicoNumero ?? '—',
+                        c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
+                        'R\$ ${c.valor.toStringAsFixed(2)}',
+                        c.pago ? 'Recebido' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioContas(RelatorioContasMes dados) async {
+    final doc = pw.Document();
+    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(dados.ano, dados.mes));
+
+    final totalAPagarPendente = dados.contasAPagar.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
+    final totalAReceberPendente = dados.contasAReceber.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
+    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
+    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
+    final saldo = (totalAReceberRecebido + totalAReceberPendente) - (totalAPagarPago + totalAPagarPendente);
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader(
+            'Contas a Pagar/Receber',
+            Icons.account_balance,
+            PdfColors.teal600,
+            logoImage: PdfLogoHelper.getCachedLogo(),
+          ),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Mês de Referência', mesLabel),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo do Mês'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('A Pagar (Pendente)', 'R\$ ${totalAPagarPendente.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('A Receber (Pendente)', 'R\$ ${totalAReceberPendente.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Já Pago', 'R\$ ${totalAPagarPago.toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Já Recebido', 'R\$ ${totalAReceberRecebido.toStringAsFixed(2)}'),
+          pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 6),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: pw.BoxDecoration(
+              color: saldo >= 0 ? PdfColors.green50 : PdfColors.red50,
+              border: pw.Border.all(color: saldo >= 0 ? PdfColors.green : PdfColors.red, width: 2),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Saldo do Mês', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                pw.Text(
+                  'R\$ ${saldo.toStringAsFixed(2)}',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: saldo >= 0 ? PdfColors.green700 : PdfColors.red700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (dados.contasAtrasadas.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            _buildPdfSectionTitle('Contas Atrasadas'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Descrição', 'Tipo', 'Vencimento', 'Valor Pendente'],
+              rows: dados.contasAtrasadas
+                  .map((c) => [
+                        c.descricao,
+                        c.isAPagar ? 'A Pagar' : 'A Receber',
+                        c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
+                        'R\$ ${c.valorPendente.toStringAsFixed(2)}',
+                      ])
+                  .toList(),
+            ),
+          ],
+          if (dados.contasAPagar.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            _buildPdfSectionTitle('Contas a Pagar'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Descrição', 'Vencimento', 'Valor', 'Status'],
+              rows: dados.contasAPagar
+                  .map((c) => [
+                        c.descricao,
+                        c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
+                        'R\$ ${c.valor.toStringAsFixed(2)}',
+                        c.pago ? 'Pago' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),
+                      ])
+                  .toList(),
+            ),
+          ],
+          if (dados.contasAReceber.isNotEmpty) ...[
+            pw.SizedBox(height: 16),
+            _buildPdfSectionTitle('Contas a Receber'),
+            pw.SizedBox(height: 10),
+            _buildPdfTable(
+              headers: ['Descrição', 'Vencimento', 'Valor', 'Status'],
+              rows: dados.contasAReceber
+                  .map((c) => [
+                        c.descricao,
+                        c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
+                        'R\$ ${c.valor.toStringAsFixed(2)}',
+                        c.pago ? 'Recebido' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),
+                      ])
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 }

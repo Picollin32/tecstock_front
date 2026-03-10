@@ -77,6 +77,8 @@ class MovimentacaoEstoqueService {
     required String numeroNotaFiscal,
     required List<Map<String, dynamic>> pecas,
     String? observacoes,
+    Map<String, dynamic>? pagamento,
+    Map<String, dynamic>? frete,
   }) async {
     try {
       final body = {
@@ -84,6 +86,8 @@ class MovimentacaoEstoqueService {
         'numeroNotaFiscal': numeroNotaFiscal,
         'pecas': pecas,
         if (observacoes != null && observacoes.isNotEmpty) 'observacoes': observacoes,
+        if (pagamento != null) 'pagamento': pagamento,
+        if (frete != null) 'frete': frete,
       };
 
       final response = await http.post(
@@ -149,6 +153,74 @@ class MovimentacaoEstoqueService {
         print('Erro ao listar movimentações por fornecedor: $e');
       }
       return [];
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> listarNotasEntrada() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/notas-entrada'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      if (kDebugMode) print('Erro ao listar notas de entrada: $e');
+      return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> atualizarNota({
+    required int fornecedorId,
+    required String numeroNota,
+    String? novoNumero,
+    Map<String, dynamic>? pagamento,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (novoNumero != null && novoNumero.isNotEmpty) body['novoNumero'] = novoNumero;
+      if (pagamento != null) body['pagamento'] = pagamento;
+
+      final uri = Uri.parse('$baseUrl/notas-entrada/$fornecedorId').replace(queryParameters: {'numeroNota': numeroNota});
+
+      final response = await http.patch(
+        uri,
+        headers: await AuthService.getAuthHeaders(),
+        body: jsonEncode(body),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      return {'sucesso': false, 'mensagem': errorData['mensagem'] ?? 'Erro ao atualizar nota'};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao atualizar nota: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deletarNota({
+    required int fornecedorId,
+    required String numeroNota,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/notas-entrada/$fornecedorId').replace(queryParameters: {'numeroNota': numeroNota});
+
+      final response = await http.delete(
+        uri,
+        headers: await AuthService.getAuthHeaders(),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      return {'sucesso': false, 'mensagem': errorData['mensagem'] ?? 'Erro ao excluir nota'};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao excluir nota: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
     }
   }
 }

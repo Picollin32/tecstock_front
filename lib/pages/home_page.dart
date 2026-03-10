@@ -14,6 +14,7 @@ import 'package:tecstock/pages/login_page.dart';
 import 'package:tecstock/pages/ordem_servico_page.dart';
 import 'package:tecstock/pages/orcamento_page.dart';
 import 'package:tecstock/pages/relatorios_page.dart';
+import 'package:tecstock/pages/notas_entrada_page.dart';
 import 'package:tecstock/services/agendamento_service.dart';
 import 'package:tecstock/services/auth_service.dart';
 import 'package:tecstock/services/cliente_service.dart';
@@ -135,9 +136,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ],
     },
     {
-      'group': 'Relatórios',
+      'group': 'Financeiro',
       'items': [
         {'title': 'Finanças', 'icon': Icons.account_balance_wallet, 'page': const ContasPage()},
+        {'title': 'Notas de Entrada', 'icon': Icons.receipt_long, 'page': const NotasEntradaPage()},
         {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
       ],
     },

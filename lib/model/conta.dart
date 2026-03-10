@@ -45,6 +45,7 @@ class Conta {
   bool get isFiado => origemTipo == 'OS_FIADO';
   bool get isCredito => origemTipo == 'OS_CREDITO';
   bool get isAvista => origemTipo == 'OS_AVISTA';
+  bool get isCompra => origemTipo?.startsWith('COMPRA') == true;
 
   double get valorPendente => valor - valorPagoParcial;
 

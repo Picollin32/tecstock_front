@@ -239,6 +239,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 const SizedBox(height: 16),
                 _buildFeatureItem(Icons.people_outline, 'Gestão de Clientes e Funcionários'),
                 const SizedBox(height: 16),
+                _buildFeatureItem(Icons.account_balance_wallet_outlined, 'Controle Financeiro e Contas'),
+                const SizedBox(height: 16),
                 _buildFeatureItem(Icons.analytics_outlined, 'Relatórios e Auditoria'),
               ],
             ),

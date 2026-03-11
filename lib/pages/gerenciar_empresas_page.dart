@@ -510,8 +510,8 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   void _editarEmpresa(Empresa empresa) {
     setState(() {
       _empresaEmEdicao = empresa;
-      _cnpjController.text = _formatarCNPJ(empresa.cnpj);
       _lastSearchedCnpj = empresa.cnpj.replaceAll(RegExp(r'[^0-9]'), '');
+      _cnpjController.text = _formatarCNPJ(empresa.cnpj);
       _razaoSocialController.text = empresa.razaoSocial;
       _nomeFantasiaController.text = empresa.nomeFantasia;
       _inscricaoEstadualController.text = empresa.inscricaoEstadual ?? '';
@@ -598,7 +598,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 24),
                   child: _buildFormulario(),
                 ),
               ),
@@ -711,41 +711,53 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             },
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _inscricaoEstadualController,
-                  label: 'Inscrição Estadual',
-                  icon: Icons.receipt_long,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(14),
-                  ],
-                  keyboardType: TextInputType.number,
-                  validator: (value) => BrazilianValidators.validarInscricaoEstadual(
-                    value?.trim() ?? '',
-                    _ufSelecionada,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final estadualField = _buildTextField(
+                controller: _inscricaoEstadualController,
+                label: 'Inscrição Estadual',
+                icon: Icons.receipt_long,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(14),
+                ],
+                keyboardType: TextInputType.number,
+                validator: (value) => BrazilianValidators.validarInscricaoEstadual(
+                  value?.trim() ?? '',
+                  _ufSelecionada,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildTextField(
-                  controller: _inscricaoMunicipalController,
-                  label: 'Inscrição Municipal *',
-                  icon: Icons.receipt,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(15),
-                  ],
-                  validator: (value) => BrazilianValidators.validarInscricaoMunicipal(
-                    value?.trim() ?? '',
-                  ),
+              );
+              final municipalField = _buildTextField(
+                controller: _inscricaoMunicipalController,
+                label: 'Inscrição Municipal *',
+                icon: Icons.receipt,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(15),
+                ],
+                validator: (value) => BrazilianValidators.validarInscricaoMunicipal(
+                  value?.trim() ?? '',
                 ),
-              ),
-            ],
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    estadualField,
+                    const SizedBox(height: 16),
+                    municipalField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: estadualField),
+                  const SizedBox(width: 12),
+                  Expanded(child: municipalField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 24),
           _buildSectionTitle('Dados de Contato'),
@@ -861,38 +873,44 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _logradouroController,
-                  label: 'Logradouro',
-                  icon: Icons.place,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Logradouro é obrigatório';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 1,
-                child: _buildTextField(
-                  controller: _numeroController,
-                  label: 'Número',
-                  icon: Icons.pin,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Número é obrigatório';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final logradouroField = _buildTextField(
+                controller: _logradouroController,
+                label: 'Logradouro',
+                icon: Icons.place,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Logradouro é obrigatório';
+                  return null;
+                },
+              );
+              final numeroField = _buildTextField(
+                controller: _numeroController,
+                label: 'Número',
+                icon: Icons.pin,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Número é obrigatório';
+                  return null;
+                },
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    logradouroField,
+                    const SizedBox(height: 16),
+                    numeroField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: logradouroField),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 1, child: numeroField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -913,42 +931,48 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
             },
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _cidadeController,
-                  label: 'Cidade',
-                  icon: Icons.location_city,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Cidade é obrigatória';
-                    }
-                    return null;
-                  },
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final cidadeField = _buildTextField(
+                controller: _cidadeController,
+                label: 'Cidade',
+                icon: Icons.location_city,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return 'Cidade é obrigatória';
+                  return null;
+                },
+              );
+              final ufField = ValueListenableBuilder<String>(
+                valueListenable: _ufNotifier,
+                builder: (context, val, _) => _buildDropdown(
+                  value: val,
+                  items: _ufs,
+                  label: 'UF',
+                  icon: Icons.map,
+                  onChanged: (value) => setState(() {
+                    _ufSelecionada = value!;
+                    _ufNotifier.value = value;
+                  }),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 1,
-                child: ValueListenableBuilder<String>(
-                  valueListenable: _ufNotifier,
-                  builder: (context, val, _) {
-                    return _buildDropdown(
-                      value: val,
-                      items: _ufs,
-                      label: 'UF',
-                      icon: Icons.map,
-                      onChanged: (value) => setState(() {
-                        _ufSelecionada = value!;
-                        _ufNotifier.value = value;
-                      }),
-                    );
-                  },
-                ),
-              ),
-            ],
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    cidadeField,
+                    const SizedBox(height: 16),
+                    ufField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: cidadeField),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 1, child: ufField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -1238,7 +1262,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
           child: SlideTransition(
             position: _slideAnimation,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1587,7 +1611,133 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     );
   }
 
+  Widget _buildInfoRowCard(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey[600]),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileEmpresaCard(Empresa empresa) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: empresa.ativa ? Colors.grey.shade200 : Colors.red.shade200,
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: empresa.ativa ? [primaryColor, Colors.cyan.shade400] : [Colors.grey.shade400, Colors.grey.shade600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.business, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        empresa.nomeFantasia,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (!empresa.ativa)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            'INATIVA',
+                            style: TextStyle(color: Colors.red.shade700, fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildInfoRowCard(Icons.badge, 'CNPJ: ${_formatarCNPJ(empresa.cnpj)}'),
+            _buildInfoRowCard(Icons.business, empresa.razaoSocial),
+            _buildInfoRowCard(Icons.location_on, '${empresa.cidade} - ${empresa.uf}'),
+            if (empresa.email != null && empresa.email!.isNotEmpty) _buildInfoRowCard(Icons.email, empresa.email!),
+            if (empresa.telefone != null && empresa.telefone!.isNotEmpty) _buildInfoRowCard(Icons.phone, empresa.telefone!),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: IconButton(
+                    icon: Icon(Icons.admin_panel_settings, color: Colors.green.shade600, size: 20),
+                    onPressed: () => _gerenciarAdmins(empresa),
+                    tooltip: 'Gerenciar Admins',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: IconButton(
+                    icon: Icon(Icons.edit_outlined, color: Colors.blue.shade600, size: 20),
+                    onPressed: () => _editarEmpresa(empresa),
+                    tooltip: 'Editar',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.red.shade600, size: 20),
+                    onPressed: () => _confirmarExclusao(empresa),
+                    tooltip: 'Excluir',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmpresaCard(Empresa empresa) {
+    if (MediaQuery.of(context).size.width < 600) return _buildMobileEmpresaCard(empresa);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

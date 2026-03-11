@@ -519,8 +519,8 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       _telefoneController.text = _maskTelefone.maskText(empresa.telefone);
       _emailController.text = empresa.email ?? '';
       _siteController.text = empresa.site ?? '';
-      _cepController.text = _formatarCEP(empresa.cep);
       _lastSearchedCep = empresa.cep.replaceAll(RegExp(r'[^0-9]'), '');
+      _cepController.text = _formatarCEP(empresa.cep);
       _logradouroController.text = empresa.logradouro;
       _numeroController.text = empresa.numero;
       _complementoController.text = empresa.complemento ?? '';

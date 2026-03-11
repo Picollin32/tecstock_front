@@ -664,13 +664,6 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _carregarDados,
-            tooltip: 'Atualizar',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -874,8 +867,9 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
     required String value,
     required Color bgColor,
   }) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: isMobile ? 8 : 10),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(10),
@@ -883,10 +877,25 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 20),
+          Icon(icon, color: Colors.white, size: isMobile ? 18 : 20),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-          Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isMobile ? 14 : 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: isMobile ? 10 : 11),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
         ],
       ),
     );

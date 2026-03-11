@@ -664,7 +664,124 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
     );
   }
 
-  Widget _buildUsuariosGrid() {
+  Widget _buildMobileUsuarioCard(Usuario usuario) {
+    String initials = usuario.nomeUsuario.isNotEmpty ? usuario.nomeUsuario.substring(0, 1).toUpperCase() : '?';
+    if (usuario.nomeUsuario.contains(' ')) {
+      final words = usuario.nomeUsuario.split(' ');
+      if (words.length >= 2) {
+        initials = words[0].substring(0, 1).toUpperCase() + words[1].substring(0, 1).toUpperCase();
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: usuario.nivelAcesso == 1 ? null : () => _editarUsuario(usuario),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
+                      child: Text(
+                        initials,
+                        style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        usuario.nomeUsuario,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (usuario.nivelAcesso != 1)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        onSelected: (value) {
+                          if (value == 'edit') _editarUsuario(usuario);
+                          if (value == 'delete') _confirmarExclusao(usuario);
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(children: [
+                              Icon(Icons.delete, size: 18, color: errorColor),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: errorColor)),
+                            ]),
+                          ),
+                        ],
+                      )
+                    else
+                      Icon(Icons.admin_panel_settings, color: Colors.grey[400], size: 24),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(Icons.support_agent, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        usuario.consultor?.nome ?? 'Sem consultor',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Cadastrado: ${_formatDate(usuario.createdAt)}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUsuariosGrid({bool isMobile = false}) {
     if (_isLoadingUsuarios) {
       return const Center(
         child: Padding(
@@ -703,6 +820,18 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
               ],
             ],
           ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _usuariosFiltrados.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildMobileUsuarioCard(_usuariosFiltrados[index]),
         ),
       );
     }
@@ -904,6 +1033,9 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) return _buildMobileLayout();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -982,6 +1114,117 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
               if (_searchController.text.isNotEmpty && _totalElements > _pageSize) _buildPaginationControls(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gerenciar Usuários',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _limparFormulario();
+          _showFormModal();
+        },
+        backgroundColor: primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar usuários...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search, color: primaryColor),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: Colors.grey[400]),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_searchController.text.isEmpty && !_isLoadingUsuarios && _usuariosFiltrados.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Últimos Usuários Cadastrados',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingUsuarios)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Resultados da Busca ($_totalElements)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildUsuariosGrid(isMobile: true),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(compact: true),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -243,9 +243,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Widget _buildModernHeader(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(24),
+      margin: EdgeInsets.all(isMobile ? 12 : 20),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade700, Colors.blue.shade500],
@@ -261,152 +262,246 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.analytics,
-              size: 32,
-              color: Colors.white,
-            ),
+      child: isMobile ? _buildHeaderMobile(context) : _buildHeaderDesktop(context),
+    );
+  }
+
+  Widget _buildHeaderDesktop(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Relatórios',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Análises e estatísticas do sistema',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                ),
-              ],
-            ),
+          child: const Icon(Icons.analytics, size: 32, color: Colors.white),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Relatórios',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Análises e estatísticas do sistema',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+              ),
+            ],
           ),
-          if (_relatorioAtual != null)
-            Row(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+        ),
+        if (_relatorioAtual != null)
+          Row(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (_isGeneratingPdf)
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade600),
-                                ),
-                              )
-                            else
-                              Icon(
-                                Icons.picture_as_pdf,
-                                color: Colors.orange.shade600,
-                                size: 20,
+                    onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_isGeneratingPdf)
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade600),
                               ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isGeneratingPdf ? 'Gerando PDF...' : 'Imprimir PDF',
-                              style: TextStyle(
-                                color: Colors.orange.shade600,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                            )
+                          else
+                            Icon(Icons.picture_as_pdf, color: Colors.orange.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isGeneratingPdf ? 'Gerando PDF...' : 'Imprimir PDF',
+                            style: TextStyle(color: Colors.orange.shade600, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        setState(() {
-                          _relatorioAtual = null;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.arrow_back,
-                              color: Colors.blue.shade600,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Nova Consulta',
-                              style: TextStyle(
-                                color: Colors.blue.shade600,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+                    onTap: () => setState(() => _relatorioAtual = null),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_back, color: Colors.blue.shade600, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Nova Consulta',
+                            style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderMobile(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.analytics, size: 24, color: Colors.white),
             ),
+            const SizedBox(width: 16),
+            Text(
+              'Relatórios',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+            ),
+          ],
+        ),
+        if (_relatorioAtual != null) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildHeaderButton(
+                  label: _isGeneratingPdf ? 'Gerando...' : 'Imprimir PDF',
+                  icon: Icons.picture_as_pdf,
+                  color: Colors.orange.shade600,
+                  onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
+                  isLoading: _isGeneratingPdf,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildHeaderButton(
+                  label: 'Nova Consulta',
+                  icon: Icons.arrow_back,
+                  color: Colors.blue.shade600,
+                  onTap: () => setState(() => _relatorioAtual = null),
+                ),
+              ),
+            ],
+          ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onTap,
+    bool isLoading = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isLoading)
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  )
+                else
+                  Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildFormSection(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -590,54 +685,66 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               title: 'Período',
               icon: Icons.date_range,
               color: Colors.green,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _dataInicioController,
-                      decoration: InputDecoration(
-                        labelText: 'Data Início',
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        suffixIcon: const Icon(Icons.calendar_today),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 400;
+                  final dataInicio = TextField(
+                    controller: _dataInicioController,
+                    decoration: InputDecoration(
+                      labelText: 'Data Início',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
-                      readOnly: true,
-                      onTap: () => _selecionarData(context, true),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: TextField(
-                      controller: _dataFimController,
-                      decoration: InputDecoration(
-                        labelText: 'Data Fim',
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        suffixIcon: const Icon(Icons.calendar_today),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
-                      readOnly: true,
-                      onTap: () => _selecionarData(context, false),
+                      suffixIcon: const Icon(Icons.calendar_today),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                  ),
-                ],
+                    readOnly: true,
+                    onTap: () => _selecionarData(context, true),
+                  );
+                  final dataFim = TextField(
+                    controller: _dataFimController,
+                    decoration: InputDecoration(
+                      labelText: 'Data Fim',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      suffixIcon: const Icon(Icons.calendar_today),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    readOnly: true,
+                    onTap: () => _selecionarData(context, false),
+                  );
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        dataInicio,
+                        const SizedBox(height: 12),
+                        dataFim,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: dataInicio),
+                      const SizedBox(width: 16),
+                      Expanded(child: dataFim),
+                    ],
+                  );
+                },
               ),
             ),
           const SizedBox(height: 24),
@@ -697,9 +804,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Widget _buildResultSection(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(24),
+      margin: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

@@ -498,8 +498,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       _numeroCasaController.text = fornecedor.numeroCasa ?? '';
       _bairroController.text = fornecedor.bairro ?? '';
       _cidadeController.text = fornecedor.cidade ?? '';
-      _cepController.text = _formatarCEP(fornecedor.cep);
       _lastSearchedCep = fornecedor.cep?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+      _cepController.text = _formatarCEP(fornecedor.cep);
       _complementoController.text = fornecedor.complemento ?? '';
       _codigoMunicipioController.text = fornecedor.codigoMunicipio ?? '';
       _ufSelecionada = fornecedor.uf ?? 'GO';

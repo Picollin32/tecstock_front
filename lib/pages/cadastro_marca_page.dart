@@ -392,7 +392,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     );
   }
 
-  Widget _buildBrandGrid() {
+  Widget _buildBrandGrid({bool isMobile = false}) {
     if (_isLoadingMarcas) {
       return const Center(
         child: Padding(
@@ -435,6 +435,15 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
       );
     }
 
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _marcasFiltradas.length,
+        itemBuilder: (context, index) => _buildMobileMarcaCard(_marcasFiltradas[index]),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 2;
@@ -457,6 +466,129 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
           itemBuilder: (context, index) => _buildBrandCard(_marcasFiltradas[index]),
         );
       },
+    );
+  }
+
+  Widget _buildMobileMarcaCard(Marca marca) {
+    String initials = marca.marca.isNotEmpty ? marca.marca.substring(0, 1).toUpperCase() : '?';
+
+    if (marca.marca.contains(' ')) {
+      final words = marca.marca.split(' ');
+      if (words.length >= 2) {
+        initials = words[0].substring(0, 1).toUpperCase() + words[1].substring(0, 1).toUpperCase();
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarMarca(marca),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        marca.marca,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarMarca(marca);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(marca);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (marca.createdAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado: ${DateFormat('dd/MM/yyyy').format(marca.createdAt!)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -692,8 +824,74 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
     );
   }
 
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchBar(),
+              if (_searchController.text.isNotEmpty && !_isLoadingMarcas) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Resultados da Busca ($_totalElements)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _buildPaginationControls(compact: true),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_searchController.text.isEmpty && !_isLoadingMarcas && _marcasFiltradas.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Últimas Marcas Cadastradas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                _buildBrandGrid(isMobile: true),
+                if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                  const SizedBox(height: 16),
+                  _buildPaginationControls(),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -709,73 +907,85 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
+      floatingActionButton: isMobile
+          ? FloatingActionButton(
+              onPressed: () {
+                _limparFormulario();
+                _showFormModal();
+              },
+              backgroundColor: primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+        child: isMobile
+            ? _buildMobileLayout()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              _limparFormulario();
+                              _showFormModal();
+                            },
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            iconSize: 28,
+                            padding: const EdgeInsets.all(12),
+                          ),
                         ),
                       ],
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        _showFormModal();
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    if (_searchController.text.isEmpty && !_isLoadingMarcas && _marcasFiltradas.isNotEmpty)
+                      Text(
+                        'Últimas Marcas Cadastradas',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingMarcas)
+                      Text(
+                        'Resultados da Busca ($_totalElements)',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildBrandGrid(),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingMarcas && _marcasFiltradas.isNotEmpty)
-                Text(
-                  'Últimas Marcas Cadastradas',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              if (_searchController.text.isNotEmpty && !_isLoadingMarcas)
-                Text(
-                  'Resultados da Busca ($_totalElements)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              const SizedBox(height: 16),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                _buildPaginationControls(compact: true),
-                const SizedBox(height: 10),
-              ],
-              _buildBrandGrid(),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                const SizedBox(height: 16),
-                _buildPaginationControls(),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }

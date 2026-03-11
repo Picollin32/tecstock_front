@@ -462,8 +462,8 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       _numeroCasaController.text = funcionario.numeroCasa ?? '';
       _bairroController.text = funcionario.bairro ?? '';
       _cidadeController.text = funcionario.cidade ?? '';
-      _cepController.text = _formatarCEP(funcionario.cep);
       _lastSearchedCep = funcionario.cep?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+      _cepController.text = _formatarCEP(funcionario.cep);
       _complementoController.text = funcionario.complemento ?? '';
       _codigoMunicipioController.text = funcionario.codigoMunicipio ?? '';
       _ufSelecionada = funcionario.uf ?? 'GO';
@@ -639,7 +639,332 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildEmployeeCard(Funcionario funcionario) {
+    final nivelInfo = _niveisAcesso[funcionario.nivelAcesso] ?? {'label': 'Desconhecido', 'icon': Icons.person, 'color': Colors.grey};
+    final idade = DateTime.now().difference(funcionario.dataNascimento).inDays ~/ 365;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarFuncionario(funcionario),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(nivelInfo['icon'], color: nivelInfo['color'], size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            funcionario.nome,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              nivelInfo['label'],
+                              style: TextStyle(color: nivelInfo['color'], fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') _editarFuncionario(funcionario);
+                        if (value == 'delete') _confirmarExclusao(funcionario);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Excluir', style: TextStyle(color: Colors.red)),
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.badge, _maskCpf.maskText(funcionario.cpf)),
+                _buildInfoRow(Icons.phone, _maskTelefone.maskText(funcionario.telefone)),
+                _buildInfoRow(Icons.email, funcionario.email),
+                _buildInfoRow(Icons.cake, '$idade anos'),
+                if (funcionario.cep != null && funcionario.cep!.isNotEmpty) _buildInfoRow(Icons.local_post_office, funcionario.cep!),
+                if (funcionario.rua != null && funcionario.rua!.isNotEmpty)
+                  _buildInfoRow(
+                    Icons.location_on,
+                    '${funcionario.rua}${funcionario.numeroCasa != null && funcionario.numeroCasa!.isNotEmpty ? ', ${funcionario.numeroCasa}' : ''}',
+                  ),
+                if (funcionario.bairro != null && funcionario.bairro!.isNotEmpty) _buildInfoRow(Icons.holiday_village, funcionario.bairro!),
+                if (funcionario.cidade != null && funcionario.cidade!.isNotEmpty)
+                  _buildInfoRow(
+                    Icons.location_city,
+                    '${funcionario.cidade}${funcionario.uf != null && funcionario.uf!.isNotEmpty ? ' - ${funcionario.uf}' : ''}',
+                  ),
+                if (funcionario.createdAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado: ${DateFormat("dd/MM/yyyy").format(funcionario.createdAt!)}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileEmployeeCard(Funcionario funcionario) {
+    final nivelInfo = _niveisAcesso[funcionario.nivelAcesso] ?? {'label': 'Desconhecido', 'icon': Icons.person, 'color': Colors.grey};
+    final idade = DateTime.now().difference(funcionario.dataNascimento).inDays ~/ 365;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarFuncionario(funcionario),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(nivelInfo['icon'], color: nivelInfo['color'], size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            funcionario.nome,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              nivelInfo['label'],
+                              style: TextStyle(color: nivelInfo['color'], fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') _editarFuncionario(funcionario);
+                        if (value == 'delete') _confirmarExclusao(funcionario);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Excluir', style: TextStyle(color: Colors.red)),
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildInfoRow(Icons.badge, _maskCpf.maskText(funcionario.cpf)),
+                _buildInfoRow(Icons.phone, _maskTelefone.maskText(funcionario.telefone)),
+                _buildInfoRow(Icons.email, funcionario.email),
+                _buildInfoRow(Icons.cake, '$idade anos'),
+                if (funcionario.cidade != null && funcionario.cidade!.isNotEmpty)
+                  _buildInfoRow(
+                    Icons.location_city,
+                    '${funcionario.cidade}${funcionario.uf != null && funcionario.uf!.isNotEmpty ? ' - ${funcionario.uf}' : ''}',
+                  ),
+                if (funcionario.createdAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado: ${DateFormat("dd/MM/yyyy").format(funcionario.createdAt!)}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar({bool isMobile = false}) {
+    final searchField = TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: isMobile ? 'Pesquisar...' : 'Pesquisar por nome ou CPF...',
+        prefixIcon: Icon(Icons.search, color: primaryColor),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _onSearchChanged(force: true);
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+
+    final filterDropdown = DropdownButtonFormField<int?>(
+      initialValue: _cargoFiltroId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: isMobile ? 'Filtrar po...' : 'Filtrar por cargo',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      items: const [
+        DropdownMenuItem<int?>(
+          value: null,
+          child: Text('Todo'),
+        ),
+        DropdownMenuItem<int?>(
+          value: 2,
+          child: Text('Consultor(a)'),
+        ),
+        DropdownMenuItem<int?>(
+          value: 3,
+          child: Text('Mecânico(a)'),
+        ),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _cargoFiltroId = value;
+          _currentPage = 0;
+        });
+        _onSearchChanged(force: true);
+      },
+    );
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -655,93 +980,15 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Pesquisar por nome ou CPF...',
-                prefixIcon: Icon(Icons.search, color: primaryColor),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged(force: true);
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-            ),
-          ),
+          Expanded(flex: 3, child: searchField),
           const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<int?>(
-              initialValue: _cargoFiltroId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Filtrar por cargo',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
-              items: const [
-                DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('Todos os cargos'),
-                ),
-                DropdownMenuItem<int?>(
-                  value: 2,
-                  child: Text('Consultor(a)'),
-                ),
-                DropdownMenuItem<int?>(
-                  value: 3,
-                  child: Text('Mecânico(a)'),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _cargoFiltroId = value;
-                  _currentPage = 0;
-                });
-                _onSearchChanged(force: true);
-              },
-            ),
-          ),
+          Expanded(flex: 2, child: filterDropdown),
         ],
       ),
     );
   }
 
-  Widget _buildEmployeeGrid() {
+  Widget _buildEmployeeGrid({bool isMobile = false}) {
     if (_isLoadingFuncionarios) {
       return const Center(
         child: Padding(
@@ -786,6 +1033,18 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       );
     }
 
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _funcionariosFiltrados.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _buildMobileEmployeeCard(_funcionariosFiltrados[index]),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
@@ -797,200 +1056,30 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
           crossAxisCount = 1;
         }
 
-        double childAspectRatio;
         if (crossAxisCount == 1) {
-          childAspectRatio = 3.2;
-        } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.4;
-        } else {
-          childAspectRatio = 1.55;
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _funcionariosFiltrados.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildEmployeeCard(_funcionariosFiltrados[index]),
+            ),
+          );
         }
 
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemCount: _funcionariosFiltrados.length,
-          itemBuilder: (context, index) => _buildEmployeeCard(_funcionariosFiltrados[index]),
+        final itemWidth = (constraints.maxWidth - (crossAxisCount - 1) * 10) / crossAxisCount;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _funcionariosFiltrados
+              .map((f) => SizedBox(
+                    width: itemWidth,
+                    child: _buildEmployeeCard(f),
+                  ))
+              .toList(),
         );
       },
-    );
-  }
-
-  Widget _buildEmployeeCard(Funcionario funcionario) {
-    final nivelInfo = _niveisAcesso[funcionario.nivelAcesso] ?? {'label': 'Desconhecido', 'icon': Icons.person, 'color': Colors.grey};
-
-    final idade = DateTime.now().difference(funcionario.dataNascimento).inDays ~/ 365;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: shadowColor,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _editarFuncionario(funcionario),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        nivelInfo['icon'],
-                        color: nivelInfo['color'],
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            funcionario.nome,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: (nivelInfo['color'] as Color).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              nivelInfo['label'],
-                              style: TextStyle(
-                                color: nivelInfo['color'],
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _editarFuncionario(funcionario);
-                        } else if (value == 'delete') {
-                          _confirmarExclusao(funcionario);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 18),
-                              SizedBox(width: 8),
-                              Text('Editar'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 18, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Excluir', style: TextStyle(color: Colors.red)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow(Icons.badge, _maskCpf.maskText(funcionario.cpf)),
-                      _buildInfoRow(Icons.phone, _maskTelefone.maskText(funcionario.telefone)),
-                      _buildInfoRow(Icons.email, funcionario.email),
-                      _buildInfoRow(Icons.cake, '$idade anos'),
-                      if (funcionario.cep != null && funcionario.cep!.isNotEmpty)
-                        _buildInfoRow(Icons.pin_drop, _formatarCEP(funcionario.cep!)),
-                      if (funcionario.rua != null && funcionario.rua!.isNotEmpty)
-                        _buildInfoRow(
-                          Icons.location_on,
-                          '${funcionario.rua}${funcionario.numeroCasa != null && funcionario.numeroCasa!.isNotEmpty ? ', ${funcionario.numeroCasa}' : ''}',
-                        ),
-                      if (funcionario.bairro != null && funcionario.bairro!.isNotEmpty) _buildInfoRow(Icons.map, funcionario.bairro!),
-                      if (funcionario.cidade != null && funcionario.cidade!.isNotEmpty)
-                        _buildInfoRow(
-                          Icons.location_city,
-                          '${funcionario.cidade}${funcionario.uf != null && funcionario.uf!.isNotEmpty ? ' - ${funcionario.uf}' : ''}',
-                        ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[200]!, width: 1),
-                  ),
-                  child: Column(
-                    children: [
-                      if (funcionario.createdAt != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Cadastrado: ${DateFormat('dd/MM/yyyy').format(funcionario.createdAt!)}',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -1036,6 +1125,15 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
   }
 
   Widget _buildFormulario() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 500;
+        return _buildFormularioContent(isNarrow: isNarrow);
+      },
+    );
+  }
+
+  Widget _buildFormularioContent({required bool isNarrow}) {
     return Form(
       key: _formKey,
       child: Column(
@@ -1066,31 +1164,50 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             },
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _telefoneController,
-                  label: 'Telefone',
-                  icon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [_maskTelefone],
-                  validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+          if (isNarrow) ...[
+            _buildTextField(
+              controller: _telefoneController,
+              label: 'Telefone',
+              icon: Icons.phone,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [_maskTelefone],
+              validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _dataNascimentoController,
+              label: 'Data de Nascimento',
+              icon: Icons.calendar_today,
+              readOnly: true,
+              onTap: () => _selectDate(context),
+              validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+            ),
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _telefoneController,
+                    label: 'Telefone',
+                    icon: Icons.phone,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [_maskTelefone],
+                    validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _dataNascimentoController,
-                  label: 'Data de Nascimento',
-                  icon: Icons.calendar_today,
-                  readOnly: true,
-                  onTap: () => _selectDate(context),
-                  validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _dataNascimentoController,
+                    label: 'Data de Nascimento',
+                    icon: Icons.calendar_today,
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
+                    validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 16),
           _buildTextField(
             controller: _emailController,
@@ -1181,33 +1298,48 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             icon: Icons.add_location_alt,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _ruaController,
-                  label: 'Rua',
-                  icon: Icons.signpost,
-                  validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+          if (isNarrow) ...[
+            _buildTextField(
+              controller: _ruaController,
+              label: 'Rua',
+              icon: Icons.signpost,
+              validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              controller: _numeroCasaController,
+              label: 'Número',
+              icon: Icons.numbers,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+            ),
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildTextField(
+                    controller: _ruaController,
+                    label: 'Rua',
+                    icon: Icons.signpost,
+                    validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: _buildTextField(
-                  controller: _numeroCasaController,
-                  label: 'Número',
-                  icon: Icons.numbers,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 1,
+                  child: _buildTextField(
+                    controller: _numeroCasaController,
+                    label: 'Número',
+                    icon: Icons.numbers,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 16),
           _buildTextField(
             controller: _bairroController,
@@ -1216,57 +1348,83 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
             validator: (v) => v!.isEmpty ? 'Informe o bairro' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _cidadeController,
-                  label: 'Cidade',
-                  icon: Icons.apartment,
-                  validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
+          if (isNarrow) ...[
+            _buildTextField(
+              controller: _cidadeController,
+              label: 'Cidade',
+              icon: Icons.apartment,
+              validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
+            ),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<String>(
+              valueListenable: _ufNotifier,
+              builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
+                initialValue: ufAtual,
+                decoration: InputDecoration(
+                  labelText: 'UF',
+                  prefixIcon: Icon(Icons.map, color: primaryColor),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  enabledBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder:
+                      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
                 ),
+                items: _ufs.map((uf) => DropdownMenuItem(value: uf, child: Text(uf))).toList(),
+                onChanged: (value) => setState(() {
+                  _ufSelecionada = value!;
+                  _ufNotifier.value = value;
+                }),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: ValueListenableBuilder<String>(
-                  valueListenable: _ufNotifier,
-                  builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
-                    initialValue: ufAtual,
-                    decoration: InputDecoration(
-                      labelText: 'UF',
-                      prefixIcon: Icon(Icons.map, color: primaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                    ),
-                    items: _ufs
-                        .map((uf) => DropdownMenuItem(
-                              value: uf,
-                              child: Text(uf),
-                            ))
-                        .toList(),
-                    onChanged: (value) => setState(() {
-                      _ufSelecionada = value!;
-                      _ufNotifier.value = value;
-                    }),
+            ),
+          ] else
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _buildTextField(
+                    controller: _cidadeController,
+                    label: 'Cidade',
+                    icon: Icons.apartment,
+                    validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
                   ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 1,
+                  child: ValueListenableBuilder<String>(
+                    valueListenable: _ufNotifier,
+                    builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
+                      initialValue: ufAtual,
+                      decoration: InputDecoration(
+                        labelText: 'UF',
+                        prefixIcon: Icon(Icons.map, color: primaryColor),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: _ufs.map((uf) => DropdownMenuItem(value: uf, child: Text(uf))).toList(),
+                      onChanged: (value) => setState(() {
+                        _ufSelecionada = value!;
+                        _ufNotifier.value = value;
+                      }),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           _buildTextField(
             controller: _codigoMunicipioController,
@@ -1411,6 +1569,12 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    if (isMobile) {
+      return _buildMobileLayout();
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -1492,6 +1656,160 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gestão de Funcionários',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _limparFormulario();
+          _showFormModal();
+        },
+        backgroundColor: primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Pesquisar por nome ou CPF...',
+                      prefixIcon: Icon(Icons.search, color: primaryColor),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged(force: true);
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int?>(
+                    initialValue: _cargoFiltroId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Filtrar por cargo',
+                      prefixIcon: Icon(Icons.filter_list, color: primaryColor),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem<int?>(value: null, child: Text('Todos os cargos')),
+                      DropdownMenuItem<int?>(value: 2, child: Text('Consultor(a)')),
+                      DropdownMenuItem<int?>(value: 3, child: Text('Mecânico(a)')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _cargoFiltroId = value;
+                        _currentPage = 0;
+                      });
+                      _onSearchChanged(force: true);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_searchController.text.isEmpty &&
+                        _cargoFiltroId == null &&
+                        !_isLoadingFuncionarios &&
+                        _funcionariosFiltrados.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Últimos Funcionários Cadastrados',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        ),
+                      ),
+                    if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && !_isLoadingFuncionarios)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Resultados da Busca ($_totalElements)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                        ),
+                      ),
+                    if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 8),
+                    ],
+                    _buildEmployeeGrid(isMobile: true),
+                    if ((_searchController.text.isNotEmpty || _cargoFiltroId != null) && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(compact: true),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -412,8 +412,8 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       _numeroCasaController.text = cliente.numeroCasa ?? '';
       _bairroController.text = cliente.bairro ?? '';
       _cidadeController.text = cliente.cidade ?? '';
-      _cepController.text = _formatarCEP(cliente.cep);
       _lastSearchedCep = cliente.cep?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+      _cepController.text = _formatarCEP(cliente.cep);
       _complementoController.text = cliente.complemento ?? '';
       _codigoMunicipioController.text = cliente.codigoMunicipio ?? '';
       _ufSelecionada = cliente.uf ?? 'GO';

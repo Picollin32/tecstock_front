@@ -101,6 +101,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'color': Colors.orange,
       'page': const CadastroClientePage(),
     },
+    {
+      'title': 'Contas',
+      'subtitle': 'Finanças',
+      'icon': Icons.account_balance_wallet,
+      'color': Colors.green,
+      'page': const ContasPage(),
+    },
   ];
 
   static final List<Map<String, dynamic>> _menuGroups = [
@@ -828,47 +835,53 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildDashboard() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFF8F9FA),
-            Color(0xFFE9ECEF),
-          ],
-        ),
-      ),
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: RefreshIndicator(
-            onRefresh: _loadDashboardData,
-            color: const Color(0xFF1565C0),
-            backgroundColor: Colors.white,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildWelcomeSection(),
-                  const SizedBox(height: 24),
-                  _buildStatsCards(),
-                  const SizedBox(height: 24),
-                  _buildRecentActivity(),
-                  const SizedBox(height: 100),
-                ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        return Container(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFF8F9FA),
+                Color(0xFFE9ECEF),
+              ],
+            ),
+          ),
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: RefreshIndicator(
+                onRefresh: _loadDashboardData,
+                color: const Color(0xFF1565C0),
+                backgroundColor: Colors.white,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(isMobile ? 12 : 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWelcomeSection(isMobile),
+                      const SizedBox(height: 24),
+                      _buildStatsCards(isMobile),
+                      const SizedBox(height: 24),
+                      _buildRecentActivity(isMobile),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildWelcomeSection() {
+  Widget _buildWelcomeSection(bool isMobile) {
     final currentTime = DateTime.now().hour;
     String greeting = 'Bom dia';
     if (currentTime >= 12 && currentTime < 18) {
@@ -877,9 +890,137 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       greeting = 'Boa noite';
     }
 
+    final userInfoRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.25),
+              width: 1.5,
+            ),
+          ),
+          child: Image.asset(
+            'assets/images/TecStock_icone.png',
+            width: isMobile ? 40 : 52,
+            height: isMobile ? 40 : 52,
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$greeting,',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _nomeUsuarioLogado,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _nomeEmpresa.isNotEmpty ? _nomeEmpresa : 'TecStock',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final dateRow = Row(
+      children: [
+        Icon(Icons.calendar_today_outlined, color: Colors.white.withValues(alpha: 0.65), size: 13),
+        const SizedBox(width: 5),
+        Text(
+          'Hoje, ${_formatDate(DateTime.now())}',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.75),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+
+    final quickActionsWrap = Wrap(
+      spacing: isMobile ? 8 : 12,
+      runSpacing: isMobile ? 8 : 12,
+      alignment: WrapAlignment.center,
+      runAlignment: WrapAlignment.center,
+      children: _quickActions.map((action) {
+        return InkWell(
+          onTap: () {
+            if (action['page'] != null) {
+              setState(() {
+                _isDashboardActive = false;
+                _currentPageWidget = action['page'];
+                _currentTitle = action['title'];
+              });
+            }
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 14, vertical: isMobile ? 8 : 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  action['icon'] as IconData,
+                  color: Colors.white,
+                  size: isMobile ? 16 : 18,
+                ),
+                SizedBox(width: isMobile ? 6 : 8),
+                Text(
+                  action['title'] as String,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isMobile ? 12 : 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -899,157 +1040,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 5,
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Image.asset(
-                        'assets/images/TecStock_icone.png',
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$greeting,',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _nomeUsuarioLogado,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _nomeEmpresa.isNotEmpty ? _nomeEmpresa : 'TecStock',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.95),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                userInfoRow,
+                const SizedBox(height: 10),
+                dateRow,
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today_outlined, color: Colors.white.withValues(alpha: 0.65), size: 13),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Hoje, ${_formatDate(DateTime.now())}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                quickActionsWrap,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      userInfoRow,
+                      const SizedBox(height: 16),
+                      dateRow,
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 90,
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+                Expanded(
+                  flex: 6,
+                  child: quickActionsWrap,
                 ),
               ],
             ),
-          ),
-          Container(
-            width: 1,
-            height: 90,
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
-          Expanded(
-            flex: 6,
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.center,
-              runAlignment: WrapAlignment.center,
-              children: _quickActions.map((action) {
-                return InkWell(
-                  onTap: () {
-                    if (action['page'] != null) {
-                      setState(() {
-                        _isDashboardActive = false;
-                        _currentPageWidget = action['page'];
-                        _currentTitle = action['title'];
-                      });
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          action['icon'] as IconData,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          action['title'] as String,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildStatsCards(bool isMobile) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1064,19 +1095,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth > 800 ? 4 : 2;
+            final w = constraints.maxWidth;
+            final crossAxisCount = w > 800 ? 4 : 2;
+            final aspectRatio = w > 800 ? 1.5 : (w < 600 ? 1.3 : 1.8);
             return GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                childAspectRatio: 1.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+                childAspectRatio: aspectRatio,
+                crossAxisSpacing: w < 600 ? 10 : 16,
+                mainAxisSpacing: w < 600 ? 10 : 16,
               ),
               itemCount: _dashboardStats.length,
               itemBuilder: (context, index) {
                 final entry = _dashboardStats.entries.elementAt(index);
+                final isCompact = w < 800;
                 Color cardColor;
                 switch (entry.key) {
                   case 'A Pagar (Mês)':
@@ -1094,7 +1128,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   default:
                     cardColor = const Color(0xFF9C27B0);
                 }
-                return _buildStatCard(entry.key, entry.value, cardColor);
+                return _buildStatCard(entry.key, entry.value, cardColor, isCompact);
               },
             );
           },
@@ -1103,7 +1137,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildStatCard(String title, dynamic value, Color color) {
+  Widget _buildStatCard(String title, dynamic value, Color color, bool isMobile) {
     final isCurrency = title == 'A Pagar (Mês)' || title == 'A Receber (Mês)';
     final num numValue = (value as num?) ?? 0;
     return Container(
@@ -1123,7 +1157,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isMobile ? 12 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1140,7 +1174,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   child: Icon(
                     _getIconForStat(title),
                     color: color,
-                    size: 22,
+                    size: isMobile ? 18 : 22,
                   ),
                 ),
                 if (!_isLoadingStats)
@@ -1178,7 +1212,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ? 'R\$ ${numValue.toStringAsFixed(2).replaceAll('.', ',').replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+,)'), (m) => '${m[1]}.')}'
                             : numValue.toInt().toString(),
                         style: TextStyle(
-                          fontSize: isCurrency ? 18 : 32,
+                          fontSize: isCurrency ? (isMobile ? 14 : 18) : (isMobile ? 22 : 32),
                           fontWeight: FontWeight.w800,
                           color: color,
                           letterSpacing: -0.5,
@@ -1205,7 +1239,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildRecentActivity(bool isMobile) {
     final startIndex = _currentPage * _itemsPerPage;
     final endIndex = startIndex + _itemsPerPage;
     final currentPageActivities = _recentActivities.length > startIndex
@@ -1249,7 +1283,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(isMobile ? 12 : 20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -1338,24 +1372,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   backgroundColor: _currentPage > 0 ? const Color(0xFF1565C0) : Colors.grey[300],
                                   foregroundColor: _currentPage > 0 ? Colors.white : Colors.grey[500],
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: isMobile ? 8 : 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: 8),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1565C0).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
                                   'Página ${_currentPage + 1} de $totalPages',
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 12 : 14,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1565C0),
+                                    color: const Color(0xFF1565C0),
                                   ),
                                 ),
                               ),
@@ -1373,7 +1407,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   backgroundColor: _currentPage < totalPages - 1 ? const Color(0xFF1565C0) : Colors.grey[300],
                                   foregroundColor: _currentPage < totalPages - 1 ? Colors.white : Colors.grey[500],
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 16, vertical: isMobile ? 8 : 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1555,6 +1589,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -1587,17 +1622,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         actions: [
           if (_nomeEmpresa.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 6.0 : 12.0),
               child: Center(
                 child: Row(
                   children: [
-                    const Icon(Icons.business, size: 18),
+                    Icon(Icons.business, size: isMobile ? 15 : 18),
                     const SizedBox(width: 4),
-                    Text(
-                      _nomeEmpresa,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isMobile ? 72 : double.infinity),
+                      child: Text(
+                        _nomeEmpresa,
+                        style: TextStyle(
+                          fontSize: isMobile ? 11 : 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1605,17 +1644,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 4.0 : 8.0),
             child: Center(
               child: Row(
                 children: [
-                  const Icon(Icons.person, size: 20),
+                  Icon(Icons.person, size: isMobile ? 16 : 20),
                   const SizedBox(width: 4),
-                  Text(
-                    _nomeUsuarioLogado,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isMobile ? 72 : double.infinity),
+                    child: Text(
+                      _nomeUsuarioLogado,
+                      style: TextStyle(
+                        fontSize: isMobile ? 11 : 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (_nivelAcessoUsuarioLogado == 1)

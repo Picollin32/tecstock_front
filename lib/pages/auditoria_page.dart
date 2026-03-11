@@ -1472,8 +1472,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return KeyboardListener(
       focusNode: FocusNode()..requestFocus(),
       autofocus: true,
@@ -1507,21 +1507,28 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: ElevatedButton.icon(
-                onPressed: _mostrarDialogExportarCSV,
-                icon: const Icon(Icons.file_download, size: 18),
-                label: const Text('Exportar CSV'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA5E9),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
+              padding: EdgeInsets.only(right: isMobile ? 8.0 : 16.0),
+              child: isMobile
+                  ? IconButton(
+                      onPressed: _mostrarDialogExportarCSV,
+                      icon: const Icon(Icons.file_download),
+                      color: const Color(0xFF0EA5E9),
+                      tooltip: 'Exportar CSV',
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _mostrarDialogExportarCSV,
+                      icon: const Icon(Icons.file_download, size: 18),
+                      label: const Text('Exportar CSV'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0EA5E9),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
             ),
           ],
           bottom: PreferredSize(
@@ -1546,16 +1553,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                         children: [
                           _buildSeletorMes(),
                           _buildFiltros(),
-                          if (logs.isNotEmpty)
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.5,
-                              child: _buildListaLogs(),
-                            )
-                          else
-                            SizedBox(
-                              height: 300,
-                              child: _buildListaLogs(),
-                            ),
+                          _buildListaLogs(),
                         ],
                       ),
                     ),
@@ -1568,9 +1566,10 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   Widget _buildSeletorMes() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      margin: EdgeInsets.fromLTRB(isMobile ? 12 : 20, isMobile ? 12 : 20, isMobile ? 12 : 20, 0),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1804,9 +1803,10 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   Widget _buildFiltros() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.fromLTRB(isMobile ? 12 : 20, isMobile ? 8 : 12, isMobile ? 12 : 20, isMobile ? 8 : 12),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1881,141 +1881,240 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
             ),
           if (filtrosExpandidos) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: _buildDropdownField(
-                    label: 'Usuário',
-                    value: filtroUsuario,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('Todos')),
-                      ...usuariosDisponiveis.map((u) => DropdownMenuItem(value: u, child: Text(u))),
-                    ],
-                    onChanged: (valor) => setState(() => filtroUsuario = valor),
+            if (isMobile) ...[
+              _buildDropdownField(
+                label: 'Usuário',
+                value: filtroUsuario,
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Todos')),
+                  ...usuariosDisponiveis.map((u) => DropdownMenuItem(value: u, child: Text(u))),
+                ],
+                onChanged: (valor) => setState(() => filtroUsuario = valor),
+              ),
+              const SizedBox(height: 12),
+              _buildDropdownField(
+                label: 'Operação',
+                value: filtroOperacao,
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Todas')),
+                  DropdownMenuItem(value: 'CREATE', child: Text('Criação')),
+                  DropdownMenuItem(value: 'UPDATE', child: Text('Atualização')),
+                  DropdownMenuItem(value: 'DELETE', child: Text('Exclusão')),
+                ],
+                onChanged: (valor) => setState(() => filtroOperacao = valor),
+              ),
+            ] else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: _buildDropdownField(
+                      label: 'Usuário',
+                      value: filtroUsuario,
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Todos')),
+                        ...usuariosDisponiveis.map((u) => DropdownMenuItem(value: u, child: Text(u))),
+                      ],
+                      onChanged: (valor) => setState(() => filtroUsuario = valor),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 1,
-                  child: _buildDropdownField(
-                    label: 'Operação',
-                    value: filtroOperacao,
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Todas')),
-                      DropdownMenuItem(value: 'CREATE', child: Text('Criação')),
-                      DropdownMenuItem(value: 'UPDATE', child: Text('Atualização')),
-                      DropdownMenuItem(value: 'DELETE', child: Text('Exclusão')),
-                    ],
-                    onChanged: (valor) => setState(() => filtroOperacao = valor),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 1,
+                    child: _buildDropdownField(
+                      label: 'Operação',
+                      value: filtroOperacao,
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('Todas')),
+                        DropdownMenuItem(value: 'CREATE', child: Text('Criação')),
+                        DropdownMenuItem(value: 'UPDATE', child: Text('Atualização')),
+                        DropdownMenuItem(value: 'DELETE', child: Text('Exclusão')),
+                      ],
+                      onChanged: (valor) => setState(() => filtroOperacao = valor),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(flex: 1, child: Container()),
-              ],
-            ),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 1, child: Container()),
+                ],
+              ),
             const SizedBox(height: 16),
             _buildEntidadesCheckboxes(),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ID da Entidade',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: TextField(
-                          controller: filtroIdController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            hintText: 'Digite o ID para buscar um registro específico...',
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            isDense: true,
-                          ),
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ),
-                    ],
+            if (isMobile)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ID da Entidade',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(flex: 2, child: Container()),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextField(
+                      controller: filtroIdController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'ID do registro...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'ID da Entidade',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: TextField(
+                            controller: filtroIdController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: 'Digite o ID para buscar um registro específico...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 2, child: Container()),
+                ],
+              ),
             const SizedBox(height: 16),
             Container(
               height: 1,
               color: const Color(0xFFE2E8F0),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: _buildDropdownField(
-                    label: 'Ordenar por',
-                    value: ordenarPor,
-                    items: const [
-                      DropdownMenuItem(value: 'dataHora', child: Text('Data/Hora')),
-                      DropdownMenuItem(value: 'usuario', child: Text('Usuário')),
-                      DropdownMenuItem(value: 'entidade', child: Text('Entidade')),
-                      DropdownMenuItem(value: 'entidadeId', child: Text('ID da Entidade')),
-                      DropdownMenuItem(value: 'operacao', child: Text('Operação')),
-                    ],
-                    onChanged: (valor) => setState(() => ordenarPor = valor ?? 'dataHora'),
+            if (isMobile) ...[
+              _buildDropdownField(
+                label: 'Ordenar por',
+                value: ordenarPor,
+                items: const [
+                  DropdownMenuItem(value: 'dataHora', child: Text('Data/Hora')),
+                  DropdownMenuItem(value: 'usuario', child: Text('Usuário')),
+                  DropdownMenuItem(value: 'entidade', child: Text('Entidade')),
+                  DropdownMenuItem(value: 'entidadeId', child: Text('ID da Entidade')),
+                  DropdownMenuItem(value: 'operacao', child: Text('Operação')),
+                ],
+                onChanged: (valor) => setState(() => ordenarPor = valor ?? 'dataHora'),
+              ),
+              const SizedBox(height: 12),
+              _buildDropdownField(
+                label: 'Direção',
+                value: direcaoOrdenacao,
+                items: const [
+                  DropdownMenuItem(
+                    value: 'desc',
+                    child: Row(
+                      children: [
+                        Icon(Icons.arrow_downward, size: 16, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text('Decrescente'),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 1,
-                  child: _buildDropdownField(
-                    label: 'Direção',
-                    value: direcaoOrdenacao,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'desc',
-                        child: Row(
-                          children: [
-                            Icon(Icons.arrow_downward, size: 16, color: Color(0xFF64748B)),
-                            SizedBox(width: 8),
-                            Text('Decrescente (↓ novo → antigo)'),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'asc',
-                        child: Row(
-                          children: [
-                            Icon(Icons.arrow_upward, size: 16, color: Color(0xFF64748B)),
-                            SizedBox(width: 8),
-                            Text('Crescente (↑ antigo → novo)'),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (valor) => setState(() => direcaoOrdenacao = valor ?? 'desc'),
+                  DropdownMenuItem(
+                    value: 'asc',
+                    child: Row(
+                      children: [
+                        Icon(Icons.arrow_upward, size: 16, color: Color(0xFF64748B)),
+                        SizedBox(width: 8),
+                        Text('Crescente'),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(flex: 1, child: Container()),
-              ],
-            ),
+                ],
+                onChanged: (valor) => setState(() => direcaoOrdenacao = valor ?? 'desc'),
+              ),
+            ] else
+              Row(
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: _buildDropdownField(
+                      label: 'Ordenar por',
+                      value: ordenarPor,
+                      items: const [
+                        DropdownMenuItem(value: 'dataHora', child: Text('Data/Hora')),
+                        DropdownMenuItem(value: 'usuario', child: Text('Usuário')),
+                        DropdownMenuItem(value: 'entidade', child: Text('Entidade')),
+                        DropdownMenuItem(value: 'entidadeId', child: Text('ID da Entidade')),
+                        DropdownMenuItem(value: 'operacao', child: Text('Operação')),
+                      ],
+                      onChanged: (valor) => setState(() => ordenarPor = valor ?? 'dataHora'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 1,
+                    child: _buildDropdownField(
+                      label: 'Direção',
+                      value: direcaoOrdenacao,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'desc',
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_downward, size: 16, color: Color(0xFF64748B)),
+                              SizedBox(width: 8),
+                              Text('Decrescente (↓ novo → antigo)'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'asc',
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_upward, size: 16, color: Color(0xFF64748B)),
+                              SizedBox(width: 8),
+                              Text('Crescente (↑ antigo → novo)'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (valor) => setState(() => direcaoOrdenacao = valor ?? 'desc'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 1, child: Container()),
+                ],
+              ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -2264,6 +2363,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   Widget _buildListaLogs() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     if (logs.isEmpty) {
       final mesNome = mesSelecionado != null ? _getNomeMes(mesSelecionado!) : 'este período';
 
@@ -2316,7 +2416,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20, vertical: isMobile ? 10 : 16),
         itemCount: logs.length,
         itemBuilder: (context, index) {
           final log = logs[index];
@@ -2340,11 +2442,11 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => _mostrarDetalhesLog(log),
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: EdgeInsets.all(isMobile ? 12 : 18),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(isMobile ? 10 : 12),
                         decoration: BoxDecoration(
                           color: _getOperacaoColor(log.operacao).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
@@ -2352,10 +2454,10 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                         child: Icon(
                           _getOperacaoIcon(log.operacao),
                           color: _getOperacaoColor(log.operacao),
-                          size: 24,
+                          size: isMobile ? 20 : 24,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      SizedBox(width: isMobile ? 10 : 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2394,29 +2496,59 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.person_outline, size: 14, color: const Color(0xFF94A3B8)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  log.usuario,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF64748B),
+                            if (isMobile)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    Icon(Icons.person_outline, size: 14, color: const Color(0xFF94A3B8)),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        log.usuario,
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 2),
+                                  Row(children: [
+                                    Icon(Icons.category_outlined, size: 14, color: const Color(0xFF94A3B8)),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        '${log.entidade} (ID: ${log.entidadeId})',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]),
+                                ],
+                              )
+                            else
+                              Row(
+                                children: [
+                                  Icon(Icons.person_outline, size: 14, color: const Color(0xFF94A3B8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    log.usuario,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Icon(Icons.category_outlined, size: 14, color: const Color(0xFF94A3B8)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${log.entidade} (ID: ${log.entidadeId})',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF64748B),
+                                  const SizedBox(width: 12),
+                                  Icon(Icons.category_outlined, size: 14, color: const Color(0xFF94A3B8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${log.entidade} (ID: ${log.entidadeId})',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                             const SizedBox(height: 4),
                             Row(
                               children: [
@@ -2452,8 +2584,9 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   Widget _buildPaginacao() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: isMobile ? 12 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -2498,7 +2631,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Página ${currentPage + 1} de $totalPages',
+                  isMobile ? '${currentPage + 1} / $totalPages' : 'Página ${currentPage + 1} de $totalPages',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

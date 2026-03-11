@@ -320,7 +320,98 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     );
   }
 
-  Widget _buildTiposPagamentoGrid() {
+  Widget _buildMobileTipoPagamentoCard(TipoPagamento tipoPagamento) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarTipoPagamento(tipoPagamento),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.payment, color: primaryColor, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        tipoPagamento.nome,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'editar') _editarTipoPagamento(tipoPagamento);
+                        if (value == 'excluir') _confirmarExclusao(tipoPagamento);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'editar',
+                          child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'excluir',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Excluir', style: TextStyle(color: Colors.red)),
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (tipoPagamento.createdAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado: ${DateFormat("dd/MM/yyyy").format(tipoPagamento.createdAt!)}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTiposPagamentoGrid({bool isMobile = false}) {
     if (_isLoadingTipos) {
       return const Center(
         child: Padding(
@@ -347,6 +438,21 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
             ),
           ],
         ),
+      );
+    }
+
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _tiposPagamentoFiltrados.length,
+        itemBuilder: (context, index) {
+          final tipoPagamento = _tiposPagamentoFiltrados[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildMobileTipoPagamentoCard(tipoPagamento),
+          );
+        },
       );
     }
 
@@ -632,6 +738,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) return _buildMobileLayout();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -713,6 +822,74 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Tipos de Pagamento',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _limparFormulario();
+          _showFormModal();
+        },
+        backgroundColor: primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F7FA),
+                boxShadow: [
+                  BoxShadow(color: shadowColor, blurRadius: 4, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: _buildSearchBar(),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_searchController.text.isEmpty && !_isLoadingTipos && _tiposPagamentoFiltrados.isNotEmpty)
+                      Text(
+                        'Tipos de Pagamento Cadastrados',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingTipos)
+                      Text(
+                        'Resultados da Busca ($_totalElements)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                    const SizedBox(height: 12),
+                    _buildTiposPagamentoGrid(isMobile: true),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ],
+                    const SizedBox(height: 80),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

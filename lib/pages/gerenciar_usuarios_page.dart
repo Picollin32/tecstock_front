@@ -850,7 +850,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.4,
+            mainAxisExtent: 140,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
@@ -1125,7 +1125,10 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       appBar: AppBar(
         title: const Text(
           'Gerenciar Usuários',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         backgroundColor: primaryColor,
         elevation: 0,

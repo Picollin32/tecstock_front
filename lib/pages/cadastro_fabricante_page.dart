@@ -435,11 +435,26 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = 1;
-        if (constraints.maxWidth > 900) {
+        // Mobile: lista vertical
+        if (constraints.maxWidth < 600) {
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _fabricantesFiltrados.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _buildManufacturerCard(_fabricantesFiltrados[index]),
+            ),
+          );
+        }
+
+        int crossAxisCount;
+        if (constraints.maxWidth >= 1200) {
+          crossAxisCount = 6;
+        } else if (constraints.maxWidth >= 800) {
+          crossAxisCount = 4;
+        } else {
           crossAxisCount = 3;
-        } else if (constraints.maxWidth > 600) {
-          crossAxisCount = 2;
         }
 
         return GridView.builder(
@@ -447,9 +462,9 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 2.5,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
+            mainAxisExtent: 120,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
           ),
           itemCount: _fabricantesFiltrados.length,
           itemBuilder: (context, index) => _buildManufacturerCard(_fabricantesFiltrados[index]),
@@ -477,7 +492,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarFabricante(fabricante),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -545,7 +560,7 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
                     ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

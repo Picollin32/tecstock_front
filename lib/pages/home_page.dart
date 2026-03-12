@@ -1592,14 +1592,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _currentTitle,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
-        centerTitle: true,
         elevation: 0,
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,

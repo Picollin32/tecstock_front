@@ -456,19 +456,31 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3.5,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: _tiposPagamentoFiltrados.length,
-      itemBuilder: (context, index) {
-        final tipoPagamento = _tiposPagamentoFiltrados[index];
-        return _buildTipoPagamentoCard(tipoPagamento);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount;
+        if (constraints.maxWidth >= 1200) {
+          crossAxisCount = 6;
+        } else if (constraints.maxWidth >= 800) {
+          crossAxisCount = 4;
+        } else {
+          crossAxisCount = 3;
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisExtent: 110,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: _tiposPagamentoFiltrados.length,
+          itemBuilder: (context, index) {
+            final tipoPagamento = _tiposPagamentoFiltrados[index];
+            return _buildTipoPagamentoCard(tipoPagamento);
+          },
+        );
       },
     );
   }
@@ -492,22 +504,22 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
           borderRadius: BorderRadius.circular(16),
           onTap: () => _editarTipoPagamento(tipoPagamento),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.payment,
                         color: primaryColor,
-                        size: 28,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -560,7 +572,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                     ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -833,7 +845,10 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
       appBar: AppBar(
         title: const Text(
           'Tipos de Pagamento',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         backgroundColor: primaryColor,
         elevation: 0,

@@ -458,132 +458,189 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   Widget _buildCalendarView() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: shadowColor,
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1100;
+    final pagePadding = isMobile ? 12.0 : (isTablet ? 20.0 : 24.0);
+    final headerPadding = isMobile ? 18.0 : 24.0;
+    final cardPadding = isMobile ? 12.0 : (isTablet ? 16.0 : 20.0);
+    final calendarDaysOfWeekHeight = isMobile ? 36.0 : (isTablet ? 40.0 : 45.0);
+    final calendarRowHeight = isMobile ? 42.0 : (isTablet ? 48.0 : 55.0);
+    final calendarHeaderFontSize = isMobile ? 14.0 : (isTablet ? 18.0 : 20.0);
+    final calendarDayFontSize = isMobile ? 13.0 : (isTablet ? 15.0 : 16.0);
+
+    final navigateButton = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _showDatePicker,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 14 : 20,
+              vertical: isMobile ? 12 : 14,
             ),
-          ],
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.date_range, color: primaryColor, size: isMobile ? 16 : 18),
+                SizedBox(width: isMobile ? 6 : 8),
+                Text(
+                  'Navegar',
+                  style: TextStyle(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: isMobile ? 13 : 14,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.keyboard_arrow_down, color: primaryColor, size: isMobile ? 16 : 18),
+              ],
+            ),
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor.withValues(alpha: 0.1), secondaryColor.withValues(alpha: 0.1)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border.all(
-                  color: primaryColor.withValues(alpha: 0.1),
-                  width: 1,
-                ),
+      ),
+    );
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(pagePadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(headerPadding),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [primaryColor, secondaryColor],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.calendar_month, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Calendário de Agendamentos',
-                          style: TextStyle(
-                            color: primaryColor,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Selecione uma data para ver os agendamentos',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _showDatePicker,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.date_range, color: primaryColor, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Navegar',
-                                style: TextStyle(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              Icon(Icons.keyboard_arrow_down, color: primaryColor, size: 14),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.calendar_month, size: 22, color: Colors.white),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Agendamentos',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Selecione uma data para ver os agendamentos',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.white.withValues(alpha: 0.9),
+                                        height: 1.35,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: navigateButton,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.calendar_month, size: 32, color: Colors.white),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Agendamentos',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Selecione uma data para ver os agendamentos',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      navigateButton,
+                    ],
+                  ),
+          ),
+          SizedBox(height: isMobile ? 16 : 24),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(cardPadding),
               child: TableCalendar<Agendamento>(
                 locale: 'pt_BR',
                 startingDayOfWeek: StartingDayOfWeek.sunday,
-                daysOfWeekHeight: 45,
-                rowHeight: 55,
+                daysOfWeekHeight: calendarDaysOfWeekHeight,
+                rowHeight: calendarRowHeight,
                 availableCalendarFormats: const {
                   CalendarFormat.month: 'Mês',
                   CalendarFormat.twoWeeks: '2 semanas',
@@ -595,7 +652,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   formatButtonTextStyle: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: isMobile ? 11 : 14,
                   ),
                   formatButtonDecoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -613,32 +670,36 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                     ],
                   ),
                   leftChevronIcon: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(isMobile ? 6 : 8),
                     decoration: BoxDecoration(
                       color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.chevron_left, color: primaryColor, size: 20),
+                    child: Icon(Icons.chevron_left, color: primaryColor, size: isMobile ? 16 : 20),
                   ),
                   rightChevronIcon: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(isMobile ? 6 : 8),
                     decoration: BoxDecoration(
                       color: primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.chevron_right, color: primaryColor, size: 20),
+                    child: Icon(Icons.chevron_right, color: primaryColor, size: isMobile ? 16 : 20),
                   ),
                   titleTextStyle: TextStyle(
                     color: primaryColor,
-                    fontSize: 20,
+                    fontSize: calendarHeaderFontSize,
                     fontWeight: FontWeight.bold,
                   ),
-                  headerPadding: const EdgeInsets.symmetric(vertical: 16),
+                  headerPadding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 16),
+                  titleTextFormatter: (date, locale) {
+                    final formatted = _capitalizeMonthTitle(date, locale);
+                    return isMobile ? formatted.replaceFirst(' de ', '\nde ') : formatted;
+                  },
                 ),
                 calendarStyle: CalendarStyle(
                   outsideDaysVisible: false,
-                  weekendTextStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500, fontSize: 16),
-                  holidayTextStyle: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500, fontSize: 16),
+                  weekendTextStyle: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w500, fontSize: calendarDayFontSize),
+                  holidayTextStyle: TextStyle(color: Colors.red, fontWeight: FontWeight.w500, fontSize: calendarDayFontSize),
                   selectedDecoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [primaryColor, secondaryColor],
@@ -657,8 +718,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   selectedTextStyle: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  ).copyWith(fontSize: calendarDayFontSize),
                   todayDecoration: BoxDecoration(
                     color: primaryColor.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
@@ -667,7 +727,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   todayTextStyle: TextStyle(
                     color: primaryColor,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: calendarDayFontSize,
                   ),
                   markerDecoration: const BoxDecoration(
                     color: Colors.transparent,
@@ -676,14 +736,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                   defaultTextStyle: TextStyle(
                     color: primaryColor,
                     fontWeight: FontWeight.w500,
-                    fontSize: 16,
+                    fontSize: calendarDayFontSize,
                   ),
                   disabledTextStyle: TextStyle(
                     color: Colors.grey[400],
                     fontWeight: FontWeight.w400,
-                    fontSize: 16,
+                    fontSize: calendarDayFontSize,
                   ),
-                  cellMargin: const EdgeInsets.all(6),
+                  cellMargin: EdgeInsets.all(isMobile ? 3 : 6),
                   cellPadding: const EdgeInsets.all(0),
                 ),
                 calendarBuilders: CalendarBuilders(
@@ -838,7 +898,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: isWeekend ? Colors.red : primaryColor,
-                          fontSize: 13,
+                          fontSize: isMobile ? 11 : 13,
                         ),
                       ),
                     );
@@ -875,8 +935,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 onPageChanged: (focusedDay) => _focusedDay = focusedDay,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -884,6 +944,11 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   Widget _buildHorariosView() {
     final agendamentosDodia = _getEventsForDay(_selectedDay!);
     final agendamentosOrdenados = List<Agendamento>.from(agendamentosDodia);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1100;
+    final pagePadding = isMobile ? 12.0 : (isTablet ? 20.0 : 24.0);
+    final headerPadding = isMobile ? 18.0 : 24.0;
 
     agendamentosOrdenados.sort((a, b) {
       final horaA = a.horaInicio ?? '00:00';
@@ -892,12 +957,12 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
     });
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 16, 16, 16),
+      padding: EdgeInsets.all(pagePadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(headerPadding),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [secondaryColor, secondaryColor.withValues(alpha: 0.8)],
@@ -915,9 +980,15 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
             ),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    AnimatedScale(
+                Builder(
+                  builder: (context) {
+                    final hoje = DateTime.now();
+                    final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                    final dataSelecionada =
+                        _selectedDay != null ? DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day) : dataHoje;
+                    final isDataPassada = dataSelecionada.isBefore(dataHoje);
+
+                    final backButton = AnimatedScale(
                       scale: 1.0,
                       duration: const Duration(milliseconds: 150),
                       child: Material(
@@ -929,7 +1000,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                           highlightColor: Colors.white.withValues(alpha: 0.1),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.all(isMobile ? 10 : 12),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
@@ -945,121 +1016,145 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.arrow_back_ios_new,
                               color: Colors.white,
-                              size: 18,
+                              size: isMobile ? 16 : 18,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    );
+
+                    final newButton = Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: isDataPassada ? null : () => _showHorarioSelectionDialog(),
+                        borderRadius: BorderRadius.circular(12),
+                        splashColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.3),
+                        highlightColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.1),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: EdgeInsets.symmetric(horizontal: isMobile ? 10 : 12, vertical: isMobile ? 8 : 8),
+                          decoration: BoxDecoration(
+                            color: isDataPassada ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                            boxShadow: isDataPassada
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.add_circle_outline,
+                                color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
+                                size: isMobile ? 14 : 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Novo',
+                                style: TextStyle(
+                                  color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
+                                  fontSize: isMobile ? 13 : 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+
+                    final readOnlyBadge = Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            _formatDate(_selectedDay!),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                          Icon(Icons.history, color: Colors.white.withValues(alpha: 0.9), size: 12),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Visualização (somente leitura)',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                          if ((() {
-                            final hoje = DateTime.now();
-                            final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
-                            final dataSelecionada =
-                                _selectedDay != null ? DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day) : dataHoje;
-                            return dataSelecionada.isBefore(dataHoje);
-                          })()) ...[
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.history, color: Colors.white.withValues(alpha: 0.9), size: 12),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Visualização (somente leitura)',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.9),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: Builder(builder: (context) {
-                        final hoje = DateTime.now();
-                        final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
-                        final dataSelecionada =
-                            _selectedDay != null ? DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day) : dataHoje;
-                        final isDataPassada = dataSelecionada.isBefore(dataHoje);
+                    );
 
-                        return InkWell(
-                          onTap: isDataPassada ? null : () => _showHorarioSelectionDialog(),
-                          borderRadius: BorderRadius.circular(12),
-                          splashColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.3),
-                          highlightColor: isDataPassada ? Colors.transparent : Colors.white.withValues(alpha: 0.1),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isDataPassada ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                width: 1,
+                    return isMobile
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  backButton,
+                                  const Spacer(),
+                                  newButton,
+                                ],
                               ),
-                              boxShadow: isDataPassada
-                                  ? []
-                                  : [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.add_circle_outline,
-                                  color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
-                                  size: 16,
+                              const SizedBox(height: 14),
+                              Text(
+                                _formatDate(_selectedDay!),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Novo',
-                                  style: TextStyle(
-                                    color: isDataPassada ? Colors.white.withValues(alpha: 0.3) : Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                              ),
+                              if (isDataPassada) ...[
+                                const SizedBox(height: 8),
+                                readOnlyBadge,
                               ],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              backButton,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _formatDate(_selectedDay!),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (isDataPassada) ...[
+                                      const SizedBox(height: 4),
+                                      readOnlyBadge,
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              newButton,
+                            ],
+                          );
+                  },
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -1714,9 +1809,14 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
   }
 
   Widget _buildLegend() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final isTablet = screenWidth >= 600 && screenWidth < 1100;
+    final horizontalMargin = isMobile ? 12.0 : (isTablet ? 20.0 : 24.0);
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 4, 24, 16),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.fromLTRB(horizontalMargin, 4, horizontalMargin, 16),
+      padding: EdgeInsets.all(isMobile ? 10 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1753,7 +1853,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 child: Text(
                   'Legenda de Serviços',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: isMobile ? 13 : 14,
                     fontWeight: FontWeight.bold,
                     color: primaryColor,
                   ),
@@ -1763,18 +1863,18 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(isMobile ? 8 : 10),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey.shade200),
             ),
             child: Wrap(
-              spacing: 12,
+              spacing: isMobile ? 8 : 12,
               runSpacing: 6,
               children: _serviceTypes.entries.map((entry) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -1806,9 +1906,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       Text(
                         entry.key,
                         style: TextStyle(
-                          fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: entry.value['color'],
+                          fontSize: isMobile ? 11 : 12,
                         ),
                       ),
                     ],
@@ -1820,6 +1919,30 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
         ],
       ),
     );
+  }
+
+  String _capitalizeMonthTitle(DateTime date, String locale) {
+    final formatted = '${_getMonthName(date.month)} de ${date.year}';
+    return formatted[0].toUpperCase() + formatted.substring(1);
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'janeiro',
+      'fevereiro',
+      'março',
+      'abril',
+      'maio',
+      'junho',
+      'julho',
+      'agosto',
+      'setembro',
+      'outubro',
+      'novembro',
+      'dezembro',
+    ];
+
+    return months[month - 1];
   }
 
   void _showHorarioSelectionDialog() {
@@ -2069,6 +2192,8 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final isMobile = screenWidth < 600;
             return Theme(
               data: Theme.of(context).copyWith(
                 dialogTheme: DialogThemeData(
@@ -2077,15 +2202,24 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 ),
               ),
               child: AlertDialog(
+                insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 40, vertical: 24),
+                contentPadding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 20, isMobile ? 16 : 24, 8),
+                titlePadding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 20, isMobile ? 16 : 24, 8),
+                actionsPadding: EdgeInsets.fromLTRB(isMobile ? 12 : 16, 0, isMobile ? 12 : 16, isMobile ? 12 : 16),
                 title: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
                       agendamentoExistente != null ? Icons.edit : Icons.add_circle,
                       color: secondaryColor,
+                      size: isMobile ? 22 : 24,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text('${agendamentoExistente != null ? "Editar" : "Agendar"} às $horario'),
+                      child: Text(
+                        '${agendamentoExistente != null ? "Editar" : "Agendar"} às $horario',
+                        style: TextStyle(fontSize: isMobile ? 16 : 20),
+                      ),
                     ),
                   ],
                 ),
@@ -2163,6 +2297,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue: selectedMecanico,
+                        isExpanded: true,
                         hint: const Text("Selecione o Mecânico"),
                         onChanged: (value) => setDialogState(() => selectedMecanico = value),
                         decoration: InputDecoration(
@@ -2177,7 +2312,11 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                           return lista.map<DropdownMenuItem<String>>((mecanico) {
                             return DropdownMenuItem<String>(
                               value: mecanico.nome,
-                              child: Text(mecanico.nome),
+                              child: Text(
+                                mecanico.nome,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
                             );
                           }).toList();
                         })(),
@@ -2185,6 +2324,7 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue: selectedConsultor,
+                        isExpanded: true,
                         hint: const Text("Selecione o Consultor (Opcional)"),
                         onChanged: _isAdmin ? (value) => setDialogState(() => selectedConsultor = value) : null,
                         decoration: InputDecoration(
@@ -2204,45 +2344,73 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                             ...lista.map<DropdownMenuItem<String>>((consultor) {
                               return DropdownMenuItem<String>(
                                 value: consultor.nome,
-                                child: Text(consultor.nome),
+                                child: Text(
+                                  consultor.nome,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
                               );
                             })
                           ];
                         })(),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: horaInicioController,
-                              decoration: InputDecoration(
-                                labelText: 'Início (HH:mm)',
-                                prefixIcon: Icon(Icons.play_arrow, color: successColor),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                      if (isMobile) ...[
+                        TextFormField(
+                          controller: horaInicioController,
+                          decoration: InputDecoration(
+                            labelText: 'Início (HH:mm)',
+                            prefixIcon: Icon(Icons.play_arrow, color: successColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: horaFimController,
+                          decoration: InputDecoration(
+                            labelText: 'Fim (HH:mm)',
+                            prefixIcon: Icon(Icons.stop, color: errorColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ] else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: horaInicioController,
+                                decoration: InputDecoration(
+                                  labelText: 'Início (HH:mm)',
+                                  prefixIcon: Icon(Icons.play_arrow, color: successColor),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: horaFimController,
-                              decoration: InputDecoration(
-                                labelText: 'Fim (HH:mm)',
-                                prefixIcon: Icon(Icons.stop, color: errorColor),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: horaFimController,
+                                decoration: InputDecoration(
+                                  labelText: 'Fim (HH:mm)',
+                                  prefixIcon: Icon(Icons.stop, color: errorColor),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         initialValue: selectedService,
+                        isExpanded: true,
                         hint: const Text("Selecione o tipo de serviço"),
                         onChanged: (value) => setDialogState(() => selectedService = value),
                         decoration: InputDecoration(
@@ -2263,133 +2431,271 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                 children: [
                                   Icon(serviceInfo['icon'], color: serviceInfo['color'], size: 20),
                                   const SizedBox(width: 8),
-                                  Text(entry.key),
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
                                 ],
                               ),
                             );
                           }).toList();
                         })(),
+                        selectedItemBuilder: (context) {
+                          final ordem = ["Troca de Peça", "Diagnóstico", "Revisão"];
+                          final lista =
+                              ordem.where((k) => _serviceTypes.containsKey(k)).map((k) => MapEntry(k, _serviceTypes[k]!)).toList();
+                          return lista.map<Widget>((entry) {
+                            final serviceInfo = entry.value;
+                            return Row(
+                              children: [
+                                Icon(serviceInfo['icon'], color: serviceInfo['color'], size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    entry.key,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList();
+                        },
                       ),
                     ],
                   ),
                 ),
-                actionsAlignment: MainAxisAlignment.spaceBetween,
+                actionsAlignment: isMobile ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
                 actions: [
                   if (agendamentoExistente != null)
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () => _confirmDelete(agendamentoExistente.id!),
                     ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancelar'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (placaController.text.trim().isEmpty) {
-                            ErrorUtils.showVisibleError(context, 'Por favor, informe a placa do veículo');
-                            return;
-                          }
-
-                          if (selectedMecanico == null || selectedMecanico!.trim().isEmpty) {
-                            ErrorUtils.showVisibleError(context, 'Por favor, selecione um mecânico');
-                            return;
-                          }
-
-                          if (selectedService == null || selectedService!.trim().isEmpty) {
-                            ErrorUtils.showVisibleError(context, 'Por favor, selecione o tipo de serviço');
-                            return;
-                          }
-
-                          if (horaInicioController.text.trim().isEmpty) {
-                            ErrorUtils.showVisibleError(context, 'Por favor, informe o horário de início');
-                            return;
-                          }
-
-                          if (!_placaExiste(placaController.text)) {
-                            ErrorUtils.showVisibleError(context, 'Esta placa não está cadastrada no sistema');
-                            return;
-                          }
-
-                          if (!_mecanicoExiste(selectedMecanico!)) {
-                            ErrorUtils.showVisibleError(context, 'Este mecânico não está cadastrado no sistema');
-                            return;
-                          }
-
-                          if (selectedConsultor != null && !_consultorExiste(selectedConsultor!)) {
-                            ErrorUtils.showVisibleError(context, 'Este consultor não está cadastrado no sistema');
-                            return;
-                          }
-
-                          String? horaInicioFormatada = _formatarHorario(horaInicioController.text);
-                          String? horaFimFormatada = _formatarHorario(horaFimController.text);
-
-                          horaInicioFormatada ??= "08:00";
-
-                          if (horaFimFormatada == null) {
-                            final inicio = _parseTime(horaInicioFormatada);
-                            if (inicio != null) {
-                              final fim = inicio.add(const Duration(hours: 1));
-                              horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
-                            } else {
-                              horaFimFormatada = "09:00";
-                            }
-                          }
-
-                          if (agendamentoExistente == null) {
-                            final hoje = DateTime.now();
-                            final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
-                            final dataSelecionada = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
-
-                            if (dataSelecionada.isBefore(dataHoje)) {
-                              ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
+                  if (isMobile)
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (placaController.text.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, informe a placa do veículo');
                               return;
                             }
-                          }
 
-                          final agendamento = Agendamento(
-                            id: agendamentoExistente?.id,
-                            data: _selectedDay!,
-                            horaInicio: horaInicioFormatada,
-                            horaFim: horaFimFormatada,
-                            placaVeiculo: placaController.text,
-                            nomeMecanico: selectedMecanico!,
-                            nomeConsultor: selectedConsultor,
-                            cor: selectedService!,
-                          );
+                            if (selectedMecanico == null || selectedMecanico!.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, selecione um mecânico');
+                              return;
+                            }
 
-                          bool sucesso;
-                          if (agendamentoExistente != null && agendamentoExistente.id != null) {
-                            sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
+                            if (selectedService == null || selectedService!.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, selecione o tipo de serviço');
+                              return;
+                            }
+
+                            if (horaInicioController.text.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, informe o horário de início');
+                              return;
+                            }
+
+                            if (!_placaExiste(placaController.text)) {
+                              ErrorUtils.showVisibleError(context, 'Esta placa não está cadastrada no sistema');
+                              return;
+                            }
+
+                            if (!_mecanicoExiste(selectedMecanico!)) {
+                              ErrorUtils.showVisibleError(context, 'Este mecânico não está cadastrado no sistema');
+                              return;
+                            }
+
+                            if (selectedConsultor != null && !_consultorExiste(selectedConsultor!)) {
+                              ErrorUtils.showVisibleError(context, 'Este consultor não está cadastrado no sistema');
+                              return;
+                            }
+
+                            String? horaInicioFormatada = _formatarHorario(horaInicioController.text);
+                            String? horaFimFormatada = _formatarHorario(horaFimController.text);
+
+                            horaInicioFormatada ??= "08:00";
+
+                            if (horaFimFormatada == null) {
+                              final inicio = _parseTime(horaInicioFormatada);
+                              if (inicio != null) {
+                                final fim = inicio.add(const Duration(hours: 1));
+                                horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
+                              } else {
+                                horaFimFormatada = "09:00";
+                              }
+                            }
+
+                            if (agendamentoExistente == null) {
+                              final hoje = DateTime.now();
+                              final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                              final dataSelecionada = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+
+                              if (dataSelecionada.isBefore(dataHoje)) {
+                                ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
+                                return;
+                              }
+                            }
+
+                            final agendamento = Agendamento(
+                              id: agendamentoExistente?.id,
+                              data: _selectedDay!,
+                              horaInicio: horaInicioFormatada,
+                              horaFim: horaFimFormatada,
+                              placaVeiculo: placaController.text,
+                              nomeMecanico: selectedMecanico!,
+                              nomeConsultor: selectedConsultor,
+                              cor: selectedService!,
+                            );
+
+                            final nav = Navigator.of(context);
+                            bool sucesso;
+                            if (agendamentoExistente != null && agendamentoExistente.id != null) {
+                              sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
+                              if (!mounted) return;
+                              _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
+                            } else {
+                              sucesso = await AgendamentoService.salvarAgendamento(agendamento);
+                              if (!mounted) return;
+                              _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
+                            }
+
                             if (!mounted) return;
-                            // ignore: use_build_context_synchronously
-                            _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
-                          } else {
-                            sucesso = await AgendamentoService.salvarAgendamento(agendamento);
-                            if (!mounted) return;
-                            // ignore: use_build_context_synchronously
-                            _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
-                          }
-
-                          if (!mounted) return;
-                          if (sucesso) {
-                            // ignore: use_build_context_synchronously
-                            Navigator.pop(context);
-                            _loadEvents();
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: secondaryColor,
-                          foregroundColor: Colors.white,
+                            if (sucesso) {
+                              nav.pop();
+                              _loadEvents();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: secondaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Salvar'),
                         ),
-                        child: const Text('Salvar'),
-                      ),
-                    ],
-                  ),
+                      ],
+                    )
+                  else
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancelar'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (placaController.text.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, informe a placa do veículo');
+                              return;
+                            }
+
+                            if (selectedMecanico == null || selectedMecanico!.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, selecione um mecânico');
+                              return;
+                            }
+
+                            if (selectedService == null || selectedService!.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, selecione o tipo de serviço');
+                              return;
+                            }
+
+                            if (horaInicioController.text.trim().isEmpty) {
+                              ErrorUtils.showVisibleError(context, 'Por favor, informe o horário de início');
+                              return;
+                            }
+
+                            if (!_placaExiste(placaController.text)) {
+                              ErrorUtils.showVisibleError(context, 'Esta placa não está cadastrada no sistema');
+                              return;
+                            }
+
+                            if (!_mecanicoExiste(selectedMecanico!)) {
+                              ErrorUtils.showVisibleError(context, 'Este mecânico não está cadastrado no sistema');
+                              return;
+                            }
+
+                            if (selectedConsultor != null && !_consultorExiste(selectedConsultor!)) {
+                              ErrorUtils.showVisibleError(context, 'Este consultor não está cadastrado no sistema');
+                              return;
+                            }
+
+                            String? horaInicioFormatada = _formatarHorario(horaInicioController.text);
+                            String? horaFimFormatada = _formatarHorario(horaFimController.text);
+
+                            horaInicioFormatada ??= "08:00";
+
+                            if (horaFimFormatada == null) {
+                              final inicio = _parseTime(horaInicioFormatada);
+                              if (inicio != null) {
+                                final fim = inicio.add(const Duration(hours: 1));
+                                horaFimFormatada = "${fim.hour.toString().padLeft(2, '0')}:${fim.minute.toString().padLeft(2, '0')}";
+                              } else {
+                                horaFimFormatada = "09:00";
+                              }
+                            }
+
+                            if (agendamentoExistente == null) {
+                              final hoje = DateTime.now();
+                              final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                              final dataSelecionada = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+
+                              if (dataSelecionada.isBefore(dataHoje)) {
+                                ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
+                                return;
+                              }
+                            }
+
+                            final agendamento = Agendamento(
+                              id: agendamentoExistente?.id,
+                              data: _selectedDay!,
+                              horaInicio: horaInicioFormatada,
+                              horaFim: horaFimFormatada,
+                              placaVeiculo: placaController.text,
+                              nomeMecanico: selectedMecanico!,
+                              nomeConsultor: selectedConsultor,
+                              cor: selectedService!,
+                            );
+
+                            bool sucesso;
+                            if (agendamentoExistente != null && agendamentoExistente.id != null) {
+                              sucesso = await AgendamentoService.atualizarAgendamento(agendamentoExistente.id!, agendamento);
+                              if (!mounted) return;
+                              // ignore: use_build_context_synchronously
+                              _showSuccessSnackBar(sucesso ? 'Agendamento atualizado com sucesso' : 'Erro ao atualizar agendamento');
+                            } else {
+                              sucesso = await AgendamentoService.salvarAgendamento(agendamento);
+                              if (!mounted) return;
+                              // ignore: use_build_context_synchronously
+                              _showSuccessSnackBar(sucesso ? 'Agendamento salvo com sucesso' : 'Erro ao salvar agendamento');
+                            }
+
+                            if (!mounted) return;
+                            if (sucesso) {
+                              // ignore: use_build_context_synchronously
+                              Navigator.pop(context);
+                              _loadEvents();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: secondaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Salvar'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             );

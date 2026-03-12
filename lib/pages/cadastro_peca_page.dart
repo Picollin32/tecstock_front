@@ -58,6 +58,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   final int _pageSize = 30;
   String _lastSearchQuery = '';
   String _pecaSearchMode = 'codigo';
+  bool _filtrosExpandidos = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -826,6 +827,161 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       fabricantesDropdown.insert(0, selected);
     }
 
+    final searchField = TextField(
+      controller: _searchController,
+      inputFormatters: [],
+      decoration: InputDecoration(
+        hintText: _pecaSearchMode == 'codigo' ? 'Pesquisar por código...' : 'Pesquisar por nome...',
+        prefixIcon: Icon(Icons.search, color: primaryColor),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _onSearchChanged(force: true);
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+
+    final searchModeToggle = ToggleButtons(
+      isSelected: [_pecaSearchMode == 'codigo', _pecaSearchMode == 'nome'],
+      onPressed: (index) {
+        final mode = index == 0 ? 'codigo' : 'nome';
+        if (_pecaSearchMode == mode) return;
+        setState(() {
+          _pecaSearchMode = mode;
+          _searchController.clear();
+          _currentPage = 0;
+        });
+        _onSearchChanged(force: true);
+      },
+      borderRadius: BorderRadius.circular(12),
+      selectedBorderColor: primaryColor,
+      selectedColor: Colors.white,
+      fillColor: primaryColor,
+      color: Colors.grey[700],
+      children: const [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Text('Código'),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Text('Nome'),
+        ),
+      ],
+    );
+
+    final fornecedorField = DropdownButtonFormField<int?>(
+      initialValue: _fornecedorFiltroId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Fornecedor',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      items: [
+        const DropdownMenuItem<int?>(
+          value: null,
+          child: Text('Todos os fornecedores'),
+        ),
+        ...fornecedoresDropdown.map(
+          (fornecedor) => DropdownMenuItem<int?>(
+            value: fornecedor.id,
+            child: Text(fornecedor.nome),
+          ),
+        ),
+      ],
+      onChanged: fornecedoresDropdown.isEmpty
+          ? null
+          : (value) {
+              setState(() {
+                _fornecedorFiltroId = value;
+                _currentPage = 0;
+              });
+              _onSearchChanged(force: true);
+            },
+    );
+
+    final fabricanteField = DropdownButtonFormField<int?>(
+      initialValue: _fabricanteFiltroId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Fabricante',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primaryColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      items: [
+        const DropdownMenuItem<int?>(
+          value: null,
+          child: Text('Todos os fabricantes'),
+        ),
+        ...fabricantesDropdown.map(
+          (fabricante) => DropdownMenuItem<int?>(
+            value: fabricante.id,
+            child: Text(fabricante.nome),
+          ),
+        ),
+      ],
+      onChanged: fabricantesDropdown.isEmpty
+          ? null
+          : (value) {
+              setState(() {
+                _fabricanteFiltroId = value;
+                _currentPage = 0;
+              });
+              _onSearchChanged(force: true);
+            },
+    );
+
+    final activeFiltersCount = (_fornecedorFiltroId != null ? 1 : 0) +
+        (_fabricanteFiltroId != null ? 1 : 0) +
+        (_filtroEstoque != 'todos' ? 1 : 0) +
+        (_pecaSearchMode != 'codigo' ? 1 : 0);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -839,167 +995,208 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: TextField(
-              controller: _searchController,
-              inputFormatters: [],
-              decoration: InputDecoration(
-                hintText: _pecaSearchMode == 'codigo' ? 'Pesquisar por código...' : 'Pesquisar por nome...',
-                prefixIcon: Icon(Icons.search, color: primaryColor),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged(force: true);
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 1100;
+
+          if (isDesktop) {
+            return Row(
+              children: [
+                Expanded(flex: 3, child: searchField),
+                const SizedBox(width: 12),
+                searchModeToggle,
+                const SizedBox(width: 12),
+                Expanded(flex: 2, child: fornecedorField),
+                const SizedBox(width: 12),
+                Expanded(flex: 2, child: fabricanteField),
+              ],
+            );
+          }
+
+          final isTablet = constraints.maxWidth >= 700;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isTablet) ...[
+                searchField,
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    searchModeToggle,
+                    const SizedBox(width: 12),
+                    Expanded(child: fornecedorField),
+                    const SizedBox(width: 12),
+                    Expanded(child: fabricanteField),
+                  ],
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+              ] else ...[
+                // Mobile: busca + botões de ação sempre visíveis
+                Row(
+                  children: [
+                    Expanded(child: searchField),
+                    const SizedBox(width: 8),
+                    // Botão de filtros com badge de ativos
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _filtrosExpandidos ? primaryColor : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _filtrosExpandidos ? primaryColor : Colors.grey[300]!,
+                            ),
+                          ),
+                          child: IconButton(
+                            onPressed: () => setState(
+                              () => _filtrosExpandidos = !_filtrosExpandidos,
+                            ),
+                            icon: Icon(
+                              Icons.tune,
+                              color: _filtrosExpandidos ? Colors.white : Colors.grey[700],
+                            ),
+                            iconSize: 22,
+                            padding: const EdgeInsets.all(10),
+                            tooltip: _filtrosExpandidos ? 'Ocultar filtros' : 'Mostrar filtros',
+                          ),
+                        ),
+                        if (activeFiltersCount > 0)
+                          Positioned(
+                            right: 4,
+                            top: 4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              child: Text(
+                                '$activeFiltersCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    _buildToolbarActionButton(
+                      backgroundColor: primaryColor,
+                      shadowBaseColor: primaryColor,
+                      icon: Icons.add,
+                      compact: true,
+                      onPressed: () {
+                        _limparFormulario();
+                        _showFormModal();
+                      },
+                      tooltip: 'Nova Peça',
+                    ),
+                    const SizedBox(width: 8),
+                    _buildToolbarActionButton(
+                      backgroundColor: successColor,
+                      shadowBaseColor: successColor,
+                      icon: Icons.add_box,
+                      compact: true,
+                      onPressed: () async {
+                        await EntradaEstoquePage.showModal(context);
+                        await _carregarPecas();
+                      },
+                      tooltip: 'Entrada de Estoque',
+                    ),
+                  ],
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
+                // Painel colapsável de filtros
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                  child: _filtrosExpandidos
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 10),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: searchModeToggle,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            fornecedorField,
+                            const SizedBox(height: 10),
+                            fabricanteField,
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _buildToolbarFilterButton(
+                                  filterValue: 'critico',
+                                  icon: Icons.warning_amber,
+                                  activeColor: warningColor,
+                                  count: _contarPecasCriticas(),
+                                  tooltip: _filtroEstoque == 'critico' ? 'Mostrar todas as peças' : 'Filtrar peças críticas',
+                                  onPressed: () {
+                                    setState(() {
+                                      _filtroEstoque = _filtroEstoque == 'critico' ? 'todos' : 'critico';
+                                      _searchController.clear();
+                                      _lastSearchQuery = '';
+                                      _fornecedorFiltroId = null;
+                                      _fabricanteFiltroId = null;
+                                      _currentPage = 0;
+                                    });
+                                    _filtrarPecas();
+                                  },
+                                ),
+                                _buildToolbarFilterButton(
+                                  filterValue: 'sem_estoque',
+                                  icon: Icons.error,
+                                  activeColor: errorColor,
+                                  count: _contarPecasSemEstoque(),
+                                  tooltip: _filtroEstoque == 'sem_estoque' ? 'Mostrar todas as peças' : 'Filtrar peças sem estoque',
+                                  onPressed: () {
+                                    setState(() {
+                                      _filtroEstoque = _filtroEstoque == 'sem_estoque' ? 'todos' : 'sem_estoque';
+                                      _searchController.clear();
+                                      _lastSearchQuery = '';
+                                      _fornecedorFiltroId = null;
+                                      _fabricanteFiltroId = null;
+                                      _currentPage = 0;
+                                    });
+                                    _filtrarPecas();
+                                  },
+                                ),
+                                _buildToolbarFilterButton(
+                                  filterValue: 'em_uso',
+                                  icon: Icons.pending_actions,
+                                  activeColor: primaryColor,
+                                  count: _contarPecasEmUso(),
+                                  tooltip: _filtroEstoque == 'em_uso' ? 'Mostrar todas as peças' : 'Filtrar peças em uso em OSs',
+                                  onPressed: () {
+                                    setState(() {
+                                      _filtroEstoque = _filtroEstoque == 'em_uso' ? 'todos' : 'em_uso';
+                                    });
+                                    _filtrarPecas();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
                 ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          ToggleButtons(
-            isSelected: [_pecaSearchMode == 'codigo', _pecaSearchMode == 'nome'],
-            onPressed: (index) {
-              final mode = index == 0 ? 'codigo' : 'nome';
-              if (_pecaSearchMode == mode) return;
-              setState(() {
-                _pecaSearchMode = mode;
-                _searchController.clear();
-                _currentPage = 0;
-              });
-              _onSearchChanged(force: true);
-            },
-            borderRadius: BorderRadius.circular(12),
-            selectedBorderColor: primaryColor,
-            selectedColor: Colors.white,
-            fillColor: primaryColor,
-            color: Colors.grey[700],
-            children: const [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Text('Código'),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Text('Nome'),
-              ),
+              ],
             ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<int?>(
-              initialValue: _fornecedorFiltroId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Fornecedor',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('Todos os fornecedores'),
-                ),
-                ...fornecedoresDropdown.map(
-                  (fornecedor) => DropdownMenuItem<int?>(
-                    value: fornecedor.id,
-                    child: Text(fornecedor.nome),
-                  ),
-                ),
-              ],
-              onChanged: fornecedoresDropdown.isEmpty
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _fornecedorFiltroId = value;
-                        _currentPage = 0;
-                      });
-                      _onSearchChanged(force: true);
-                    },
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<int?>(
-              initialValue: _fabricanteFiltroId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Fabricante',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('Todos os fabricantes'),
-                ),
-                ...fabricantesDropdown.map(
-                  (fabricante) => DropdownMenuItem<int?>(
-                    value: fabricante.id,
-                    child: Text(fabricante.nome),
-                  ),
-                ),
-              ],
-              onChanged: fabricantesDropdown.isEmpty
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _fabricanteFiltroId = value;
-                        _currentPage = 0;
-                      });
-                      _onSearchChanged(force: true);
-                    },
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -1075,33 +1272,48 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = 1;
-        if (constraints.maxWidth >= 1100) {
-          crossAxisCount = 3;
-        } else if (constraints.maxWidth >= 700) {
-          crossAxisCount = 2;
-        } else {
-          crossAxisCount = 1;
+        final isDesktop = constraints.maxWidth >= 1100;
+        final isTablet = constraints.maxWidth >= 700;
+        final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
+
+        if (!isDesktop) {
+          if (!isTablet) {
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _pecasFiltradas.length,
+              itemBuilder: (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _buildPartCard(_pecasFiltradas[index], useFlexibleBody: false),
+              ),
+            );
+          }
+
+          final itemWidth = (constraints.maxWidth - ((crossAxisCount - 1) * 10)) / crossAxisCount;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _pecasFiltradas
+                .map((peca) => SizedBox(
+                      width: itemWidth,
+                      child: _buildPartCard(peca, useFlexibleBody: false),
+                    ))
+                .toList(),
+          );
         }
 
-        double childAspectRatio;
-        if (crossAxisCount == 1) {
-          childAspectRatio = 3.8;
-        } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.2;
-        } else {
-          childAspectRatio = 1.5;
-        }
+        final SliverGridDelegate gridDelegate;
+        gridDelegate = const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 1.5,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        );
 
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
+          gridDelegate: gridDelegate,
           itemCount: _pecasFiltradas.length,
           itemBuilder: (context, index) => _buildPartCard(_pecasFiltradas[index]),
         );
@@ -1109,10 +1321,27 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  Widget _buildPartCard(Peca peca) {
+  Widget _buildPartCard(Peca peca, {bool useFlexibleBody = true}) {
     final stockStatus = _getStockStatus(peca.quantidadeEstoque, peca.estoqueSeguranca);
     final quantidadeEmOS = _pecasEmOS[peca.codigoFabricante]?['quantidade'] ?? 0;
     final ordensComPeca = _pecasEmOS[peca.codigoFabricante]?['ordens'] as List<String>? ?? [];
+    final infoSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildInfoRow(Icons.qr_code, peca.codigoFabricante, maxLines: useFlexibleBody ? 1 : 2),
+        _buildInfoRow(Icons.business, peca.fabricante.nome, maxLines: useFlexibleBody ? 1 : 2),
+        _buildInfoRow(
+          Icons.store,
+          peca.fornecedor != null
+              ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(2)}%)"
+              : 'Não informado',
+          maxLines: useFlexibleBody ? 1 : 2,
+        ),
+        _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true, maxLines: 1),
+        _buildInfoRow(Icons.shield, 'Estoque Seg.: ${peca.estoqueSeguranca} unid.', maxLines: 1),
+      ],
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -1146,8 +1375,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
             _editarPeca(peca);
           },
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(useFlexibleBody ? 10 : 14),
             child: Column(
+              mainAxisSize: useFlexibleBody ? MainAxisSize.max : MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -1267,23 +1497,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   ],
                 ),
                 const SizedBox(height: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow(Icons.qr_code, peca.codigoFabricante),
-                      _buildInfoRow(Icons.business, peca.fabricante.nome),
-                      _buildInfoRow(
-                        Icons.store,
-                        peca.fornecedor != null
-                            ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(2)}%)"
-                            : "Não informado",
-                      ),
-                      _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true),
-                      _buildInfoRow(Icons.shield, 'Estoque Seg.: ${peca.estoqueSeguranca} unid.'),
-                    ],
-                  ),
-                ),
+                if (useFlexibleBody) Expanded(child: infoSection) else infoSection,
                 if (quantidadeEmOS > 0)
                   Container(
                     width: double.infinity,
@@ -1295,6 +1509,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       border: Border.all(color: warningColor.withValues(alpha: 0.3), width: 1),
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
@@ -1322,6 +1537,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                                 fontSize: 9,
                                 fontWeight: FontWeight.w500,
                               ),
+                              maxLines: useFlexibleBody ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],
@@ -1336,14 +1553,17 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     border: Border.all(color: Colors.grey[200]!, width: 1),
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (peca.createdAt != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
+                          child: Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
                               Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
-                              const SizedBox(width: 6),
                               Text(
                                 'Cadastrado: ${DateFormat('dd/MM/yyyy').format(peca.createdAt!)}',
                                 style: TextStyle(
@@ -1355,42 +1575,80 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                             ],
                           ),
                         ),
-                      Row(
-                        children: [
-                          Icon(Icons.inventory, size: 12, color: stockStatus['color']),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Estoque: ${peca.quantidadeEstoque} unid.',
-                            style: TextStyle(
-                              color: stockStatus['color'],
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: stockStatus['color'].withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              stockStatus['label'],
+                      if (useFlexibleBody)
+                        Row(
+                          children: [
+                            Icon(Icons.inventory, size: 12, color: stockStatus['color']),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Estoque: ${peca.quantidadeEstoque} unid.',
                               style: TextStyle(
                                 color: stockStatus['color'],
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                          const Spacer(),
-                          Icon(
-                            stockStatus['icon'],
-                            color: stockStatus['color'],
-                            size: 14,
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: stockStatus['color'].withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                stockStatus['label'],
+                                style: TextStyle(
+                                  color: stockStatus['color'],
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              stockStatus['icon'],
+                              color: stockStatus['color'],
+                              size: 14,
+                            ),
+                          ],
+                        )
+                      else
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Icon(Icons.inventory, size: 12, color: stockStatus['color']),
+                            Text(
+                              'Estoque: ${peca.quantidadeEstoque} unid.',
+                              style: TextStyle(
+                                color: stockStatus['color'],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: stockStatus['color'].withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                stockStatus['label'],
+                                style: TextStyle(
+                                  color: stockStatus['color'],
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              stockStatus['icon'],
+                              color: stockStatus['color'],
+                              size: 14,
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -1430,7 +1688,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     return _pecas.where((peca) => peca.unidadesUsadasEmOS != null && peca.unidadesUsadasEmOS! > 0).length;
   }
 
-  Widget _buildInfoRow(IconData icon, String text, {bool isPrice = false, bool isFinalPrice = false}) {
+  Widget _buildInfoRow(IconData icon, String text, {bool isPrice = false, bool isFinalPrice = false, int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -1445,7 +1703,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 color: isPrice ? (isFinalPrice ? successColor : warningColor) : Colors.grey[700],
                 fontWeight: isPrice ? FontWeight.w600 : FontWeight.normal,
               ),
-              maxLines: 1,
+              maxLines: maxLines,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1454,235 +1712,453 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  Widget _buildPaginationControls() {
+  Widget _buildToolbarActionButton({
+    required Color backgroundColor,
+    required Color shadowBaseColor,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    Color iconColor = Colors.white,
+    bool compact = false,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton.icon(
-            onPressed: _currentPage > 0 ? _paginaAnterior : null,
-            icon: const Icon(Icons.chevron_left),
-            label: const Text('Anterior'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(compact ? 12 : 16),
+        boxShadow: [
+          BoxShadow(
+            color: shadowBaseColor.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: primaryColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+        ],
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: iconColor),
+        iconSize: compact ? 22 : 28,
+        padding: EdgeInsets.all(compact ? 8 : 12),
+        tooltip: tooltip,
+      ),
+    );
+  }
+
+  Widget _buildToolbarFilterButton({
+    required String filterValue,
+    required IconData icon,
+    required Color activeColor,
+    required int count,
+    required VoidCallback onPressed,
+    required String tooltip,
+  }) {
+    final isActive = _filtroEstoque == filterValue;
+
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: isActive ? activeColor : Colors.grey[100],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: (isActive ? activeColor : Colors.grey).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.grey[600],
             ),
-            child: Text(
-              'Página ${_currentPage + 1} de $_totalPages',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
+            iconSize: 24,
+            padding: const EdgeInsets.all(12),
+            tooltip: tooltip,
+          ),
+        ),
+        if (count > 0 && !isActive)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: activeColor,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 18,
+                minHeight: 18,
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          ElevatedButton.icon(
-            onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
-            icon: const Icon(Icons.chevron_right),
-            label: const Text('Próxima'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey[300],
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
+      ],
+    );
+  }
+
+  Widget _buildTopToolbarActions({required bool isDesktop}) {
+    final buttons = <Widget>[
+      _buildToolbarActionButton(
+        backgroundColor: primaryColor,
+        shadowBaseColor: primaryColor,
+        icon: Icons.add,
+        onPressed: () {
+          _limparFormulario();
+          _showFormModal();
+        },
+        tooltip: 'Nova Peça',
+      ),
+      _buildToolbarActionButton(
+        backgroundColor: successColor,
+        shadowBaseColor: successColor,
+        icon: Icons.add_box,
+        onPressed: () async {
+          await EntradaEstoquePage.showModal(context);
+          await _carregarPecas();
+        },
+        tooltip: 'Entrada de Estoque',
+      ),
+      _buildToolbarFilterButton(
+        filterValue: 'critico',
+        icon: Icons.warning_amber,
+        activeColor: warningColor,
+        count: _contarPecasCriticas(),
+        tooltip: _filtroEstoque == 'critico' ? 'Mostrar todas as peças' : 'Filtrar peças críticas',
+        onPressed: () {
+          setState(() {
+            _filtroEstoque = _filtroEstoque == 'critico' ? 'todos' : 'critico';
+            _searchController.clear();
+            _lastSearchQuery = '';
+            _fornecedorFiltroId = null;
+            _fabricanteFiltroId = null;
+            _currentPage = 0;
+          });
+          _filtrarPecas();
+        },
+      ),
+      _buildToolbarFilterButton(
+        filterValue: 'sem_estoque',
+        icon: Icons.error,
+        activeColor: errorColor,
+        count: _contarPecasSemEstoque(),
+        tooltip: _filtroEstoque == 'sem_estoque' ? 'Mostrar todas as peças' : 'Filtrar peças sem estoque',
+        onPressed: () {
+          setState(() {
+            _filtroEstoque = _filtroEstoque == 'sem_estoque' ? 'todos' : 'sem_estoque';
+            _searchController.clear();
+            _lastSearchQuery = '';
+            _fornecedorFiltroId = null;
+            _fabricanteFiltroId = null;
+            _currentPage = 0;
+          });
+          _filtrarPecas();
+        },
+      ),
+      _buildToolbarFilterButton(
+        filterValue: 'em_uso',
+        icon: Icons.pending_actions,
+        activeColor: primaryColor,
+        count: _contarPecasEmUso(),
+        tooltip: _filtroEstoque == 'em_uso' ? 'Mostrar todas as peças' : 'Filtrar peças em uso em OSs',
+        onPressed: () {
+          setState(() {
+            _filtroEstoque = _filtroEstoque == 'em_uso' ? 'todos' : 'em_uso';
+          });
+          _filtrarPecas();
+        },
+      ),
+    ];
+
+    if (isDesktop) {
+      return Row(
+        children: [
+          for (int i = 0; i < buttons.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            buttons[i],
+          ],
         ],
+      );
+    }
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: buttons,
+    );
+  }
+
+  Widget _buildPaginationControls() {
+    final previousButton = ElevatedButton.icon(
+      onPressed: _currentPage > 0 ? _paginaAnterior : null,
+      icon: const Icon(Icons.chevron_left),
+      label: const Text('Anterior'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.grey[300],
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+
+    final pageIndicator = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Página ${_currentPage + 1} de $_totalPages',
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: primaryColor,
+        ),
+      ),
+    );
+
+    final nextButton = ElevatedButton.icon(
+      onPressed: _currentPage < _totalPages - 1 ? _proximaPagina : null,
+      icon: const Icon(Icons.chevron_right),
+      label: const Text('Próxima'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+        disabledBackgroundColor: Colors.grey[300],
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 700) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                previousButton,
+                const SizedBox(width: 16),
+                pageIndicator,
+                const SizedBox(width: 16),
+                nextButton,
+              ],
+            );
+          }
+
+          return Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [previousButton, pageIndicator, nextButton],
+          );
+        },
       ),
     );
   }
 
   Widget _buildFormulario() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          _buildTextField(
-            controller: _nomeController,
-            label: 'Nome da Peça',
-            icon: Icons.inventory_2,
-            validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            controller: _codigoFabricanteController,
-            label: 'Código do Fabricante',
-            icon: Icons.qr_code,
-            validator: (v) => v!.isEmpty ? 'Informe o código' : null,
-          ),
-          const SizedBox(height: 16),
-          _buildDropdownField(
-            value: _fabricanteSelecionado,
-            label: 'Fabricante',
-            icon: Icons.business,
-            items: _fabricantes
-                .map((fabricante) => DropdownMenuItem<Fabricante>(
-                      value: fabricante,
-                      child: Text(fabricante.nome),
-                    ))
-                .toList(),
-            onChanged: (value) => setState(() => _fabricanteSelecionado = value),
-            validator: (value) => value == null ? 'Selecione um fabricante' : null,
-          ),
-          const SizedBox(height: 16),
-          Row(
+    final precoUnitarioField = _buildTextField(
+      controller: _precoUnitarioController,
+      label: 'Preço Unitário (Custo)',
+      icon: Icons.attach_money,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Informe o preço';
+        }
+        if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
+          return 'Digite apenas números e vírgula';
+        }
+        return null;
+      },
+      onChanged: (value) {
+        String newValue = value.replaceAll(RegExp(r'[^\d,]'), '');
+        if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
+          newValue = newValue.replaceFirst(RegExp(',.*'), ',');
+        }
+        if (newValue != value) {
+          _precoUnitarioController.value = TextEditingValue(
+            text: newValue,
+            selection: TextSelection.collapsed(offset: newValue.length),
+          );
+        }
+        _calcularPrecoFinal();
+      },
+    );
+
+    final estoqueSegurancaField = _buildTextField(
+      controller: _estoqueSegurancaController,
+      label: 'Estoque de Segurança',
+      icon: Icons.inventory,
+      keyboardType: TextInputType.number,
+      inputFormatters: [_numbersOnlyFormatter],
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Informe o estoque de segurança';
+        }
+        if (int.tryParse(value) == null || int.parse(value) < 0) {
+          return 'Digite um número válido';
+        }
+        return null;
+      },
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackFields = constraints.maxWidth < 900;
+
+        return Form(
+          key: _formKey,
+          child: Column(
             children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _precoUnitarioController,
-                  label: 'Preço Unitário (Custo)',
-                  icon: Icons.attach_money,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe o preço';
-                    }
-                    if (!RegExp(r'^\d*[,.]?\d*$').hasMatch(value)) {
-                      return 'Digite apenas números e vírgula';
-                    }
-                    return null;
-                  },
-                  onChanged: (value) {
-                    String newValue = value.replaceAll(RegExp(r'[^\d,]'), '');
-                    if (newValue.indexOf(',') != newValue.lastIndexOf(',')) {
-                      newValue = newValue.replaceFirst(RegExp(',.*'), ',');
-                    }
-                    if (newValue != value) {
-                      _precoUnitarioController.value = TextEditingValue(
-                        text: newValue,
-                        selection: TextSelection.collapsed(offset: newValue.length),
-                      );
-                    }
-                    _calcularPrecoFinal();
-                  },
-                ),
+              _buildTextField(
+                controller: _nomeController,
+                label: 'Nome da Peça',
+                icon: Icons.inventory_2,
+                validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _estoqueSegurancaController,
-                  label: 'Estoque de Segurança',
-                  icon: Icons.inventory,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [_numbersOnlyFormatter],
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe o estoque de segurança';
-                    }
-                    if (int.tryParse(value) == null || int.parse(value) < 0) {
-                      return 'Digite um número válido';
-                    }
-                    return null;
-                  },
-                ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: _codigoFabricanteController,
+                label: 'Código do Fabricante',
+                icon: Icons.qr_code,
+                validator: (v) => v!.isEmpty ? 'Informe o código' : null,
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              const SizedBox(height: 16),
+              _buildDropdownField(
+                value: _fabricanteSelecionado,
+                label: 'Fabricante',
+                icon: Icons.business,
+                items: _fabricantes
+                    .map((fabricante) => DropdownMenuItem<Fabricante>(
+                          value: fabricante,
+                          child: Text(fabricante.nome),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _fabricanteSelecionado = value),
+                validator: (value) => value == null ? 'Selecione um fabricante' : null,
+              ),
+              const SizedBox(height: 16),
+              if (stackFields) ...[
+                precoUnitarioField,
+                const SizedBox(height: 16),
+                estoqueSegurancaField,
+              ] else
                 Row(
                   children: [
-                    Icon(Icons.store, color: primaryColor, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Informações de Venda',
+                    Expanded(child: precoUnitarioField),
+                    const SizedBox(width: 16),
+                    Expanded(child: estoqueSegurancaField),
+                  ],
+                ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.store, color: primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Informações de Venda',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDropdownField(
+                      value: _fornecedorSelecionado,
+                      label: 'Fornecedor',
+                      icon: Icons.store,
+                      items: _fornecedores
+                          .map((fornecedor) => DropdownMenuItem<Fornecedor>(
+                                value: fornecedor,
+                                child: Text(
+                                    "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)"),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _fornecedorSelecionado = value;
+                          _calcularPrecoFinal();
+                        });
+                      },
+                      validator: (value) => value == null ? 'Selecione um fornecedor' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _precoFinalController,
+                      label: 'Preço Final (Venda)',
+                      icon: Icons.sell,
+                      enabled: false,
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
+                        fontWeight: FontWeight.bold,
+                        color: successColor,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                _buildDropdownField(
-                  value: _fornecedorSelecionado,
-                  label: 'Fornecedor',
-                  icon: Icons.store,
-                  items: _fornecedores
-                      .map((fornecedor) => DropdownMenuItem<Fornecedor>(
-                            value: fornecedor,
-                            child: Text(
-                                "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)"),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _fornecedorSelecionado = value;
-                      _calcularPrecoFinal();
-                    });
-                  },
-                  validator: (value) => value == null ? 'Selecione um fornecedor' : null,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _precoFinalController,
-                  label: 'Preço Final (Venda)',
-                  icon: Icons.sell,
-                  enabled: false,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: successColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _salvar,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
               ),
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      _pecaEmEdicao != null ? 'Atualizar Peça' : 'Cadastrar Peça',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _salvar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-            ),
+                    elevation: 2,
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          _pecaEmEdicao != null ? 'Atualizar Peça' : 'Cadastrar Peça',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1790,303 +2266,83 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         opacity: _fadeAnimation,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        _showFormModal();
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                      tooltip: 'Nova Peça',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: successColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: successColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () async {
-                        await EntradaEstoquePage.showModal(context);
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 1100;
+              final isTablet = constraints.maxWidth >= 700;
 
-                        await _carregarPecas();
-                      },
-                      icon: const Icon(Icons.add_box, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                      tooltip: 'Entrada de Estoque',
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isDesktop)
+                    Row(
+                      children: [
+                        Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 12),
+                        _buildTopToolbarActions(isDesktop: true),
+                      ],
+                    )
+                  else if (isTablet) ...[
+                    _buildSearchBar(),
+                    const SizedBox(height: 12),
+                    _buildTopToolbarActions(isDesktop: false),
+                  ] else
+                    _buildSearchBar(),
+                  const SizedBox(height: 24),
+                  if (_searchController.text.isEmpty && _filtroEstoque == 'todos' && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
+                    Text(
+                      'Últimas Peças Cadastradas',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _filtroEstoque == 'critico' ? warningColor : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_filtroEstoque == 'critico' ? warningColor : Colors.grey).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _filtroEstoque = _filtroEstoque == 'critico' ? 'todos' : 'critico';
-                              _searchController.clear();
-                              _lastSearchQuery = '';
-                              _fornecedorFiltroId = null;
-                              _fabricanteFiltroId = null;
-                              _currentPage = 0;
-                            });
-                            _filtrarPecas();
-                          },
-                          icon: Icon(
-                            Icons.warning_amber,
-                            color: _filtroEstoque == 'critico' ? Colors.white : Colors.grey[600],
+                  if (_filtroEstoque == 'critico' && _searchController.text.isEmpty && !_isLoadingPecas)
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber, color: warningColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Peças com Estoque Crítico (${_pecasFiltradas.length})',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: warningColor,
                           ),
-                          iconSize: 24,
-                          padding: const EdgeInsets.all(12),
-                          tooltip: _filtroEstoque == 'critico' ? 'Mostrar todas as peças' : 'Filtrar peças críticas',
                         ),
+                      ],
+                    ),
+                  if (_filtroEstoque == 'sem_estoque' && _searchController.text.isEmpty && !_isLoadingPecas)
+                    Row(
+                      children: [
+                        Icon(Icons.error, color: errorColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Peças Sem Estoque (${_pecasFiltradas.length})',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: errorColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (_searchController.text.isNotEmpty && !_isLoadingPecas)
+                    Text(
+                      'Resultados da Busca${_filtroEstoque != 'todos' ? ' - ${_filtroEstoque == 'critico' ? 'Apenas Críticas' : 'Sem Estoque'}' : ''} ($_totalElements)',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: _filtroEstoque != 'todos' ? (_filtroEstoque == 'critico' ? warningColor : errorColor) : Colors.grey[800],
                       ),
-                      if (_contarPecasCriticas() > 0 && _filtroEstoque != 'critico')
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: warningColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              '${_contarPecasCriticas()}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_filtroEstoque == 'sem_estoque' ? errorColor : Colors.grey).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _filtroEstoque = _filtroEstoque == 'sem_estoque' ? 'todos' : 'sem_estoque';
-                              _searchController.clear();
-                              _lastSearchQuery = '';
-                              _fornecedorFiltroId = null;
-                              _fabricanteFiltroId = null;
-                              _currentPage = 0;
-                            });
-                            _filtrarPecas();
-                          },
-                          icon: Icon(
-                            Icons.error,
-                            color: _filtroEstoque == 'sem_estoque' ? Colors.white : Colors.grey[600],
-                          ),
-                          iconSize: 24,
-                          padding: const EdgeInsets.all(12),
-                          tooltip: _filtroEstoque == 'sem_estoque' ? 'Mostrar todas as peças' : 'Filtrar peças sem estoque',
-                        ),
-                      ),
-                      if (_contarPecasSemEstoque() > 0 && _filtroEstoque != 'sem_estoque')
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: errorColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              '${_contarPecasSemEstoque()}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _filtroEstoque == 'em_uso' ? primaryColor : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (_filtroEstoque == 'em_uso' ? primaryColor : Colors.grey).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _filtroEstoque = _filtroEstoque == 'em_uso' ? 'todos' : 'em_uso';
-                            });
-                            _filtrarPecas();
-                          },
-                          icon: Icon(
-                            Icons.pending_actions,
-                            color: _filtroEstoque == 'em_uso' ? Colors.white : Colors.grey[600],
-                          ),
-                          iconSize: 24,
-                          padding: const EdgeInsets.all(12),
-                          tooltip: _filtroEstoque == 'em_uso' ? 'Mostrar todas as peças' : 'Filtrar peças em uso em OSs',
-                        ),
-                      ),
-                      if (_contarPecasEmUso() > 0 && _filtroEstoque != 'em_uso')
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 18,
-                              minHeight: 18,
-                            ),
-                            child: Text(
-                              '${_contarPecasEmUso()}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                    ),
+                  const SizedBox(height: 16),
+                  _buildPartGrid(),
+                  if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
                 ],
-              ),
-              const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && _filtroEstoque == 'todos' && !_isLoadingPecas && _pecasFiltradas.isNotEmpty)
-                Text(
-                  'Últimas Peças Cadastradas',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              if (_filtroEstoque == 'critico' && _searchController.text.isEmpty && !_isLoadingPecas)
-                Row(
-                  children: [
-                    Icon(Icons.warning_amber, color: warningColor, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Peças com Estoque Crítico (${_pecasFiltradas.length})',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: warningColor,
-                      ),
-                    ),
-                  ],
-                ),
-              if (_filtroEstoque == 'sem_estoque' && _searchController.text.isEmpty && !_isLoadingPecas)
-                Row(
-                  children: [
-                    Icon(Icons.error, color: errorColor, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Peças Sem Estoque (${_pecasFiltradas.length})',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: errorColor,
-                      ),
-                    ),
-                  ],
-                ),
-              if (_searchController.text.isNotEmpty && !_isLoadingPecas)
-                Text(
-                  'Resultados da Busca${_filtroEstoque != 'todos' ? ' - ${_filtroEstoque == 'critico' ? 'Apenas Críticas' : 'Sem Estoque'}' : ''} ($_totalElements)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: _filtroEstoque != 'todos' ? (_filtroEstoque == 'critico' ? warningColor : errorColor) : Colors.grey[800],
-                  ),
-                ),
-              const SizedBox(height: 16),
-              _buildPartGrid(),
-              if (_totalPages > 1) ...[const SizedBox(height: 16), _buildPaginationControls()],
-            ],
+              );
+            },
           ),
         ),
       ),

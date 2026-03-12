@@ -622,7 +622,7 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   }
 
-  Widget _buildVehicleGrid() {
+  Widget _buildVehicleGrid({bool isMobile = false}) {
     if (_isLoadingVeiculos) {
       return const Center(
         child: Padding(
@@ -665,6 +665,15 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
       );
     }
 
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _veiculosFiltrados.length,
+        itemBuilder: (context, index) => _buildMobileVehicleCard(_veiculosFiltrados[index]),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
@@ -676,21 +685,12 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
           crossAxisCount = 1;
         }
 
-        double childAspectRatio;
-        if (crossAxisCount == 1) {
-          childAspectRatio = 4.5;
-        } else if (crossAxisCount == 2) {
-          childAspectRatio = 3.0;
-        } else {
-          childAspectRatio = 2.0;
-        }
-
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
+            mainAxisExtent: 240,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -856,6 +856,119 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   }
 
+  Widget _buildMobileVehicleCard(Veiculo veiculo) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarVeiculo(veiculo),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        veiculo.categoria == 'Passeio' ? Icons.directions_car : Icons.local_shipping,
+                        color: primaryColor,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            veiculo.nome,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              veiculo.categoria,
+                              style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarVeiculo(veiculo);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(veiculo);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Excluir', style: TextStyle(color: Colors.red))
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.pin_drop, veiculo.placa),
+                _buildInfoRow(Icons.build, '${veiculo.modelo} - ${veiculo.ano}'),
+                _buildInfoRow(Icons.business, veiculo.marca?.marca ?? 'Não informada'),
+                _buildInfoRow(Icons.palette, veiculo.cor),
+                _buildInfoRow(Icons.speed, '${veiculo.quilometragem.toStringAsFixed(0)} km'),
+                if (veiculo.createdAt != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Cadastrado: ${DateFormat('dd/MM/yyyy').format(veiculo.createdAt!)}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInfoRow(IconData icon, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -913,30 +1026,58 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
             validator: (v) => v!.isEmpty ? 'Informe a placa' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _ano,
-                  label: 'Ano',
-                  icon: Icons.calendar_today,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
-                  validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _modelo,
-                  label: 'Modelo',
-                  icon: Icons.build,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
-                  validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    _buildTextField(
+                      controller: _ano,
+                      label: 'Ano',
+                      icon: Icons.calendar_today,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
+                      validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _modelo,
+                      label: 'Modelo',
+                      icon: Icons.build,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
+                      validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _ano,
+                      label: 'Ano',
+                      icon: Icons.calendar_today,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
+                      validator: (v) => v!.isEmpty ? 'Informe o ano' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _modelo,
+                      label: 'Modelo',
+                      icon: Icons.build,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_numbersOnlyFormatter, _maxLength4Formatter],
+                      validator: (v) => v!.isEmpty ? 'Informe o modelo' : null,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildDropdownField(
@@ -971,29 +1112,56 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
             validator: (value) => value == null ? 'Selecione uma categoria' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _cor,
-                  label: 'Cor',
-                  icon: Icons.palette,
-                  inputFormatters: [_lettersOnlyFormatter],
-                  validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _quilometragem,
-                  label: 'Quilometragem',
-                  icon: Icons.speed,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [_numbersOnlyFormatter],
-                  validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    _buildTextField(
+                      controller: _cor,
+                      label: 'Cor',
+                      icon: Icons.palette,
+                      inputFormatters: [_lettersOnlyFormatter],
+                      validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _quilometragem,
+                      label: 'Quilometragem',
+                      icon: Icons.speed,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [_numbersOnlyFormatter],
+                      validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _cor,
+                      label: 'Cor',
+                      icon: Icons.palette,
+                      inputFormatters: [_lettersOnlyFormatter],
+                      validator: (v) => v!.isEmpty ? 'Informe a cor' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _quilometragem,
+                      label: 'Quilometragem',
+                      icon: Icons.speed,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [_numbersOnlyFormatter],
+                      validator: (v) => v!.isEmpty ? 'Informe a quilometragem' : null,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -1107,8 +1275,158 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
     );
   }
 
+  Widget _buildMobileLayout() {
+    final marcasDropdown = List<Marca>.from(_marcasFiltroDisponiveis);
+    if (_marcaFiltroId != null && marcasDropdown.every((m) => m.id != _marcaFiltroId)) {
+      final selected = _marcas.firstWhere((m) => m.id == _marcaFiltroId, orElse: () => Marca(id: _marcaFiltroId!, marca: ''));
+      marcasDropdown.insert(0, selected);
+    }
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        inputFormatters: _searchMode == 'placa' ? [_upperCaseFormatter, _maskPlaca] : [],
+                        decoration: InputDecoration(
+                          hintText: _searchMode == 'placa' ? 'Pesquisar por placa...' : 'Pesquisar por nome...',
+                          prefixIcon: Icon(Icons.search, color: primaryColor),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearchChanged(force: true);
+                                  })
+                              : null,
+                          border:
+                              OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                          enabledBorder:
+                              OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ToggleButtons(
+                      isSelected: [_searchMode == 'placa', _searchMode == 'nome'],
+                      onPressed: (index) {
+                        final mode = index == 0 ? 'placa' : 'nome';
+                        if (_searchMode == mode) return;
+                        setState(() {
+                          _searchMode = mode;
+                          _searchController.clear();
+                          _currentPage = 0;
+                        });
+                        _onSearchChanged(force: true);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      selectedBorderColor: primaryColor,
+                      selectedColor: Colors.white,
+                      fillColor: primaryColor,
+                      color: Colors.grey[700],
+                      constraints: const BoxConstraints(minHeight: 48, minWidth: 56),
+                      children: const [
+                        Text('Placa', style: TextStyle(fontSize: 13)),
+                        Text('Nome', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int?>(
+                  initialValue: _marcaFiltroId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Filtrar por marca',
+                    prefixIcon: Icon(Icons.filter_list, color: primaryColor),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                    enabledBorder:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                    focusedBorder:
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(value: null, child: Text('Todas as marcas')),
+                    ...marcasDropdown
+                        .map((m) => DropdownMenuItem<int?>(value: m.id, child: Text(m.marca, overflow: TextOverflow.ellipsis))),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _marcaFiltroId = value;
+                      _currentPage = 0;
+                    });
+                    _onSearchChanged(force: true);
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_searchController.text.isEmpty && !_isLoadingVeiculos && _veiculosFiltrados.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text('Últimos Veículos Cadastrados',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800])),
+                    ),
+                  if (_searchController.text.isNotEmpty && !_isLoadingVeiculos)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text('Resultados ($_totalElements)',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800])),
+                    ),
+                  if (_searchController.text.isNotEmpty && _totalElements > _pageSize)
+                    ...([
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 10),
+                    ]),
+                  _buildVehicleGrid(isMobile: true),
+                  if (_searchController.text.isNotEmpty && _totalElements > _pageSize)
+                    ...([
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ]),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -1125,74 +1443,86 @@ class _CadastroVeiculoPageState extends State<CadastroVeiculoPage> with TickerPr
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+      floatingActionButton: isMobile
+          ? FloatingActionButton(
+              onPressed: () {
+                _limparFormulario();
+                _showFormModal();
+              },
+              backgroundColor: primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      body: isMobile
+          ? _buildMobileLayout()
+          : FadeTransition(
+              opacity: _fadeAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              _limparFormulario();
+                              _showFormModal();
+                            },
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            iconSize: 28,
+                            padding: const EdgeInsets.all(12),
+                          ),
                         ),
                       ],
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        _showFormModal();
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    if (_searchController.text.isEmpty && !_isLoadingVeiculos && _veiculosFiltrados.isNotEmpty)
+                      Text(
+                        'Últimos Veículos Cadastrados',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingVeiculos)
+                      Text(
+                        'Resultados da Busca ($_totalElements)',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildVehicleGrid(),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingVeiculos && _veiculosFiltrados.isNotEmpty)
-                Text(
-                  'Últimos Veículos Cadastrados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              if (_searchController.text.isNotEmpty && !_isLoadingVeiculos)
-                Text(
-                  'Resultados da Busca ($_totalElements)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              const SizedBox(height: 16),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                _buildPaginationControls(compact: true),
-                const SizedBox(height: 10),
-              ],
-              _buildVehicleGrid(),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                const SizedBox(height: 16),
-                _buildPaginationControls(),
-              ],
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }

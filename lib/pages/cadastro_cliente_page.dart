@@ -573,7 +573,7 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 24),
                   child: _buildFormulario(),
                 ),
               ),
@@ -620,7 +620,128 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     );
   }
 
-  Widget _buildClientGrid() {
+  Widget _buildMobileClientCard(Cliente cliente) {
+    final idade = DateTime.now().difference(cliente.dataNascimento).inDays ~/ 365;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarCliente(cliente),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.person, color: primaryColor, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            cliente.nome,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$idade anos',
+                              style: TextStyle(color: primaryColor, fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') _editarCliente(cliente);
+                        if (value == 'delete') _confirmarExclusao(cliente);
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete, size: 18, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Excluir', style: TextStyle(color: Colors.red)),
+                          ]),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildInfoRow(Icons.badge, _maskCpf.maskText(cliente.cpf)),
+                _buildInfoRow(Icons.phone, _maskTelefone.maskText(cliente.telefone)),
+                _buildInfoRow(Icons.email, cliente.email),
+                _buildInfoRow(Icons.cake, '$idade anos'),
+                if (cliente.cidade != null && cliente.cidade!.isNotEmpty)
+                  _buildInfoRow(
+                    Icons.location_city,
+                    '${cliente.cidade}${cliente.uf != null && cliente.uf!.isNotEmpty ? ' - ${cliente.uf}' : ''}',
+                  ),
+                if (cliente.createdAt != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Cadastrado: ${DateFormat('dd/MM/yyyy').format(cliente.createdAt!)}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClientGrid({bool isMobile = false}) {
     if (_isLoadingClientes) {
       return const Center(
         child: Padding(
@@ -663,6 +784,15 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
       );
     }
 
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _clientesFiltrados.length,
+        itemBuilder: (context, index) => _buildMobileClientCard(_clientesFiltrados[index]),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         int crossAxisCount = 1;
@@ -674,21 +804,12 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
           crossAxisCount = 1;
         }
 
-        double childAspectRatio;
-        if (crossAxisCount == 1) {
-          childAspectRatio = 3.0;
-        } else if (crossAxisCount == 2) {
-          childAspectRatio = 2.0;
-        } else {
-          childAspectRatio = 1.4;
-        }
-
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
+            mainAxisExtent: 310,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -935,30 +1056,42 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             },
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTextField(
-                  controller: _telefoneController,
-                  label: 'Telefone',
-                  icon: Icons.phone,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [_maskTelefone],
-                  validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _dataNascimentoController,
-                  label: 'Data de Nascimento',
-                  icon: Icons.calendar_today,
-                  readOnly: true,
-                  onTap: () => _selectDate(context),
-                  validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final telefoneField = _buildTextField(
+                controller: _telefoneController,
+                label: 'Telefone',
+                icon: Icons.phone,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [_maskTelefone],
+                validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+              );
+              final dataNascField = _buildTextField(
+                controller: _dataNascimentoController,
+                label: 'Data de Nascimento',
+                icon: Icons.calendar_today,
+                readOnly: true,
+                onTap: () => _selectDate(context),
+                validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    telefoneField,
+                    const SizedBox(height: 16),
+                    dataNascField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: telefoneField),
+                  const SizedBox(width: 16),
+                  Expanded(child: dataNascField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -1050,32 +1183,40 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             icon: Icons.add_location_alt,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _ruaController,
-                  label: 'Rua',
-                  icon: Icons.signpost,
-                  validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: _buildTextField(
-                  controller: _numeroCasaController,
-                  label: 'Número',
-                  icon: Icons.numbers,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final ruaField = _buildTextField(
+                controller: _ruaController,
+                label: 'Rua',
+                icon: Icons.signpost,
+                validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+              );
+              final numField = _buildTextField(
+                controller: _numeroCasaController,
+                label: 'Número',
+                icon: Icons.numbers,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    ruaField,
+                    const SizedBox(height: 16),
+                    numField,
                   ],
-                  validator: (v) => v!.isEmpty ? 'Informe o número' : null,
-                ),
-              ),
-            ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: ruaField),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 1, child: numField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -1085,56 +1226,61 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
             validator: (v) => v!.isEmpty ? 'Informe o bairro' : null,
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _cidadeController,
-                  label: 'Cidade',
-                  icon: Icons.apartment,
-                  validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: ValueListenableBuilder<String>(
-                  valueListenable: _ufNotifier,
-                  builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
-                    initialValue: ufAtual,
-                    decoration: InputDecoration(
-                      labelText: 'UF',
-                      prefixIcon: Icon(Icons.map, color: primaryColor),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 500;
+              final cidadeField = _buildTextField(
+                controller: _cidadeController,
+                label: 'Cidade',
+                icon: Icons.apartment,
+                validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
+              );
+              final ufField = ValueListenableBuilder<String>(
+                valueListenable: _ufNotifier,
+                builder: (context, ufAtual, _) => DropdownButtonFormField<String>(
+                  initialValue: ufAtual,
+                  decoration: InputDecoration(
+                    labelText: 'UF',
+                    prefixIcon: Icon(Icons.map, color: primaryColor),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
                     ),
-                    items: _ufs
-                        .map((uf) => DropdownMenuItem(
-                              value: uf,
-                              child: Text(uf),
-                            ))
-                        .toList(),
-                    onChanged: (value) => setState(() {
-                      _ufSelecionada = value!;
-                      _ufNotifier.value = value;
-                    }),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
+                  items: _ufs.map((uf) => DropdownMenuItem(value: uf, child: Text(uf))).toList(),
+                  onChanged: (value) => setState(() {
+                    _ufSelecionada = value!;
+                    _ufNotifier.value = value;
+                  }),
                 ),
-              ),
-            ],
+              );
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    cidadeField,
+                    const SizedBox(height: 16),
+                    ufField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: cidadeField),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 1, child: ufField),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildTextField(
@@ -1224,8 +1370,66 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
     );
   }
 
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: shadowColor, blurRadius: 8, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchBar(),
+              if (_searchController.text.isNotEmpty && !_isLoadingClientes) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Resultados da Busca ($_totalElements)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _buildPaginationControls(compact: true),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_searchController.text.isEmpty && !_isLoadingClientes && _clientesFiltrados.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Últimos Clientes Cadastrados',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                    ),
+                  ),
+                _buildClientGrid(isMobile: true),
+                if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                  const SizedBox(height: 16),
+                  _buildPaginationControls(),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -1241,73 +1445,77 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
+      floatingActionButton: isMobile
+          ? FloatingActionButton(
+              onPressed: () {
+                _limparFormulario();
+                _showFormModal();
+              },
+              backgroundColor: primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: _buildSearchBar()),
-                  const SizedBox(width: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+        child: isMobile
+            ? _buildMobileLayout()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              _limparFormulario();
+                              _showFormModal();
+                            },
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            iconSize: 28,
+                            padding: const EdgeInsets.all(12),
+                          ),
                         ),
                       ],
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        _showFormModal();
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      iconSize: 28,
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    if (_searchController.text.isEmpty && !_isLoadingClientes && _clientesFiltrados.isNotEmpty)
+                      Text(
+                        'Últimos Clientes Cadastrados',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingClientes)
+                      Text(
+                        'Resultados da Busca ($_totalElements)',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildClientGrid(),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-              if (_searchController.text.isEmpty && !_isLoadingClientes && _clientesFiltrados.isNotEmpty)
-                Text(
-                  'Últimos Clientes Cadastrados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              if (_searchController.text.isNotEmpty && !_isLoadingClientes)
-                Text(
-                  'Resultados da Busca ($_totalElements)',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              const SizedBox(height: 16),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                _buildPaginationControls(compact: true),
-                const SizedBox(height: 10),
-              ],
-              _buildClientGrid(),
-              if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
-                const SizedBox(height: 16),
-                _buildPaginationControls(),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }

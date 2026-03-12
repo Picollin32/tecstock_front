@@ -1667,7 +1667,10 @@ class _FuncionarioPageState extends State<CadastroFuncionarioPage> with TickerPr
       appBar: AppBar(
         title: const Text(
           'Gestão de Funcionários',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         backgroundColor: primaryColor,
         elevation: 0,

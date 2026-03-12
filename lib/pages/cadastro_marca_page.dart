@@ -458,7 +458,7 @@ class _CadastroMarcaPageState extends State<CadastroMarcaPage> with TickerProvid
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: 1.4,
+            mainAxisExtent: 150,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

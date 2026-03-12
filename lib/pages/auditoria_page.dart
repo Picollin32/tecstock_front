@@ -37,6 +37,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  static const Color primaryColor = Color(0xFF0EA5E9);
   static const Color shadowColor = Color(0x1A000000);
 
   @override
@@ -1494,17 +1495,18 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          backgroundColor: primaryColor,
           automaticallyImplyLeading: false,
+          centerTitle: true,
           title: const Text(
             'Auditoria do Sistema',
             style: TextStyle(
-              color: Color(0xFF1E293B),
+              color: Colors.white,
               fontWeight: FontWeight.w600,
               fontSize: 20,
             ),
           ),
+          iconTheme: const IconThemeData(color: Colors.white),
           actions: [
             Padding(
               padding: EdgeInsets.only(right: isMobile ? 8.0 : 16.0),
@@ -1512,7 +1514,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                   ? IconButton(
                       onPressed: _mostrarDialogExportarCSV,
                       icon: const Icon(Icons.file_download),
-                      color: const Color(0xFF0EA5E9),
+                      color: Colors.white,
                       tooltip: 'Exportar CSV',
                     )
                   : ElevatedButton.icon(
@@ -1520,8 +1522,8 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                       icon: const Icon(Icons.file_download, size: 18),
                       label: const Text('Exportar CSV'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white,
+                        foregroundColor: primaryColor,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -1531,13 +1533,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                     ),
             ),
           ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              color: const Color(0xFFE2E8F0),
-              height: 1,
-            ),
-          ),
         ),
         body: isLoading
             ? const Center(

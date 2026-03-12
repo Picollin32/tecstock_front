@@ -41,6 +41,8 @@ class RelatoriosPage extends StatefulWidget {
 }
 
 class _RelatoriosPageState extends State<RelatoriosPage> {
+  static const Color primaryColor = Color(0xFF1565C0);
+
   final RelatorioService _relatorioService = RelatorioService();
   final TextEditingController _dataInicioController = TextEditingController();
   final TextEditingController _dataFimController = TextEditingController();
@@ -227,272 +229,94 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: primaryColor,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Relatórios',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (_relatorioAtual != null) ...[
+            if (isMobile) ...[
+              IconButton(
+                onPressed: _isGeneratingPdf ? null : _imprimirRelatorio,
+                icon: _isGeneratingPdf
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.picture_as_pdf),
+                tooltip: 'Imprimir PDF',
+              ),
+              IconButton(
+                onPressed: () => setState(() => _relatorioAtual = null),
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Nova Consulta',
+              ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ElevatedButton.icon(
+                  onPressed: _isGeneratingPdf ? null : _imprimirRelatorio,
+                  icon: _isGeneratingPdf
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
+                          ),
+                        )
+                      : const Icon(Icons.picture_as_pdf, size: 18),
+                  label: Text(_isGeneratingPdf ? 'Gerando...' : 'Imprimir PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: primaryColor,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _relatorioAtual = null),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Nova Consulta'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildModernHeader(context),
             Expanded(
               child: _relatorioAtual == null ? _buildFormSection(context) : _buildResultSection(context),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernHeader(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    return Container(
-      margin: EdgeInsets.all(isMobile ? 12 : 20),
-      padding: EdgeInsets.all(isMobile ? 16 : 24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade700, Colors.blue.shade500],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: isMobile ? _buildHeaderMobile(context) : _buildHeaderDesktop(context),
-    );
-  }
-
-  Widget _buildHeaderDesktop(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(Icons.analytics, size: 32, color: Colors.white),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Relatórios',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Análises e estatísticas do sistema',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-              ),
-            ],
-          ),
-        ),
-        if (_relatorioAtual != null)
-          Row(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_isGeneratingPdf)
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade600),
-                              ),
-                            )
-                          else
-                            Icon(Icons.picture_as_pdf, color: Colors.orange.shade600, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isGeneratingPdf ? 'Gerando PDF...' : 'Imprimir PDF',
-                            style: TextStyle(color: Colors.orange.shade600, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => setState(() => _relatorioAtual = null),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.arrow_back, color: Colors.blue.shade600, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Nova Consulta',
-                            style: TextStyle(color: Colors.blue.shade600, fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderMobile(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.analytics, size: 24, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              'Relatórios',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-            ),
-          ],
-        ),
-        if (_relatorioAtual != null) ...[
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildHeaderButton(
-                  label: _isGeneratingPdf ? 'Gerando...' : 'Imprimir PDF',
-                  icon: Icons.picture_as_pdf,
-                  color: Colors.orange.shade600,
-                  onTap: _isGeneratingPdf ? null : _imprimirRelatorio,
-                  isLoading: _isGeneratingPdf,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildHeaderButton(
-                  label: 'Nova Consulta',
-                  icon: Icons.arrow_back,
-                  color: Colors.blue.shade600,
-                  onTap: () => setState(() => _relatorioAtual = null),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildHeaderButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback? onTap,
-    bool isLoading = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isLoading)
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(color),
-                    ),
-                  )
-                else
-                  Icon(icon, color: color, size: 18),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -3176,6 +3000,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   Widget _buildRelatorioConsultores(RelatorioConsultores relatorio) {
     final consultoresOrdenados = List<ConsultorMetricas>.from(relatorio.consultores)
       ..sort((a, b) => b.valorTotalOS.compareTo(a.valorTotalOS));
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3345,9 +3171,11 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       topRight: Radius.circular(14),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compactHeader = constraints.maxWidth < 430;
+
+                      final leading = Container(
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
@@ -3366,32 +3194,31 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                                   ),
                                 ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              consultor.consultorNome,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      );
+
+                      final info = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            consultor.consultorNome,
+                            style: TextStyle(
+                              fontSize: compactHeader ? 16 : 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'R\$ ${consultor.valorTotalOS.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green.shade700,
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'R\$ ${consultor.valorTotalOS.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: compactHeader ? 15 : 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade700,
                             ),
-                          ],
-                        ),
-                      ),
-                      Container(
+                          ),
+                        ],
+                      );
+
+                      final conversionBadge = Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: rankColor,
@@ -3412,76 +3239,163 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (compactHeader) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                leading,
+                                const SizedBox(width: 12),
+                                Expanded(child: info),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: conversionBadge,
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          leading,
+                          const SizedBox(width: 16),
+                          Expanded(child: info),
+                          conversionBadge,
+                        ],
+                      );
+                    },
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'Orçamentos',
-                              consultor.totalOrcamentos.toString(),
-                              Icons.description,
-                              Colors.blue,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compactMetrics = constraints.maxWidth < 820;
+                      final spacing = isMobile ? 10.0 : 12.0;
+
+                      if (!compactMetrics) {
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'Orçamentos',
+                                    consultor.totalOrcamentos.toString(),
+                                    Icons.description,
+                                    Colors.blue,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'OS',
+                                    consultor.totalOS.toString(),
+                                    Icons.assignment,
+                                    Colors.green,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'Checklists',
+                                    consultor.totalChecklists.toString(),
+                                    Icons.checklist,
+                                    Colors.orange,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'Agendamentos',
+                                    consultor.totalAgendamentos.toString(),
+                                    Icons.calendar_today,
+                                    Colors.pink,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'OS',
-                              consultor.totalOS.toString(),
-                              Icons.assignment,
-                              Colors.green,
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'Ticket Médio',
+                                    'R\$ ${consultor.valorMedioOS.toStringAsFixed(2)}',
+                                    Icons.analytics,
+                                    Colors.purple,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildConsultorMetricItem(
+                                    'Conversão',
+                                    '${consultor.taxaConversao.toStringAsFixed(1)}%',
+                                    Icons.trending_up,
+                                    Colors.teal,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'Checklists',
-                              consultor.totalChecklists.toString(),
-                              Icons.checklist,
-                              Colors.orange,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'Agendamentos',
-                              consultor.totalAgendamentos.toString(),
-                              Icons.calendar_today,
-                              Colors.pink,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'Ticket Médio',
-                              'R\$ ${consultor.valorMedioOS.toStringAsFixed(2)}',
-                              Icons.analytics,
-                              Colors.purple,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildConsultorMetricItem(
-                              'Conversão',
-                              '${consultor.taxaConversao.toStringAsFixed(1)}%',
-                              Icons.trending_up,
-                              Colors.teal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        );
+                      }
+
+                      final columns = constraints.maxWidth < 520 ? 2 : 3;
+                      final itemWidth = (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+                      final metricItems = [
+                        _buildConsultorMetricItem(
+                          'Orçamentos',
+                          consultor.totalOrcamentos.toString(),
+                          Icons.description,
+                          Colors.blue,
+                        ),
+                        _buildConsultorMetricItem(
+                          'OS',
+                          consultor.totalOS.toString(),
+                          Icons.assignment,
+                          Colors.green,
+                        ),
+                        _buildConsultorMetricItem(
+                          'Checklists',
+                          consultor.totalChecklists.toString(),
+                          Icons.checklist,
+                          Colors.orange,
+                        ),
+                        _buildConsultorMetricItem(
+                          'Agendamentos',
+                          consultor.totalAgendamentos.toString(),
+                          Icons.calendar_today,
+                          Colors.pink,
+                        ),
+                        _buildConsultorMetricItem(
+                          'Ticket Médio',
+                          'R\$ ${consultor.valorMedioOS.toStringAsFixed(2)}',
+                          Icons.analytics,
+                          Colors.purple,
+                        ),
+                        _buildConsultorMetricItem(
+                          'Conversão',
+                          '${consultor.taxaConversao.toStringAsFixed(1)}%',
+                          Icons.trending_up,
+                          Colors.teal,
+                        ),
+                      ];
+
+                      return Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: metricItems.map((item) => SizedBox(width: itemWidth, child: item)).toList(),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -3495,12 +3409,14 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   Widget _buildConsultorMetricItem(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 108),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
@@ -3511,6 +3427,8 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               color: Colors.grey.shade700,
               fontWeight: FontWeight.w500,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),

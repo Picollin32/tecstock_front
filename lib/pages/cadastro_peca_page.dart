@@ -1032,12 +1032,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   ],
                 ),
               ] else ...[
-                // Mobile: busca + botões de ação sempre visíveis
                 Row(
                   children: [
                     Expanded(child: searchField),
                     const SizedBox(width: 8),
-                    // Botão de filtros com badge de ativos
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -1113,7 +1111,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                     ),
                   ],
                 ),
-                // Painel colapsável de filtros
                 AnimatedSize(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,

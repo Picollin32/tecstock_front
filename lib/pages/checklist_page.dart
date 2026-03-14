@@ -191,7 +191,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   Future<void> _loadRecentChecklists() async {
     try {
       final resultado = await ChecklistService.buscarPaginado(
-        _searchController.text.trim(),
+        _getSearchQuery(),
         _tipoPesquisa,
         _currentPage,
         size: _pageSize,
@@ -339,7 +339,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   void _onSearchChanged({bool force = false}) {
-    final query = _searchController.text.trim();
+    final query = _getSearchQuery();
     if (!force && query == _lastSearchQuery) return;
     _lastSearchQuery = query;
 
@@ -350,6 +350,20 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       });
       _loadRecentChecklists();
     });
+  }
+
+  String _normalizePlacaPesquisa(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    if (cleaned.length <= 3) return cleaned;
+    return '${cleaned.substring(0, 3)}-${cleaned.substring(3)}';
+  }
+
+  String _getSearchQuery() {
+    final query = _searchController.text.trim();
+    if (_tipoPesquisa == 'placa') {
+      return _normalizePlacaPesquisa(query);
+    }
+    return query;
   }
 
   void _irParaPagina(int page) {
@@ -1122,11 +1136,14 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey[50],
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -1144,12 +1161,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           child: SlideTransition(
             position: _slideAnimation,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 24,
+                vertical: isMobile ? 16 : 24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildModernHeader(colorScheme),
-                  const SizedBox(height: 32),
+                  SizedBox(height: isMobile ? 16 : 32),
                   if (_isLoadingInitialData)
                     Center(
                       child: Padding(
@@ -1175,8 +1195,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildModernHeader(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
@@ -1192,117 +1214,173 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.checklist_outlined,
-              size: 32,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Checklist de Veículos',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.checklist_outlined,
+                        size: 24,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Gerencie checklists de recepção e inspeção',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Checklist de Veículos',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Gerencie checklists de recepção e inspeção',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                          ),
+                        ],
                       ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 16),
+                _buildHeaderActionButton(expand: true),
               ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.checklist_outlined,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  setState(() {
-                    if (_showForm) {
-                      _clearFormFields();
-                      _editingChecklistId = null;
-                      _checklistNumberController.clear();
-                      _showForm = false;
-                    } else {
-                      _clearFormFields();
-                      _editingChecklistId = null;
-                      _checklistNumberController.clear();
-                      _showForm = true;
-                    }
-                  });
-
-                  if (_showForm && !_isAdmin && _consultorSelecionado == null) {
-                    final consultorId = await AuthService.getConsultorId();
-                    if (consultorId != null && mounted) {
-                      final consultor = _funcionarios.where((f) => f.id == consultorId).firstOrNull;
-                      if (consultor != null && mounted) {
-                        setState(() {
-                          _consultorSelecionado = consultor;
-                        });
-                      }
-                    }
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.purple.shade600,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        _showForm ? 'Cancelar' : 'Novo Checklist',
-                        style: TextStyle(
-                          color: Colors.purple.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        'Checklist de Veículos',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Gerencie checklists de recepção e inspeção',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
                       ),
                     ],
                   ),
                 ),
-              ),
+                _buildHeaderActionButton(),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
+  Widget _buildHeaderActionButton({bool expand = false}) {
+    final button = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            setState(() {
+              if (_showForm) {
+                _clearFormFields();
+                _editingChecklistId = null;
+                _checklistNumberController.clear();
+                _showForm = false;
+              } else {
+                _clearFormFields();
+                _editingChecklistId = null;
+                _checklistNumberController.clear();
+                _showForm = true;
+              }
+            });
+
+            if (_showForm && !_isAdmin && _consultorSelecionado == null) {
+              final consultorId = await AuthService.getConsultorId();
+              if (consultorId != null && mounted) {
+                final consultor = _funcionarios.where((f) => f.id == consultorId).firstOrNull;
+                if (consultor != null && mounted) {
+                  setState(() {
+                    _consultorSelecionado = consultor;
+                  });
+                }
+              }
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _showForm ? Icons.close : Icons.add_circle,
+                  color: Colors.purple.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _showForm ? 'Cancelar' : 'Novo Checklist',
+                  style: TextStyle(
+                    color: Colors.purple.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return expand ? SizedBox(width: double.infinity, child: button) : button;
+  }
+
   Widget _buildSearchSection(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1331,76 +1409,137 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _tipoPesquisa,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar por',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+          isMobile
+              ? Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _tipoPesquisa,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar por',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'numero', child: Text('Número')),
+                        DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _tipoPesquisa = value;
+                            _searchController.clear();
+                          });
+                          _onSearchChanged(force: true);
+                        }
+                      },
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'numero', child: Text('Número')),
-                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _searchController,
+                      inputFormatters: _tipoPesquisa == 'numero' ? [FilteringTextInputFormatter.digitsOnly] : null,
+                      decoration: InputDecoration(
+                        hintText: _tipoPesquisa == 'numero' ? 'Digite o número do checklist' : 'Digite a placa do veículo',
+                        prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _tipoPesquisa = value;
-                        _searchController.clear();
-                      });
-                      _onSearchChanged(force: true);
-                    }
-                  },
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _tipoPesquisa,
+                        decoration: InputDecoration(
+                          labelText: 'Buscar por',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'numero', child: Text('Número')),
+                          DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _tipoPesquisa = value;
+                              _searchController.clear();
+                            });
+                            _onSearchChanged(force: true);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: TextField(
+                        controller: _searchController,
+                        inputFormatters: _tipoPesquisa == 'numero' ? [FilteringTextInputFormatter.digitsOnly] : null,
+                        decoration: InputDecoration(
+                          hintText: _tipoPesquisa == 'numero' ? 'Digite o número do checklist' : 'Digite a placa do veículo',
+                          prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                  onPressed: () => _searchController.clear(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 5,
-                child: TextField(
-                  controller: _searchController,
-                  inputFormatters: _tipoPesquisa == 'numero' ? [FilteringTextInputFormatter.digitsOnly] : null,
-                  decoration: InputDecoration(
-                    hintText: _tipoPesquisa == 'numero' ? 'Digite o número do checklist' : 'Digite a placa do veículo',
-                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear, color: Colors.grey[400]),
-                            onPressed: () => _searchController.clear(),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
   Widget _buildRecentList() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     if (_recentFiltrados.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(48),
@@ -1461,35 +1600,72 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               ),
             ],
           ),
-          child: Row(
-            children: [
-              Icon(Icons.history, color: Colors.purple.shade600),
-              const SizedBox(width: 12),
-              Text(
-                _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca ($_totalElements)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.history, color: Colors.purple.shade600),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca ($_totalElements)',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(20),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: Colors.purple.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Icon(Icons.history, color: Colors.purple.shade600),
+                    const SizedBox(width: 12),
+                    Text(
+                      _searchController.text.isEmpty ? 'Últimos Checklists' : 'Resultados da Busca ($_totalElements)',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: Colors.purple.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: Colors.purple.shade700,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
           const SizedBox(height: 10),
@@ -1522,6 +1698,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
             itemBuilder: (context, index) {
               final c = _recentFiltrados[index];
+              final isMobile = MediaQuery.of(context).size.width < 768;
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -1530,9 +1707,9 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                   border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
+                  contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
                   leading: Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: EdgeInsets.all(isMobile ? 8 : 12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Colors.purple.shade400, Colors.deepPurple.shade400],
@@ -1542,49 +1719,37 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     child: const Icon(
                       Icons.checklist_outlined,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      Text(
-                        'Checklist ${c.numeroChecklist}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.3) : Colors.green.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                  title: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              c.status == 'Fechado' ? Icons.lock : Icons.lock_open,
-                              size: 12,
-                              color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
-                            ),
-                            const SizedBox(width: 4),
                             Text(
-                              c.status == 'Fechado' ? 'Fechado' : 'Aberto',
-                              style: TextStyle(
-                                color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
+                              'Checklist ${c.numeroChecklist}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            _buildStatusBadge(c),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Text(
+                              'Checklist ${c.numeroChecklist}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildStatusBadge(c),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1625,116 +1790,13 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                           ],
                         ),
                       if (c.createdAt != null) Row(),
+                      if (isMobile) ...[
+                        const SizedBox(height: 12),
+                        _buildChecklistActions(c, isMobile: true),
+                      ],
                     ],
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.visibility_outlined,
-                            color: Colors.grey.shade600,
-                            size: 20,
-                          ),
-                          onPressed: () => _visualizarChecklist(c),
-                          tooltip: 'Visualizar Checklist',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.picture_as_pdf,
-                            color: Colors.blue.shade600,
-                            size: 20,
-                          ),
-                          onPressed: () async {
-                            if (c.id != null) {
-                              setState(() {
-                                _editingChecklistId = c.id;
-                                _checklistNumberController.text = c.numeroChecklist;
-                              });
-                              await _carregarDadosChecklistParaEdicao(c.id!);
-                              await _printChecklist();
-                              setState(() {
-                                _editingChecklistId = null;
-                                _checklistNumberController.clear();
-                              });
-                              _clearFormFields();
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (c.status != 'Fechado')
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.edit_outlined,
-                              color: Colors.orange.shade600,
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              setState(() {
-                                _editingChecklistId = c.id;
-                                _checklistNumberController.text = c.numeroChecklist;
-                                _showForm = true;
-                              });
-
-                              if (c.id != null) {
-                                await _carregarDadosChecklistParaEdicao(c.id!);
-                              }
-                            },
-                            tooltip: 'Editar Checklist',
-                          ),
-                        )
-                      else
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.purple.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.lock_outlined,
-                              color: Colors.purple.shade600,
-                              size: 20,
-                            ),
-                            onPressed: null,
-                            tooltip: 'Checklist Fechado',
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      if (c.status != 'Fechado')
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: Colors.red.shade600,
-                              size: 20,
-                            ),
-                            onPressed: () => _confirmarExclusao(c),
-                          ),
-                        ),
-                    ],
-                  ),
+                  trailing: isMobile ? null : _buildChecklistActions(c),
                 ),
               );
             },
@@ -1823,6 +1885,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildFullForm() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1839,7 +1903,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
@@ -1851,55 +1915,68 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                 topRight: Radius.circular(20),
               ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.checklist, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+            child: isMobile
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _isViewMode ? 'Visualizar Checklist' : (_editingChecklistId != null ? 'Editar Checklist' : 'Novo Checklist'),
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                      Row(
+                        children: [
+                          const Icon(Icons.checklist, color: Colors.white, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _isViewMode ? 'Visualizar Checklist' : (_editingChecklistId != null ? 'Editar Checklist' : 'Novo Checklist'),
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
+                          ),
+                          _buildPdfButton(),
+                        ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'Checklist de Recepção de Veículo',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.white.withValues(alpha: 0.9),
                             ),
                       ),
                     ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.checklist, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isViewMode ? 'Visualizar Checklist' : (_editingChecklistId != null ? 'Editar Checklist' : 'Novo Checklist'),
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Checklist de Recepção de Veículo',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPdfButton(),
                     ],
                   ),
-                  child: IconButton(
-                    onPressed: () => _printChecklist(),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.purple.shade600, size: 20),
-                    tooltip: 'PDF',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  ),
-                ),
-              ],
-            ),
           ),
           AbsorbPointer(
             absorbing: _isViewMode,
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isMobile ? 16 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1949,48 +2026,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: _isViewMode
-                        ? () {
-                            setState(() {
-                              _showForm = false;
-                              _editingChecklistId = null;
-                              _isViewMode = false;
-                              _clearFormFields();
-                            });
-                          }
-                        : _salvarChecklist,
-                    icon: Icon(_isViewMode ? Icons.arrow_back : Icons.save, color: Colors.white),
-                    label: Text(
-                      _isViewMode ? 'Voltar' : (_editingChecklistId != null ? 'Atualizar Checklist' : 'Salvar Checklist'),
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
+                if (isMobile) Expanded(child: _buildSubmitButton()) else _buildSubmitButton(),
               ],
             ),
           ),
@@ -1999,8 +2039,50 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     );
   }
 
+  Widget _buildSubmitButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.shade600, Colors.deepPurple.shade600],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _isViewMode
+            ? () {
+                setState(() {
+                  _showForm = false;
+                  _editingChecklistId = null;
+                  _isViewMode = false;
+                  _clearFormFields();
+                });
+              }
+            : _salvarChecklist,
+        icon: Icon(_isViewMode ? Icons.arrow_back : Icons.save, color: Colors.white),
+        label: Text(
+          _isViewMode ? 'Voltar' : (_editingChecklistId != null ? 'Atualizar Checklist' : 'Salvar Checklist'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormSection(String title, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
@@ -2011,13 +2093,195 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
           child: Icon(icon, color: Colors.purple.shade600, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildPdfButton() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: IconButton(
+        onPressed: () => _printChecklist(),
+        icon: Icon(Icons.picture_as_pdf, color: Colors.purple.shade600, size: 20),
+        tooltip: 'PDF',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(Checklist c) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.status == 'Fechado' ? Colors.red.withValues(alpha: 0.3) : Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            c.status == 'Fechado' ? Icons.lock : Icons.lock_open,
+            size: 12,
+            color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
+          ),
+          const SizedBox(width: 4),
+          Text(
+            c.status == 'Fechado' ? 'Fechado' : 'Aberto',
+            style: TextStyle(
+              color: c.status == 'Fechado' ? Colors.red[700] : Colors.green[700],
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChecklistActions(Checklist c, {bool isMobile = false}) {
+    final children = <Widget>[
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.visibility_outlined,
+            color: Colors.grey.shade600,
+            size: 20,
+          ),
+          onPressed: () => _visualizarChecklist(c),
+          tooltip: 'Visualizar Checklist',
+        ),
+      ),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.picture_as_pdf,
+            color: Colors.blue.shade600,
+            size: 20,
+          ),
+          onPressed: () async {
+            if (c.id != null) {
+              setState(() {
+                _editingChecklistId = c.id;
+                _checklistNumberController.text = c.numeroChecklist;
+              });
+              await _carregarDadosChecklistParaEdicao(c.id!);
+              await _printChecklist();
+              setState(() {
+                _editingChecklistId = null;
+                _checklistNumberController.clear();
+              });
+              _clearFormFields();
+            }
+          },
+        ),
+      ),
+    ];
+
+    if (c.status != 'Fechado') {
+      children.add(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.edit_outlined,
+              color: Colors.orange.shade600,
+              size: 20,
+            ),
+            onPressed: () async {
+              setState(() {
+                _editingChecklistId = c.id;
+                _checklistNumberController.text = c.numeroChecklist;
+                _showForm = true;
+              });
+
+              if (c.id != null) {
+                await _carregarDadosChecklistParaEdicao(c.id!);
+              }
+            },
+            tooltip: 'Editar Checklist',
+          ),
+        ),
+      );
+      children.add(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: Colors.red.shade600,
+              size: 20,
+            ),
+            onPressed: () => _confirmarExclusao(c),
+          ),
+        ),
+      );
+    } else {
+      children.add(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.lock_outlined,
+              color: Colors.purple.shade600,
+              size: 20,
+            ),
+            onPressed: null,
+            tooltip: 'Checklist Fechado',
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: children,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i != children.length - 1) const SizedBox(width: 8),
+        ],
       ],
     );
   }
@@ -2329,7 +2593,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth > 700 ? 3 : 2;
+        final columns = constraints.maxWidth > 900
+            ? 3
+            : constraints.maxWidth > 600
+                ? 2
+                : 1;
         final itemWidth = (constraints.maxWidth - (16 * (columns - 1))) / columns;
 
         return Wrap(
@@ -2821,6 +3089,8 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   Widget _buildVisualInspection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     final items = [
       'Para-choque Dianteiro',
       'Para-choque Traseiro',
@@ -2846,45 +3116,47 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       ),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.purple.shade50,
-              borderRadius: BorderRadius.circular(8),
+          if (!isMobile) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                      flex: 3,
+                      child: Text(
+                        'Item',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
+                      )),
+                  Expanded(
+                      flex: 2,
+                      child: Text(
+                        'Status',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
+                        textAlign: TextAlign.center,
+                      )),
+                  Expanded(
+                      flex: 3,
+                      child: Text(
+                        'Observações',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
+                        textAlign: TextAlign.center,
+                      )),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                    flex: 3,
-                    child: Text(
-                      'Item',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
-                    )),
-                Expanded(
-                    flex: 2,
-                    child: Text(
-                      'Status',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
-                      textAlign: TextAlign.center,
-                    )),
-                Expanded(
-                    flex: 3,
-                    child: Text(
-                      'Observações',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700),
-                      textAlign: TextAlign.center,
-                    )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...items.map((item) => _buildInspectionRow(item)),
+            const SizedBox(height: 12),
+          ],
+          ...items.map((item) => _buildInspectionRow(item, mobile: isMobile)),
         ],
       ),
     );
   }
 
-  Widget _buildInspectionRow(String title) {
+  Widget _buildInspectionRow(String title, {bool mobile = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -2893,61 +3165,108 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+      child: mobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                _StatusSelector(
+                  currentStatus: _inspecaoVisualStatus[title] ?? '',
+                  onStatusChanged: (status) {
+                    setState(() {
+                      _inspecaoVisualStatus[title] = status;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _inspecaoVisualObs[title],
+                  decoration: InputDecoration(
+                    hintText: 'Observações...',
+                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    filled: true,
+                    fillColor: Colors.grey[50],
                   ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: _StatusSelector(
-              currentStatus: _inspecaoVisualStatus[title] ?? '',
-              onStatusChanged: (status) {
-                setState(() {
-                  _inspecaoVisualStatus[title] = status;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: TextField(
-              controller: _inspecaoVisualObs[title],
-              decoration: InputDecoration(
-                hintText: 'Observações...',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  style: const TextStyle(fontSize: 12),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                Expanded(
+                  flex: 2,
+                  child: _StatusSelector(
+                    currentStatus: _inspecaoVisualStatus[title] ?? '',
+                    onStatusChanged: (status) {
+                      setState(() {
+                        _inspecaoVisualStatus[title] = status;
+                      });
+                    },
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              style: const TextStyle(fontSize: 12),
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _inspecaoVisualObs[title],
+                    decoration: InputDecoration(
+                      hintText: 'Observações...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildTestsAndItems() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     final functionTestItems = [
       'Buzina',
       'Farol Baixo / Alto',
@@ -2959,51 +3278,62 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     ];
     final vehicleItemsList = ['Manual / Livreto', 'CRLV', 'Chave Reserva', 'Macaco', 'Chave de Roda', 'Triângulo', 'Tapetes'];
 
+    final testsCard = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFormSection('4. Testes de Funcionamento', Icons.build_outlined),
+          const SizedBox(height: 16),
+          ...functionTestItems.map((item) => _buildCheckRow(item)),
+        ],
+      ),
+    );
+
+    final itemsCard = Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFormSection('5. Itens no Veículo', Icons.inventory_outlined),
+          const SizedBox(height: 16),
+          ...vehicleItemsList.map((item) => _buildCheckRow(item)),
+        ],
+      ),
+    );
+
+    if (isMobile) {
+      return Column(
+        children: [
+          testsCard,
+          const SizedBox(height: 16),
+          itemsCard,
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildFormSection('4. Testes de Funcionamento', Icons.build_outlined),
-                const SizedBox(height: 16),
-                ...functionTestItems.map((item) => _buildCheckRow(item)),
-              ],
-            ),
-          ),
-        ),
+        Expanded(child: testsCard),
         const SizedBox(width: 24),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildFormSection('5. Itens no Veículo', Icons.inventory_outlined),
-                const SizedBox(height: 16),
-                ...vehicleItemsList.map((item) => _buildCheckRow(item)),
-              ],
-            ),
-          ),
-        ),
+        Expanded(child: itemsCard),
       ],
     );
   }
 
   Widget _buildCheckRow(String title) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     final isFunctionTest = _testesFuncionamento.containsKey(title);
     final currentValue = isFunctionTest ? _testesFuncionamento[title] : _itensVeiculo[title];
 
@@ -3015,37 +3345,66 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                _StatusSelector(
+                  label1: 'Sim',
+                  label2: 'Não',
+                  currentStatus: currentValue ?? '',
+                  onStatusChanged: (status) {
+                    setState(() {
+                      if (isFunctionTest) {
+                        _testesFuncionamento[title] = status;
+                      } else {
+                        _itensVeiculo[title] = status;
+                      }
+                    });
+                  },
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
+                ),
+                _StatusSelector(
+                  label1: 'Sim',
+                  label2: 'Não',
+                  currentStatus: currentValue ?? '',
+                  onStatusChanged: (status) {
+                    setState(() {
+                      if (isFunctionTest) {
+                        _testesFuncionamento[title] = status;
+                      } else {
+                        _itensVeiculo[title] = status;
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
-          ),
-          _StatusSelector(
-            label1: 'Sim',
-            label2: 'Não',
-            currentStatus: currentValue ?? '',
-            onStatusChanged: (status) {
-              setState(() {
-                if (isFunctionTest) {
-                  _testesFuncionamento[title] = status;
-                } else {
-                  _itensVeiculo[title] = status;
-                }
-              });
-            },
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildFuelLevel() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3055,41 +3414,82 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Vazio',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.red.shade600,
+          isMobile
+              ? Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Text(
+                        '${(_fuelLevel * 25).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.purple.shade200),
-                ),
-                child: Text(
-                  '${(_fuelLevel * 25).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple.shade700,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              Text(
-                'Cheio',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green.shade600,
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Vazio',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade600,
+                              ),
+                        ),
+                        Text(
+                          'Cheio',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green.shade600,
+                              ),
+                        ),
+                      ],
                     ),
-              ),
-            ],
-          ),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Vazio',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red.shade600,
+                          ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: Text(
+                        '${(_fuelLevel * 25).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Cheio',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade600,
+                          ),
+                    ),
+                  ],
+                ),
           const SizedBox(height: 16),
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
@@ -3100,17 +3500,48 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
               overlayColor: Colors.purple.withValues(alpha: 0.2),
               trackHeight: 8,
             ),
-            child: Slider(
-              value: _fuelLevel,
-              min: 0,
-              max: 4,
-              divisions: 4,
-              onChanged: (value) {
-                setState(() {
-                  _fuelLevel = value;
-                });
-              },
-            ),
+            child: isMobile
+                ? LayoutBuilder(
+                    builder: (context, constraints) {
+                      void updateFromDx(double dx) {
+                        final clampedDx = dx.clamp(0.0, constraints.maxWidth);
+                        final ratio = constraints.maxWidth == 0 ? 0.0 : (clampedDx / constraints.maxWidth);
+                        final steppedValue = (ratio * 4).roundToDouble();
+                        setState(() {
+                          _fuelLevel = steppedValue;
+                        });
+                      }
+
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTapDown: (details) => updateFromDx(details.localPosition.dx),
+                        onHorizontalDragStart: (details) => updateFromDx(details.localPosition.dx),
+                        onHorizontalDragUpdate: (details) => updateFromDx(details.localPosition.dx),
+                        child: Slider(
+                          value: _fuelLevel,
+                          min: 0,
+                          max: 4,
+                          divisions: 4,
+                          onChanged: (value) {
+                            setState(() {
+                              _fuelLevel = value;
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  )
+                : Slider(
+                    value: _fuelLevel,
+                    min: 0,
+                    max: 4,
+                    divisions: 4,
+                    onChanged: (value) {
+                      setState(() {
+                        _fuelLevel = value;
+                      });
+                    },
+                  ),
           ),
         ],
       ),

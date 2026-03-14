@@ -435,7 +435,6 @@ class _CadastroFabricantePageState extends State<CadastroFabricantePage> with Ti
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Mobile: lista vertical
         if (constraints.maxWidth < 600) {
           return ListView.builder(
             shrinkWrap: true,

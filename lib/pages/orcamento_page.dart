@@ -314,7 +314,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   void _onSearchChanged({bool force = false}) {
-    final query = _searchController.text.trim();
+    final query = _getSearchQuery();
     if (!force && query == _lastSearchQuery) return;
     _lastSearchQuery = query;
 
@@ -327,6 +327,20 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     });
   }
 
+  String _normalizePlacaPesquisa(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    if (cleaned.length <= 3) return cleaned;
+    return '${cleaned.substring(0, 3)}-${cleaned.substring(3)}';
+  }
+
+  String _getSearchQuery() {
+    final query = _searchController.text.trim();
+    if (_tipoPesquisa == 'placa') {
+      return _normalizePlacaPesquisa(query);
+    }
+    return query;
+  }
+
   Future<void> _carregarOrcamentosPaginados() async {
     setState(() {
       _isLoadingData = true;
@@ -334,7 +348,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
     try {
       final resultado = await OrcamentoService.buscarPaginado(
-        _searchController.text.trim(),
+        _getSearchQuery(),
         _tipoPesquisa,
         _currentPage,
         size: _pageSize,
@@ -459,10 +473,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -481,12 +498,15 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             position: _slideAnimation,
             child: SingleChildScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 24,
+                vertical: isMobile ? 16 : 24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildModernHeader(colorScheme),
-                  const SizedBox(height: 32),
+                  SizedBox(height: isMobile ? 16 : 32),
                   if (_isLoadingInitialData)
                     Center(
                       child: Padding(
@@ -512,8 +532,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildModernHeader(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade600, Colors.indigo.shade600],
@@ -529,116 +551,172 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.request_quote_outlined,
-              size: 32,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Orçamentos',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.request_quote_outlined,
+                        size: 24,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Gerencie orçamentos automotivos',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Orçamentos',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Gerencie orçamentos automotivos',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                          ),
+                        ],
                       ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 16),
+                _buildHeaderActionButton(expand: true),
               ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.request_quote_outlined,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  if (_showForm) {
-                    _clearForm();
-                    setState(() {
-                      _editingOrcamentoId = null;
-                      _showForm = false;
-                    });
-                  } else {
-                    _clearForm();
-                    setState(() {
-                      _showForm = true;
-                    });
-
-                    if (!_isAdmin && _consultorSelecionado == null) {
-                      final consultorId = await AuthService.getConsultorId();
-                      if (consultorId != null && mounted) {
-                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
-                        if (consultor != null && mounted) {
-                          setState(() {
-                            _consultorSelecionado = consultor;
-                          });
-                        }
-                      }
-                    }
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.blue.shade600,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        _showForm ? 'Cancelar' : 'Novo Orçamento',
-                        style: TextStyle(
-                          color: Colors.blue.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        'Orçamentos',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Gerencie orçamentos automotivos',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
                       ),
                     ],
                   ),
                 ),
-              ),
+                _buildHeaderActionButton(),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
+  Widget _buildHeaderActionButton({bool expand = false}) {
+    final button = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            if (_showForm) {
+              _clearForm();
+              setState(() {
+                _editingOrcamentoId = null;
+                _showForm = false;
+              });
+            } else {
+              _clearForm();
+              setState(() {
+                _showForm = true;
+              });
+
+              if (!_isAdmin && _consultorSelecionado == null) {
+                final consultorId = await AuthService.getConsultorId();
+                if (consultorId != null && mounted) {
+                  final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
+                  if (consultor != null && mounted) {
+                    setState(() {
+                      _consultorSelecionado = consultor;
+                    });
+                  }
+                }
+              }
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _showForm ? Icons.close : Icons.add_circle,
+                  color: Colors.blue.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _showForm ? 'Cancelar' : 'Novo Orçamento',
+                  style: TextStyle(
+                    color: Colors.blue.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return expand ? SizedBox(width: double.infinity, child: button) : button;
+  }
+
   Widget _buildSearchSection(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -667,79 +745,147 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _tipoPesquisa,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar por',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+          isMobile
+              ? Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _tipoPesquisa,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar por',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'numero', child: Text('Número')),
+                        DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                        DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _tipoPesquisa = value;
+                            _searchController.clear();
+                          });
+                          _onSearchChanged(force: true);
+                        }
+                      },
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'numero', child: Text('Número')),
-                    DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
-                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _searchController,
+                      inputFormatters: _tipoPesquisa == 'numero'
+                          ? [FilteringTextInputFormatter.digitsOnly]
+                          : _tipoPesquisa == 'cliente'
+                              ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                              : null,
+                      decoration: InputDecoration(
+                        hintText: _tipoPesquisa == 'numero'
+                            ? 'Digite o número do orçamento'
+                            : _tipoPesquisa == 'cliente'
+                                ? 'Digite o nome do cliente'
+                                : 'Digite a placa do veículo',
+                        prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _tipoPesquisa = value;
-                        _searchController.clear();
-                      });
-                      _onSearchChanged(force: true);
-                    }
-                  },
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _tipoPesquisa,
+                        decoration: InputDecoration(
+                          labelText: 'Buscar por',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'numero', child: Text('Número')),
+                          DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                          DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _tipoPesquisa = value;
+                              _searchController.clear();
+                            });
+                            _onSearchChanged(force: true);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: TextField(
+                        controller: _searchController,
+                        inputFormatters: _tipoPesquisa == 'numero'
+                            ? [FilteringTextInputFormatter.digitsOnly]
+                            : _tipoPesquisa == 'cliente'
+                                ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                                : null,
+                        decoration: InputDecoration(
+                          hintText: _tipoPesquisa == 'numero'
+                              ? 'Digite o número do orçamento'
+                              : _tipoPesquisa == 'cliente'
+                                  ? 'Digite o nome do cliente'
+                                  : 'Digite a placa do veículo',
+                          prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                  onPressed: () => _searchController.clear(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 5,
-                child: TextField(
-                  controller: _searchController,
-                  inputFormatters: _tipoPesquisa == 'numero'
-                      ? [FilteringTextInputFormatter.digitsOnly]
-                      : _tipoPesquisa == 'cliente'
-                          ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
-                          : null,
-                  decoration: InputDecoration(
-                    hintText: _tipoPesquisa == 'numero'
-                        ? 'Digite o número do orçamento'
-                        : _tipoPesquisa == 'cliente'
-                            ? 'Digite o nome do cliente'
-                            : 'Digite a placa do veículo',
-                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear, color: Colors.grey[400]),
-                            onPressed: () => _searchController.clear(),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -815,6 +961,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildFullForm() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -831,7 +979,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.blue.shade600, Colors.indigo.shade600],
@@ -843,45 +991,56 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 topRight: Radius.circular(16),
               ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.request_quote, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  _editingOrcamentoId == null
-                      ? 'Novo Orçamento'
-                      : _isViewMode
-                          ? 'Visualizar Orçamento'
-                          : 'Editar Orçamento',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.request_quote, color: Colors.white, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _editingOrcamentoId == null
+                                  ? 'Novo Orçamento'
+                                  : _isViewMode
+                                      ? 'Visualizar Orçamento'
+                                      : 'Editar Orçamento',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          _buildPdfButton(),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.request_quote, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Text(
+                        _editingOrcamentoId == null
+                            ? 'Novo Orçamento'
+                            : _isViewMode
+                                ? 'Visualizar Orçamento'
+                                : 'Editar Orçamento',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      _buildPdfButton(),
                     ],
                   ),
-                  child: IconButton(
-                    onPressed: () => _printOrcamento(null),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.blue.shade600, size: 20),
-                    tooltip: 'PDF',
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(minWidth: 36, minHeight: 36),
-                  ),
-                ),
-              ],
-            ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -897,13 +1056,15 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       children: [
                         Icon(Icons.info_outline, color: Colors.blue.shade600),
                         const SizedBox(width: 12),
-                        Text(
-                          _isViewMode
-                              ? 'Visualizando Orçamento: ${_orcamentoNumberController.text.isNotEmpty ? _orcamentoNumberController.text : _editingOrcamentoId}'
-                              : 'Editando Orçamento: ${_orcamentoNumberController.text.isNotEmpty ? _orcamentoNumberController.text : _editingOrcamentoId}',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            _isViewMode
+                                ? 'Visualizando Orçamento: ${_orcamentoNumberController.text.isNotEmpty ? _orcamentoNumberController.text : _editingOrcamentoId}'
+                                : 'Editando Orçamento: ${_orcamentoNumberController.text.isNotEmpty ? _orcamentoNumberController.text : _editingOrcamentoId}',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -946,79 +1107,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (_isViewMode) ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.grey.shade600, Colors.grey.shade700],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            _clearForm();
-                            setState(() {
-                              _showForm = false;
-                            });
-                          },
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          label: const Text(
-                            'Fechar',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      if (isMobile) Expanded(child: _buildCloseButton()) else _buildCloseButton(),
                     ] else ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.blue.shade600, Colors.indigo.shade600],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.blue.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: _isSaving ? null : _salvarOrcamento,
-                          icon: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.save, color: Colors.white),
-                          label: Text(
-                            _isSaving ? 'Salvando...' : (_editingOrcamentoId != null ? 'Atualizar Orçamento' : 'Salvar Orçamento'),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      if (isMobile) Expanded(child: _buildSaveButton()) else _buildSaveButton(),
                     ],
                   ],
                 ),
@@ -1031,6 +1122,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildOrcamentoCard(Orcamento orcamento) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -1045,7 +1138,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -1059,7 +1152,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           child: const Icon(
             Icons.request_quote_outlined,
             color: Colors.white,
-            size: 24,
+            size: 20,
           ),
         ),
         title: Text(
@@ -1189,110 +1282,135 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
               ],
             ),
+            if (isMobile) ...[
+              const SizedBox(height: 12),
+              _buildOrcamentoActions(orcamento, isMobile: true),
+            ],
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.visibility_outlined,
-                  color: Colors.green.shade600,
-                  size: 20,
-                ),
-                onPressed: () => _visualizarOrcamento(orcamento),
-                tooltip: 'Visualizar Orçamento',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.picture_as_pdf,
-                  color: Colors.blue.shade600,
-                  size: 20,
-                ),
-                onPressed: () => _printOrcamento(orcamento),
-                tooltip: 'Imprimir PDF',
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (!orcamento.transformadoEmOS) ...[
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.assignment_turned_in,
-                    color: Colors.purple.shade600,
-                    size: 20,
-                  ),
-                  onPressed: () => _confirmarTransformacaoEmOS(orcamento),
-                  tooltip: 'Transformar em OS',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    color: Colors.orange.shade600,
-                    size: 20,
-                  ),
-                  onPressed: orcamento.transformadoEmOS ? null : () => _editOrcamento(orcamento),
-                  tooltip: orcamento.transformadoEmOS ? 'Orçamento bloqueado' : 'Editar Orçamento',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red.shade600,
-                    size: 20,
-                  ),
-                  onPressed: () => _confirmarExclusaoOrcamento(orcamento),
-                  tooltip: 'Excluir Orçamento',
-                ),
-              ),
-            ] else
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.lock_outlined,
-                    color: Colors.purple.shade600,
-                    size: 20,
-                  ),
-                  onPressed: null,
-                  tooltip: 'Orçamento Bloqueado - Transformado em OS ${orcamento.numeroOSGerado}',
-                ),
-              ),
-          ],
+        trailing: isMobile ? null : _buildOrcamentoActions(orcamento),
+      ),
+    );
+  }
+
+  Widget _buildOrcamentoActions(Orcamento orcamento, {bool isMobile = false}) {
+    final children = <Widget>[
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.visibility_outlined,
+            color: Colors.green.shade600,
+            size: 20,
+          ),
+          onPressed: () => _visualizarOrcamento(orcamento),
+          tooltip: 'Visualizar Orçamento',
         ),
       ),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.picture_as_pdf,
+            color: Colors.blue.shade600,
+            size: 20,
+          ),
+          onPressed: () => _printOrcamento(orcamento),
+          tooltip: 'Imprimir PDF',
+        ),
+      ),
+    ];
+
+    if (!orcamento.transformadoEmOS) {
+      children.addAll([
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.assignment_turned_in,
+              color: Colors.purple.shade600,
+              size: 20,
+            ),
+            onPressed: () => _confirmarTransformacaoEmOS(orcamento),
+            tooltip: 'Transformar em OS',
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.edit_outlined,
+              color: Colors.orange.shade600,
+              size: 20,
+            ),
+            onPressed: orcamento.transformadoEmOS ? null : () => _editOrcamento(orcamento),
+            tooltip: orcamento.transformadoEmOS ? 'Orçamento bloqueado' : 'Editar Orçamento',
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: Colors.red.shade600,
+              size: 20,
+            ),
+            onPressed: () => _confirmarExclusaoOrcamento(orcamento),
+            tooltip: 'Excluir Orçamento',
+          ),
+        ),
+      ]);
+    } else {
+      children.add(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.lock_outlined,
+              color: Colors.purple.shade600,
+              size: 20,
+            ),
+            onPressed: null,
+            tooltip: 'Orçamento Bloqueado - Transformado em OS ${orcamento.numeroOSGerado}',
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: children,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          children[i],
+          if (i != children.length - 1) const SizedBox(width: 8),
+        ],
+      ],
     );
   }
 
@@ -2241,6 +2359,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   Widget _buildFormSection(String title, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
@@ -2251,12 +2370,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
           child: Icon(icon, color: Colors.blue.shade600, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+          ),
         ),
       ],
     );
@@ -2271,7 +2392,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth > 700 ? 3 : 2;
+        final columns = constraints.maxWidth > 900
+            ? 3
+            : constraints.maxWidth > 600
+                ? 2
+                : 1;
         final itemWidth = (constraints.maxWidth - (16 * (columns - 1))) / columns;
 
         return Wrap(
@@ -2296,126 +2421,133 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildResponsibleSection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
               children: [
-                Text(
-                  'Mecânico Responsável',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<Funcionario>(
-                  initialValue:
-                      _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione um mecânico'),
-                  items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
-                      return DropdownMenuItem<Funcionario>(
-                        value: funcionario,
-                        child: Text(funcionario.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _mecanicoSelecionado = value;
-                          });
-                        },
-                ),
+                _buildMecanicoField(),
+                const SizedBox(height: 16),
+                _buildConsultorField(),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildMecanicoField()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildConsultorField()),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Consultor Responsável',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<Funcionario>(
-                  initialValue:
-                      _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione um consultor'),
-                  items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
-                      return DropdownMenuItem<Funcionario>(
-                        value: funcionario,
-                        child: Text(funcionario.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: (_isViewMode || !_isAdmin)
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _consultorSelecionado = value;
-                          });
-                        },
-                ),
-              ],
+    );
+  }
+
+  Widget _buildMecanicoField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Mecânico Responsável',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Funcionario>(
+          initialValue: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
-        ],
-      ),
+          hint: const Text('Selecione um mecânico'),
+          items: (() {
+            final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+              return DropdownMenuItem<Funcionario>(
+                value: funcionario,
+                child: Text(funcionario.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: _isViewMode
+              ? null
+              : (value) {
+                  setState(() {
+                    _mecanicoSelecionado = value;
+                  });
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsultorField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Consultor Responsável',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Funcionario>(
+          initialValue: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Selecione um consultor'),
+          items: (() {
+            final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+              return DropdownMenuItem<Funcionario>(
+                value: funcionario,
+                child: Text(funcionario.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: (_isViewMode || !_isAdmin)
+              ? null
+              : (value) {
+                  setState(() {
+                    _consultorSelecionado = value;
+                  });
+                },
+        ),
+      ],
     );
   }
 
@@ -2465,7 +2597,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildServicesSelection() {
+  Widget _buildObservationsSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2476,34 +2608,114 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Selecione os serviços',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
-              ),
-              if (_precoTotalServicos > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Text(
-                    'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+          Text(
+            'Informações complementares do orçamento',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
                 ),
-            ],
           ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _observacoesController,
+            enabled: !_isViewMode,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Adicione observações, condições especiais ou detalhes adicionais...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+              ),
+              filled: true,
+              fillColor: _isViewMode ? Colors.grey[100] : Colors.white,
+              contentPadding: const EdgeInsets.all(16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServicesSelection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selecione os serviços',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                    ),
+                    if (_precoTotalServicos > 0) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Text(
+                          'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Selecione os serviços',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                    ),
+                    if (_precoTotalServicos > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Text(
+                          'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
@@ -2635,6 +2847,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildPartsSelection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2655,29 +2869,52 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPecaAutocomplete(),
-                    ),
-                    if (!_isViewMode) ...[
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Adicionar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildPecaAutocomplete(),
+                          if (!_isViewMode) ...[
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Adicionar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: _buildPecaAutocomplete(),
                           ),
-                        ),
+                          if (!_isViewMode) ...[
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Adicionar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
                 if (_pecaEncontrada != null) ...[
                   const SizedBox(height: 16),
                   Container(
@@ -2797,203 +3034,191 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey[300]!),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+                child: isMobile
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            pecaOS.peca.nome,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Código: ${pecaOS.peca.codigoFabricante}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. (Usando: ${pecaOS.quantidade})',
-                            style: TextStyle(
-                              color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
-                                  ? Colors.red[600]
-                                  : pecaOS.peca.quantidadeEstoque <= 5
-                                      ? Colors.red[600]
-                                      : pecaOS.peca.quantidadeEstoque <= 10
-                                          ? Colors.orange[600]
-                                          : Colors.green[600],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            height: 4,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(2),
-                              color: Colors.grey[300],
-                            ),
-                            child: FractionallySizedBox(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: pecaOS.peca.quantidadeEstoque > 0
-                                  ? (pecaOS.quantidade / pecaOS.peca.quantidadeEstoque).clamp(0.0, 1.0)
-                                  : 0.0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(2),
-                                  color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
-                                      ? Colors.red[400]
-                                      : pecaOS.quantidade / pecaOS.peca.quantidadeEstoque > 0.8
-                                          ? Colors.orange[400]
-                                          : Colors.green[400],
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pecaOS.peca.nome,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Código: ${pecaOS.peca.codigoFabricante}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. (Usando: ${pecaOS.quantidade})',
+                                style: TextStyle(
+                                  color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
+                                      ? Colors.red[600]
+                                      : pecaOS.peca.quantidadeEstoque <= 5
+                                          ? Colors.red[600]
+                                          : pecaOS.peca.quantidadeEstoque <= 10
+                                              ? Colors.orange[600]
+                                              : Colors.green[600],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(2),
+                                  color: Colors.grey[300],
+                                ),
+                                child: FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: pecaOS.peca.quantidadeEstoque > 0
+                                      ? (pecaOS.quantidade / pecaOS.peca.quantidadeEstoque).clamp(0.0, 1.0)
+                                      : 0.0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(2),
+                                      color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
+                                          ? Colors.red[400]
+                                          : pecaOS.quantidade / pecaOS.peca.quantidadeEstoque > 0.8
+                                              ? Colors.orange[400]
+                                              : Colors.green[400],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              _buildQuantidadeControl(pecaOS),
+                              const Spacer(),
+                              Text(
+                                'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (!_isViewMode) ...[
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () async => await _removerPeca(pecaOS),
+                                  icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ],
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: _isViewMode
-                              ? null
-                              : () {
-                                  if (pecaOS.quantidade > 1) {
-                                    setState(() {
-                                      pecaOS.quantidade--;
-                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                    });
-                                    _resetarDescontos();
-                                    _calcularPrecoTotal();
-                                  }
-                                },
-                          icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          padding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          width: 60,
-                          height: 32,
-                          child: TextFormField(
-                            key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
-                            initialValue: '${pecaOS.quantidade}',
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            enabled: !_isViewMode,
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pecaOS.peca.nome,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Código: ${pecaOS.peca.codigoFabricante}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. (Usando: ${pecaOS.quantidade})',
+                                  style: TextStyle(
+                                    color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
+                                        ? Colors.red[600]
+                                        : pecaOS.peca.quantidadeEstoque <= 5
+                                            ? Colors.red[600]
+                                            : pecaOS.peca.quantidadeEstoque <= 10
+                                                ? Colors.orange[600]
+                                                : Colors.green[600],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(2),
+                                    color: Colors.grey[300],
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: pecaOS.peca.quantidadeEstoque > 0
+                                        ? (pecaOS.quantidade / pecaOS.peca.quantidadeEstoque).clamp(0.0, 1.0)
+                                        : 0.0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(2),
+                                        color: pecaOS.quantidade >= pecaOS.peca.quantidadeEstoque
+                                            ? Colors.red[400]
+                                            : pecaOS.quantidade / pecaOS.peca.quantidadeEstoque > 0.8
+                                                ? Colors.orange[400]
+                                                : Colors.green[400],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade200),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade200),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade400),
-                              ),
-                              filled: true,
-                              fillColor: Colors.blue.shade50,
-                            ),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                int novaQuantidade = int.tryParse(value) ?? 1;
-
-                                if (novaQuantidade <= 0) {
-                                  novaQuantidade = 1;
-                                }
-
-                                int totalUsadoOutrasPecas = _pecasSelecionadas
-                                    .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
-                                    .fold(0, (total, p) => total + p.quantidade);
-
-                                if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
-                                  _showErrorSnackBar(
-                                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
-                                  return;
-                                }
-
-                                setState(() {
-                                  pecaOS.quantidade = novaQuantidade;
-                                  pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                  pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                });
-                                _resetarDescontos();
-                                _calcularPrecoTotal();
-                              }
-                            },
                           ),
-                        ),
-                        IconButton(
-                          onPressed: _isViewMode
-                              ? null
-                              : () async {
-                                  int totalUsadoOutrasPecas = _pecasSelecionadas
-                                      .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
-                                      .fold(0, (total, p) => total + p.quantidade);
-
-                                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
-                                    setState(() {
-                                      pecaOS.quantidade++;
-                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                    });
-                                    _resetarDescontos();
-                                    _calcularPrecoTotal();
-                                  } else {
-                                    _showErrorSnackBar(
-                                        'Não é possível aumentar quantidade. Estoque disponível: ${pecaOS.peca.quantidadeEstoque} unidades');
-                                  }
-                                },
-                          icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade700,
-                        fontSize: 14,
+                          const SizedBox(width: 12),
+                          _buildQuantidadeControl(pecaOS),
+                          const SizedBox(width: 12),
+                          Text(
+                            'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (!_isViewMode)
+                            IconButton(
+                              onPressed: () async => await _removerPeca(pecaOS),
+                              icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (!_isViewMode)
-                      IconButton(
-                        onPressed: () async => await _removerPeca(pecaOS),
-                        icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                  ],
-                ),
               );
             }).toList()),
             const SizedBox(height: 12),
@@ -3056,6 +3281,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   Widget _buildPriceSummarySection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     double totalPecas = _calcularTotalPecas();
     double totalServicos = _precoTotalServicos;
     double totalServicosComDesconto = totalServicos - _descontoServicos;
@@ -3081,85 +3308,43 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total de Serviços:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green.shade800,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'R\$ ${totalServicos.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade800,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
+                _buildSummaryHeader(
+                  icon: Icons.handyman,
+                  label: 'Total de Serviços:',
+                  value: 'R\$ ${totalServicos.toStringAsFixed(2)}',
+                  color: Colors.green,
+                  isMobile: isMobile,
                 ),
                 if (!_isViewMode) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
+                  isMobile
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Desconto Serviços (máx 10%):',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.green.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            TextField(
+                            _buildDiscountInput(
+                              label: 'Desconto Serviços (máx 10%):',
                               controller: _descontoServicosController,
-                              keyboardType: TextInputType.number,
                               onChanged: _onDescontoServicosChanged,
-                              decoration: InputDecoration(
-                                prefixText: 'R\$ ',
-                                hintText: '0,00',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                isDense: true,
+                              color: Colors.green,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMaxDiscountBadge('Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}', Colors.green),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _buildDiscountInput(
+                                label: 'Desconto Serviços (máx 10%):',
+                                controller: _descontoServicosController,
+                                onChanged: _onDescontoServicosChanged,
+                                color: Colors.green,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            _buildMaxDiscountBadge('Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}', Colors.green),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
                 if (_descontoServicos > 0) ...[
                   const SizedBox(height: 8),
@@ -3206,85 +3391,43 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.request_quote_outlined, color: Colors.blue.shade600, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total de Peças:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade800,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'R\$ ${totalPecas.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade800,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
+                _buildSummaryHeader(
+                  icon: Icons.request_quote_outlined,
+                  label: 'Total de Peças:',
+                  value: 'R\$ ${totalPecas.toStringAsFixed(2)}',
+                  color: Colors.blue,
+                  isMobile: isMobile,
                 ),
                 if (!_isViewMode) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
+                  isMobile
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Desconto Peças (máx margem lucro):',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            TextField(
+                            _buildDiscountInput(
+                              label: 'Desconto Peças (máx margem lucro):',
                               controller: _descontoPecasController,
-                              keyboardType: TextInputType.number,
                               onChanged: _onDescontoPecasChanged,
-                              decoration: InputDecoration(
-                                prefixText: 'R\$ ',
-                                hintText: '0,00',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                isDense: true,
+                              color: Colors.blue,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildMaxDiscountBadge('Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}', Colors.blue),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _buildDiscountInput(
+                                label: 'Desconto Peças (máx margem lucro):',
+                                controller: _descontoPecasController,
+                                onChanged: _onDescontoPecasChanged,
+                                color: Colors.blue,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            _buildMaxDiscountBadge('Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}', Colors.blue),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
                 if (_descontoPecas > 0) ...[
                   const SizedBox(height: 8),
@@ -3405,40 +3548,305 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.request_quote_outlined, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'VALOR TOTAL GERAL:',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 18,
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.request_quote_outlined, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'VALOR TOTAL GERAL:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'R\$ ${totalGeral.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 18,
+                      const SizedBox(height: 8),
+                      Text(
+                        'R\$ ${totalGeral.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.request_quote_outlined, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'VALOR TOTAL GERAL:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'R\$ ${totalGeral.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSummaryHeader({
+    required IconData icon,
+    required String label,
+    required String value,
+    required MaterialColor color,
+    required bool isMobile,
+  }) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color.shade600, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: color.shade800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color.shade800,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color.shade600, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: color.shade800,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color.shade800,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscountInput({
+    required String label,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+    required MaterialColor color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: color.shade700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            prefixText: 'R\$ ',
+            hintText: '0,00',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            isDense: true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMaxDiscountBadge(String text, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.shade100,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          color: color.shade700,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuantidadeControl(PecaOrdemServico pecaOS) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: _isViewMode
+              ? null
+              : () {
+                  if (pecaOS.quantidade > 1) {
+                    setState(() {
+                      pecaOS.quantidade--;
+                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                    });
+                    _resetarDescontos();
+                    _calcularPrecoTotal();
+                  }
+                },
+          icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          padding: EdgeInsets.zero,
+        ),
+        SizedBox(
+          width: 60,
+          height: 32,
+          child: TextFormField(
+            key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
+            initialValue: '${pecaOS.quantidade}',
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            enabled: !_isViewMode,
+            style: TextStyle(
+              color: Colors.blue.shade700,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.blue.shade200),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.blue.shade200),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: BorderSide(color: Colors.blue.shade400),
+              ),
+              filled: true,
+              fillColor: Colors.blue.shade50,
+            ),
+            onChanged: (value) {
+              if (value.isNotEmpty) {
+                int novaQuantidade = int.tryParse(value) ?? 1;
+
+                if (novaQuantidade <= 0) {
+                  novaQuantidade = 1;
+                }
+
+                int totalUsadoOutrasPecas =
+                    _pecasSelecionadas.where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS).fold(0, (total, p) => total + p.quantidade);
+
+                if (novaQuantidade + totalUsadoOutrasPecas > pecaOS.peca.quantidadeEstoque) {
+                  _showErrorSnackBar(
+                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o estoque disponível (${pecaOS.peca.quantidadeEstoque} unidades)');
+                  return;
+                }
+
+                setState(() {
+                  pecaOS.quantidade = novaQuantidade;
+                  pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                  pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                });
+                _resetarDescontos();
+                _calcularPrecoTotal();
+              }
+            },
+          ),
+        ),
+        IconButton(
+          onPressed: _isViewMode
+              ? null
+              : () async {
+                  int totalUsadoOutrasPecas = _pecasSelecionadas
+                      .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                      .fold(0, (total, p) => total + p.quantidade);
+
+                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= pecaOS.peca.quantidadeEstoque) {
+                    setState(() {
+                      pecaOS.quantidade++;
+                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                    });
+                    _resetarDescontos();
+                    _calcularPrecoTotal();
+                  } else {
+                    _showErrorSnackBar('Não é possível aumentar quantidade. Estoque disponível: ${pecaOS.peca.quantidadeEstoque} unidades');
+                  }
+                },
+          icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          padding: EdgeInsets.zero,
+        ),
+      ],
     );
   }
 
   Widget _buildWarrantyAndPayment() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3446,237 +3854,146 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
               children: [
-                Text(
-                  'Garantia (meses)',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: _garantiaMeses,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  items: [1, 2, 3, 6, 12, 24].map((meses) {
-                    return DropdownMenuItem<int>(
-                      value: meses,
-                      child: Text('$meses mês${meses > 1 ? 'es' : ''}${meses == 3 ? ' (padrão legal)' : ''}'),
-                    );
-                  }).toList(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _garantiaMeses = value ?? 3;
-                          });
-                        },
-                ),
+                _buildWarrantyField(),
+                const SizedBox(height: 16),
+                _buildPaymentField(),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildWarrantyField()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildPaymentField()),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Forma de Pagamento',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int?>(
-                  initialValue: _tipoPagamentoSelecionado?.id,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione'),
-                  items: (() {
-                    final lista = List<TipoPagamento>.from(_tiposPagamento);
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map((tipo) {
-                      return DropdownMenuItem<int?>(
-                        value: tipo.id,
-                        child: Text(tipo.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (selectedId) {
-                          setState(() {
-                            try {
-                              _tipoPagamentoSelecionado = _tiposPagamento.firstWhere((t) => t.id == selectedId);
-                            } on StateError {
-                              _tipoPagamentoSelecionado = null;
-                            }
-                            if (_tipoPagamentoSelecionado?.idFormaPagamento != 1) {
-                              _numeroParcelas = null;
-                            }
-                            if (_tipoPagamentoSelecionado?.idFormaPagamento != 2) {
-                              _prazoFiadoDias = null;
-                            }
-                          });
-                        },
-                ),
-                if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Número de Parcelas',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: _numeroParcelas,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    items: List.generate(12, (i) => i + 1).map((parcelas) {
-                      return DropdownMenuItem<int>(
-                        value: parcelas,
-                        child: Text('${parcelas}x'),
-                      );
-                    }).toList(),
-                    onChanged: _isViewMode
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _numeroParcelas = value;
-                            });
-                          },
-                  ),
-                ],
-                if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Prazo (meses)',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    items: List.generate(12, (i) => i + 1).map((mes) {
-                      return DropdownMenuItem<int>(
-                        value: mes,
-                        child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
-                      );
-                    }).toList(),
-                    onChanged: _isViewMode
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _prazoFiadoDias = value != null ? value * 30 : null;
-                            });
-                          },
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildObservationsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+  Widget _buildWarrantyField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Garantia (meses)',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          initialValue: _garantiaMeses,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          items: [1, 2, 3, 6, 12, 24].map((meses) {
+            return DropdownMenuItem<int>(
+              value: meses,
+              child: Text('$meses mês${meses > 1 ? 'es' : ''}${meses == 3 ? ' (padrão legal)' : ''}'),
+            );
+          }).toList(),
+          onChanged: _isViewMode
+              ? null
+              : (value) {
+                  setState(() {
+                    _garantiaMeses = value ?? 3;
+                  });
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Forma de Pagamento',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int?>(
+          initialValue: _tipoPagamentoSelecionado?.id,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Selecione'),
+          items: (() {
+            final lista = List<TipoPagamento>.from(_tiposPagamento);
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map((tipo) {
+              return DropdownMenuItem<int?>(
+                value: tipo.id,
+                child: Text(tipo.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: _isViewMode
+              ? null
+              : (selectedId) {
+                  setState(() {
+                    try {
+                      _tipoPagamentoSelecionado = _tiposPagamento.firstWhere((t) => t.id == selectedId);
+                    } on StateError {
+                      _tipoPagamentoSelecionado = null;
+                    }
+                    if (_tipoPagamentoSelecionado?.idFormaPagamento != 1) {
+                      _numeroParcelas = null;
+                    }
+                    if (_tipoPagamentoSelecionado?.idFormaPagamento != 2) {
+                      _prazoFiadoDias = null;
+                    }
+                  });
+                },
+        ),
+        if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
+          const SizedBox(height: 12),
           Text(
-            'Observações sobre o orçamento',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
+            'Número de Parcelas',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
                 ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _observacoesController,
-            maxLines: 4,
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            initialValue: _numeroParcelas,
             decoration: InputDecoration(
-              hintText: 'Digite observações adicionais sobre o orçamento (opcional)...',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -3691,10 +4008,165 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.all(16),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
+            items: List.generate(12, (i) => i + 1).map((parcelas) {
+              return DropdownMenuItem<int>(
+                value: parcelas,
+                child: Text('${parcelas}x'),
+              );
+            }).toList(),
+            onChanged: _isViewMode
+                ? null
+                : (value) {
+                    setState(() {
+                      _numeroParcelas = value;
+                    });
+                  },
           ),
         ],
+        if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Prazo (meses)',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            initialValue: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: List.generate(12, (i) => i + 1).map((mes) {
+              return DropdownMenuItem<int>(
+                value: mes,
+                child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
+              );
+            }).toList(),
+            onChanged: _isViewMode
+                ? null
+                : (value) {
+                    setState(() {
+                      _prazoFiadoDias = value != null ? value * 30 : null;
+                    });
+                  },
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPdfButton() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: IconButton(
+        onPressed: () => _printOrcamento(null),
+        icon: Icon(Icons.picture_as_pdf, color: Colors.blue.shade600, size: 20),
+        tooltip: 'PDF',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+    );
+  }
+
+  Widget _buildCloseButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.grey.shade600, Colors.grey.shade700],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          _clearForm();
+          setState(() {
+            _showForm = false;
+          });
+        },
+        icon: const Icon(Icons.close, color: Colors.white),
+        label: const Text(
+          'Fechar',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade600, Colors.indigo.shade600],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _isSaving ? null : _salvarOrcamento,
+        icon: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.save, color: Colors.white),
+        label: Text(
+          _isSaving ? 'Salvando...' : (_editingOrcamentoId != null ? 'Atualizar Orçamento' : 'Salvar Orçamento'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }

@@ -29,9 +29,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
   
   assets:
     - assets/images/
+
+flutter_launcher_icons:
+  android: false
+  ios: false
+  image_path: assets/images/TecStock_logo.png
+  web:
+    generate: true
+    image_path: assets/images/TecStock_logo.png
+    background_color: "#F5F7FB"
+    theme_color: "#0B74B7"

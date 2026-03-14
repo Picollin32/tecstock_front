@@ -310,7 +310,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   void _onSearchChanged({bool force = false}) {
-    final query = _searchController.text.trim();
+    final query = _getSearchQuery();
     if (!force && query == _lastSearchQuery) return;
     _lastSearchQuery = query;
 
@@ -323,10 +323,24 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     });
   }
 
+  String _normalizePlacaPesquisa(String value) {
+    final cleaned = value.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+    if (cleaned.length <= 3) return cleaned;
+    return '${cleaned.substring(0, 3)}-${cleaned.substring(3)}';
+  }
+
+  String _getSearchQuery() {
+    final query = _searchController.text.trim();
+    if (_tipoPesquisa == 'placa') {
+      return _normalizePlacaPesquisa(query);
+    }
+    return query;
+  }
+
   Future<void> _carregarOrdensPaginadas() async {
     try {
       final resultado = await OrdemServicoService.buscarPaginado(
-        _searchController.text.trim(),
+        _getSearchQuery(),
         _tipoPesquisa,
         _currentPage,
         size: _pageSize,
@@ -774,10 +788,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -795,12 +812,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           child: SlideTransition(
             position: _slideAnimation,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 24,
+                vertical: isMobile ? 16 : 24,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildModernHeader(colorScheme),
-                  const SizedBox(height: 32),
+                  SizedBox(height: isMobile ? 16 : 32),
                   if (_isLoadingInitialData)
                     Center(
                       child: Padding(
@@ -826,8 +846,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildModernHeader(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
@@ -843,116 +865,172 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.description,
-              size: 32,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Ordem de Serviço',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.description,
+                        size: 24,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Gerencie ordens de serviço automotivo',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ordem de Serviço',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Gerencie ordens de serviço automotivo',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                          ),
+                        ],
                       ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 16),
+                _buildHeaderActionButton(expand: true),
               ],
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.description,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
-              ],
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  if (_showForm) {
-                    await _clearFormFields();
-                    setState(() {
-                      _editingOSId = null;
-                      _showForm = false;
-                    });
-                  } else {
-                    await _clearFormFields();
-                    setState(() {
-                      _showForm = true;
-                    });
-
-                    if (!_isAdmin && _consultorSelecionado == null) {
-                      final consultorId = await AuthService.getConsultorId();
-                      if (consultorId != null && mounted) {
-                        final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
-                        if (consultor != null && mounted) {
-                          setState(() {
-                            _consultorSelecionado = consultor;
-                          });
-                        }
-                      }
-                    }
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        _showForm ? Icons.close : Icons.add_circle,
-                        color: Colors.orange.shade600,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        _showForm ? 'Cancelar' : 'Nova OS',
-                        style: TextStyle(
-                          color: Colors.orange.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        'Ordem de Serviço',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Gerencie ordens de serviço automotivo',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
                       ),
                     ],
                   ),
                 ),
-              ),
+                _buildHeaderActionButton(),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
+  Widget _buildHeaderActionButton({bool expand = false}) {
+    final button = Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            if (_showForm) {
+              await _clearFormFields();
+              setState(() {
+                _editingOSId = null;
+                _showForm = false;
+              });
+            } else {
+              await _clearFormFields();
+              setState(() {
+                _showForm = true;
+              });
+
+              if (!_isAdmin && _consultorSelecionado == null) {
+                final consultorId = await AuthService.getConsultorId();
+                if (consultorId != null && mounted) {
+                  final consultor = _funcionarios.where((f) => f.id == consultorId && f.nivelAcesso == 2).firstOrNull;
+                  if (consultor != null && mounted) {
+                    setState(() {
+                      _consultorSelecionado = consultor;
+                    });
+                  }
+                }
+              }
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Row(
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _showForm ? Icons.close : Icons.add_circle,
+                  color: Colors.orange.shade600,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _showForm ? 'Cancelar' : 'Nova OS',
+                  style: TextStyle(
+                    color: Colors.orange.shade600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return expand ? SizedBox(width: double.infinity, child: button) : button;
+  }
+
   Widget _buildSearchSection(ColorScheme colorScheme) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -981,85 +1059,155 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: _tipoPesquisa,
-                  decoration: InputDecoration(
-                    labelText: 'Buscar por',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+          isMobile
+              ? Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _tipoPesquisa,
+                      decoration: InputDecoration(
+                        labelText: 'Buscar por',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'numero', child: Text('Número')),
+                        DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                        DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _tipoPesquisa = value;
+                            _searchController.clear();
+                          });
+                          _onSearchChanged(force: true);
+                        }
+                      },
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'numero', child: Text('Número')),
-                    DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
-                    DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _searchController,
+                      inputFormatters: _tipoPesquisa == 'numero'
+                          ? [FilteringTextInputFormatter.digitsOnly]
+                          : _tipoPesquisa == 'cliente'
+                              ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                              : null,
+                      decoration: InputDecoration(
+                        hintText: _tipoPesquisa == 'numero'
+                            ? 'Digite o número da OS'
+                            : _tipoPesquisa == 'cliente'
+                                ? 'Digite o nome do cliente'
+                                : 'Digite a placa do veículo',
+                        prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                    ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _tipoPesquisa = value;
-                        _searchController.clear();
-                      });
-                      _onSearchChanged(force: true);
-                    }
-                  },
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _tipoPesquisa,
+                        decoration: InputDecoration(
+                          labelText: 'Buscar por',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'numero', child: Text('Número')),
+                          DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                          DropdownMenuItem(value: 'placa', child: Text('Placa')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _tipoPesquisa = value;
+                              _searchController.clear();
+                            });
+                            _onSearchChanged(force: true);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: TextField(
+                        controller: _searchController,
+                        inputFormatters: _tipoPesquisa == 'numero'
+                            ? [FilteringTextInputFormatter.digitsOnly]
+                            : _tipoPesquisa == 'cliente'
+                                ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
+                                : null,
+                        decoration: InputDecoration(
+                          hintText: _tipoPesquisa == 'numero'
+                              ? 'Digite o número da OS'
+                              : _tipoPesquisa == 'cliente'
+                                  ? 'Digite o nome do cliente'
+                                  : 'Digite a placa do veículo',
+                          prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[400]),
+                                  onPressed: () => _searchController.clear(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 5,
-                child: TextField(
-                  controller: _searchController,
-                  inputFormatters: _tipoPesquisa == 'numero'
-                      ? [FilteringTextInputFormatter.digitsOnly]
-                      : _tipoPesquisa == 'cliente'
-                          ? [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ\s]'))]
-                          : null,
-                  decoration: InputDecoration(
-                    hintText: _tipoPesquisa == 'numero'
-                        ? 'Digite o número da OS'
-                        : _tipoPesquisa == 'cliente'
-                            ? 'Digite o nome do cliente'
-                            : 'Digite a placa do veículo',
-                    prefixIcon: Icon(Icons.search_outlined, color: Colors.grey[400]),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear, color: Colors.grey[400]),
-                            onPressed: () => _searchController.clear(),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
   Widget _buildRecentList() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     if (_recentFiltrados.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(48),
@@ -1120,35 +1268,72 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
             ],
           ),
-          child: Row(
-            children: [
-              Icon(Icons.history, color: Colors.orange.shade600),
-              const SizedBox(width: 12),
-              Text(
-                _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca ($_totalElements)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.history, color: Colors.orange.shade600),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca ($_totalElements)',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(20),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Icon(Icons.history, color: Colors.orange.shade600),
+                    const SizedBox(width: 12),
+                    Text(
+                      _searchController.text.isEmpty ? 'Últimas Ordens de Serviço' : 'Resultados da Busca ($_totalElements)',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  '${_recentFiltrados.length} item${_recentFiltrados.length != 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: Colors.orange.shade700,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
           const SizedBox(height: 10),
@@ -1191,6 +1376,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildOSListItem(OrdemServico os) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     Color statusColor = Colors.blue;
     IconData statusIcon = Icons.schedule;
 
@@ -1225,9 +1412,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
         leading: Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(isMobile ? 8 : 12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
@@ -1237,53 +1424,99 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           child: const Icon(
             Icons.description,
             color: Colors.white,
-            size: 24,
+            size: 20,
           ),
         ),
-        title: Row(
-          children: [
-            Text(
-              'OS ${os.numeroOS}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Builder(
-              builder: (context) {
-                final bool isClosed = _isOSEncerrada(os.status);
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isClosed ? Colors.red.withValues(alpha: 0.1) : statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isClosed ? Colors.red.withValues(alpha: 0.3) : statusColor.withValues(alpha: 0.3)),
+        title: isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'OS ${os.numeroOS}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isClosed ? Icons.lock : statusIcon,
-                        size: 12,
-                        color: isClosed ? Colors.red[700] : statusColor,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
-                        style: TextStyle(
-                          color: isClosed ? Colors.red[700] : statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                  const SizedBox(height: 6),
+                  Builder(
+                    builder: (context) {
+                      final bool isClosed = _isOSEncerrada(os.status);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isClosed ? Colors.red.withValues(alpha: 0.1) : statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isClosed ? Colors.red.withValues(alpha: 0.3) : statusColor.withValues(alpha: 0.3)),
                         ),
-                      ),
-                    ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isClosed ? Icons.lock : statusIcon,
+                              size: 12,
+                              color: isClosed ? Colors.red[700] : statusColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
+                              style: TextStyle(
+                                color: isClosed ? Colors.red[700] : statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ],
-        ),
+                ],
+              )
+            : Row(
+                children: [
+                  Text(
+                    'OS ${os.numeroOS}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Builder(
+                    builder: (context) {
+                      final bool isClosed = _isOSEncerrada(os.status);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isClosed ? Colors.red.withValues(alpha: 0.1) : statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isClosed ? Colors.red.withValues(alpha: 0.3) : statusColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isClosed ? Icons.lock : statusIcon,
+                              size: 12,
+                              color: isClosed ? Colors.red[700] : statusColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
+                              style: TextStyle(
+                                color: isClosed ? Colors.red[700] : statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1423,134 +1656,160 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
               ],
             ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.visibility_outlined,
-                  color: Colors.green.shade600,
-                  size: 20,
-                ),
-                onPressed: () => _visualizarOS(os),
-                tooltip: 'Visualizar OS',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  Icons.picture_as_pdf,
-                  color: Colors.blue.shade600,
-                  size: 20,
-                ),
-                onPressed: () => _printOS(os),
-                tooltip: 'Imprimir PDF',
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (!_isOSEncerrada(os.status))
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    color: Colors.orange.shade600,
-                    size: 20,
-                  ),
-                  onPressed: () => _editOS(os),
-                  tooltip: 'Editar OS',
-                ),
-              ),
-            if (!_isOSEncerrada(os.status)) const SizedBox(width: 8),
-            if (_isOSEncerrada(os.status)) ...[
-              if (_isAdmin) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.lock_open_outlined,
-                      color: Colors.amber.shade700,
-                      size: 20,
-                    ),
-                    onPressed: () => _reabrirOS(os),
-                    tooltip: 'Destrancar OS (Admin)',
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.lock_outlined,
-                    color: Colors.purple.shade600,
-                    size: 20,
-                  ),
-                  onPressed: null,
-                  tooltip: 'OS Encerrada',
-                ),
-              ),
-            ] else ...[
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.green.shade600,
-                    size: 20,
-                  ),
-                  onPressed: () => _encerrarOS(os),
-                  tooltip: 'Encerrar OS',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red.shade600,
-                    size: 20,
-                  ),
-                  onPressed: () => _confirmarExclusao(os),
-                  tooltip: 'Excluir OS',
-                ),
-              ),
+            if (isMobile) ...[
+              const SizedBox(height: 12),
+              _buildOSActions(os, isMobile: true),
             ],
           ],
         ),
+        trailing: isMobile ? null : _buildOSActions(os),
       ),
     );
   }
 
+  Widget _buildOSActions(OrdemServico os, {bool isMobile = false}) {
+    final actions = <Widget>[
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.visibility_outlined,
+            color: Colors.green.shade600,
+            size: 20,
+          ),
+          onPressed: () => _visualizarOS(os),
+          tooltip: 'Visualizar OS',
+        ),
+      ),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: IconButton(
+          icon: Icon(
+            Icons.picture_as_pdf,
+            color: Colors.blue.shade600,
+            size: 20,
+          ),
+          onPressed: () => _printOS(os),
+          tooltip: 'Imprimir PDF',
+        ),
+      ),
+    ];
+
+    if (!_isOSEncerrada(os.status)) {
+      actions.addAll([
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.edit_outlined,
+              color: Colors.orange.shade600,
+              size: 20,
+            ),
+            onPressed: () => _editOS(os),
+            tooltip: 'Editar OS',
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.check_circle_outline,
+              color: Colors.green.shade600,
+              size: 20,
+            ),
+            onPressed: () => _encerrarOS(os),
+            tooltip: 'Encerrar OS',
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: Colors.red.shade600,
+              size: 20,
+            ),
+            onPressed: () => _confirmarExclusao(os),
+            tooltip: 'Excluir OS',
+          ),
+        ),
+      ]);
+    } else {
+      if (_isAdmin) {
+        actions.add(
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.lock_open_outlined,
+                color: Colors.amber.shade700,
+                size: 20,
+              ),
+              onPressed: () => _reabrirOS(os),
+              tooltip: 'Destrancar OS (Admin)',
+            ),
+          ),
+        );
+      }
+      actions.add(
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: IconButton(
+            icon: Icon(
+              Icons.lock_outlined,
+              color: Colors.purple.shade600,
+              size: 20,
+            ),
+            onPressed: null,
+            tooltip: 'OS Encerrada',
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: actions,
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          actions[i],
+          if (i != actions.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+
   Widget _buildFullForm() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1567,7 +1826,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
@@ -1579,57 +1838,75 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 topRight: Radius.circular(20),
               ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.description, color: Colors.white, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+            child: isMobile
+                ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _isViewMode
-                            ? 'Visualizar Ordem de Serviço'
-                            : _editingOSId != null
-                                ? 'Editar Ordem de Serviço'
-                                : 'Nova Ordem de Serviço',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                      const Icon(Icons.description, color: Colors.white, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isViewMode
+                                  ? 'Visualizar OS'
+                                  : _editingOSId != null
+                                      ? 'Editar OS'
+                                      : 'Nova OS',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Sistema de Gestão de Serviços Automotivos',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Gestão de serviços automotivos',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
                             ),
+                          ],
+                        ),
                       ),
+                      _buildPdfButton(),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      const Icon(Icons.description, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isViewMode
+                                  ? 'Visualizar Ordem de Serviço'
+                                  : _editingOSId != null
+                                      ? 'Editar Ordem de Serviço'
+                                      : 'Nova Ordem de Serviço',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Sistema de Gestão de Serviços Automotivos',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildPdfButton(),
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () => _printOS(null),
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.orange.shade600, size: 20),
-                    tooltip: 'PDF',
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(minWidth: 36, minHeight: 36),
-                  ),
-                ),
-              ],
-            ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1645,13 +1922,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       children: [
                         Icon(Icons.info_outline, color: Colors.blue.shade600),
                         const SizedBox(width: 12),
-                        Text(
-                          _isViewMode
-                              ? 'Visualizando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}'
-                              : 'Editando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            _isViewMode
+                                ? 'Visualizando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}'
+                                : 'Editando OS: ${_osNumberController.text.isNotEmpty ? _osNumberController.text : _editingOSId}',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -1700,79 +1979,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (_isViewMode) ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.grey.shade600, Colors.grey.shade700],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            await _clearFormFields();
-                            setState(() {
-                              _showForm = false;
-                            });
-                          },
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          label: const Text(
-                            'Fechar',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      if (isMobile) Expanded(child: _buildCloseButton()) else _buildCloseButton(),
                     ] else ...[
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.orange.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: _isSaving ? null : _salvarOS,
-                          icon: _isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.save, color: Colors.white),
-                          label: Text(
-                            _isSaving ? 'Salvando...' : (_editingOSId != null ? 'Atualizar OS' : 'Salvar OS'),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      if (isMobile) Expanded(child: _buildSaveButton()) else _buildSaveButton(),
                     ],
                   ],
                 ),
@@ -1784,8 +1993,107 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
+  Widget _buildPdfButton() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: IconButton(
+        onPressed: () => _printOS(null),
+        icon: Icon(Icons.picture_as_pdf, color: Colors.orange.shade600, size: 20),
+        tooltip: 'PDF',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      ),
+    );
+  }
+
+  Widget _buildCloseButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.grey.shade600, Colors.grey.shade700],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          await _clearFormFields();
+          setState(() {
+            _showForm = false;
+          });
+        },
+        icon: const Icon(Icons.close, color: Colors.white),
+        label: const Text(
+          'Fechar',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade600, Colors.deepOrange.shade600],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _isSaving ? null : _salvarOS,
+        icon: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.save, color: Colors.white),
+        label: Text(
+          _isSaving ? 'Salvando...' : (_editingOSId != null ? 'Atualizar OS' : 'Salvar OS'),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFormSection(String title, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(8),
@@ -1796,12 +2104,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           child: Icon(icon, color: Colors.orange.shade600, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+          ),
         ),
       ],
     );
@@ -1816,7 +2126,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: LayoutBuilder(builder: (context, constraints) {
-        final columns = constraints.maxWidth > 700 ? 3 : 2;
+        final columns = constraints.maxWidth > 900
+            ? 3
+            : constraints.maxWidth > 600
+                ? 2
+                : 1;
         final itemWidth = (constraints.maxWidth - (16 * (columns - 1))) / columns;
 
         return Wrap(
@@ -2556,6 +2870,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildChecklistSelection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2566,34 +2882,67 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Selecione um checklist relacionado',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.red.shade200),
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selecione um checklist relacionado',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
                 ),
-                child: Text(
-                  'OBRIGATÓRIO',
-                  style: TextStyle(
-                    color: Colors.red.shade700,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    'OBRIGATÓRIO',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Selecione um checklist relacionado',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    'OBRIGATÓRIO',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 12),
           if (_checklistsFiltrados.isEmpty && _checklistSelecionado == null)
             Container(
@@ -2660,6 +3009,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildServicesSelection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -2681,23 +3032,44 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildTipoCheckbox(
-                    label: 'Apenas Diagnóstico',
-                    value: 'diagnostico',
-                    icon: Icons.search,
-                    iconColor: Colors.indigo,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildTipoCheckbox(
-                    label: 'Diagnóstico + Serviço',
-                    value: 'diagnostico_servico',
-                    icon: Icons.build,
-                    iconColor: Colors.teal,
-                  ),
-                ],
-              ),
+              isMobile
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildTipoCheckbox(
+                          label: 'Apenas Diagnóstico',
+                          value: 'diagnostico',
+                          icon: Icons.search,
+                          iconColor: Colors.indigo,
+                          useExpanded: false,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTipoCheckbox(
+                          label: 'Diagnóstico + Serviço',
+                          value: 'diagnostico_servico',
+                          icon: Icons.build,
+                          iconColor: Colors.teal,
+                          useExpanded: false,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        _buildTipoCheckbox(
+                          label: 'Apenas Diagnóstico',
+                          value: 'diagnostico',
+                          icon: Icons.search,
+                          iconColor: Colors.indigo,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildTipoCheckbox(
+                          label: 'Diagnóstico + Serviço',
+                          value: 'diagnostico_servico',
+                          icon: Icons.build,
+                          iconColor: Colors.teal,
+                        ),
+                      ],
+                    ),
               const SizedBox(height: 16),
               const Divider(height: 1),
               const SizedBox(height: 16),
@@ -2818,34 +3190,65 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
                 const SizedBox(height: 16),
               ]),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Selecione os serviços',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
+            isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Selecione os serviços',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
                       ),
-                ),
-                if (_precoTotalServicos > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Text(
-                      'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w600,
+                      if (_precoTotalServicos > 0) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Text(
+                            'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Selecione os serviços',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[700],
+                            ),
                       ),
-                    ),
+                      if (_precoTotalServicos > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Text(
+                            'Total Serviços: R\$ ${_precoTotalServicos.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-              ],
-            ),
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
@@ -2982,72 +3385,79 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     required String value,
     required IconData icon,
     required MaterialColor iconColor,
+    bool useExpanded = true,
   }) {
     final isSelected = _tipoOrdem == value;
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          setState(() {
-            _tipoOrdem = isSelected ? null : value;
-            if (_tipoOrdem != 'diagnostico' && _tipoOrdem != 'diagnostico_servico') {
-              _precoDiagnostico = 0.0;
-              _precoDiagnosticoController.clear();
-              if (_tipoOrdem == null) {
-                _descontoServicos = 0.0;
-                _descontoServicosController.clear();
-              }
-            }
-            if (_tipoOrdem == 'diagnostico') {
-              _servicosSelecionados.clear();
-              _pecasSelecionadas.clear();
-              _descontoPecas = 0.0;
-              _descontoPecasController.clear();
+    final checkbox = InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        setState(() {
+          _tipoOrdem = isSelected ? null : value;
+          if (_tipoOrdem != 'diagnostico' && _tipoOrdem != 'diagnostico_servico') {
+            _precoDiagnostico = 0.0;
+            _precoDiagnosticoController.clear();
+            if (_tipoOrdem == null) {
               _descontoServicos = 0.0;
               _descontoServicosController.clear();
             }
-          });
-          _calcularPrecoTotal();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? iconColor.shade50 : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? iconColor.shade400 : Colors.grey.shade300,
-              width: isSelected ? 2 : 1,
-            ),
+          }
+          if (_tipoOrdem == 'diagnostico') {
+            _servicosSelecionados.clear();
+            _pecasSelecionadas.clear();
+            _descontoPecas = 0.0;
+            _descontoPecasController.clear();
+            _descontoServicos = 0.0;
+            _descontoServicosController.clear();
+          }
+        });
+        _calcularPrecoTotal();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? iconColor.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? iconColor.shade400 : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                color: isSelected ? iconColor.shade600 : Colors.grey.shade400,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Icon(icon, color: isSelected ? iconColor.shade600 : Colors.grey.shade500, size: 16),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? iconColor.shade700 : Colors.grey.shade700,
-                  ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+              color: isSelected ? iconColor.shade600 : Colors.grey.shade400,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Icon(icon, color: isSelected ? iconColor.shade600 : Colors.grey.shade500, size: 16),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? iconColor.shade700 : Colors.grey.shade700,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+
+    if (useExpanded) {
+      return Expanded(child: checkbox);
+    }
+
+    return checkbox;
   }
 
   Widget _buildPartsSelection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3068,29 +3478,52 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPecaAutocomplete(),
-                    ),
-                    if (!_isViewMode) ...[
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Adicionar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildPecaAutocomplete(),
+                          if (!_isViewMode) ...[
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Adicionar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: _buildPecaAutocomplete(),
                           ),
-                        ),
+                          if (!_isViewMode) ...[
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Adicionar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade600,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
                 if (_pecaEncontrada != null) ...[
                   const SizedBox(height: 16),
                   Container(
@@ -3210,217 +3643,435 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey[300]!),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
+                child: isMobile
+                    ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            pecaOS.peca.nome,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Código: ${pecaOS.peca.codigoFabricante}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                          Builder(builder: (_) {
-                            final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
-                            final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
-                            final estoqueRestante = maxPermitido - pecaOS.quantidade;
-                            final Color stockColor = estoqueRestante <= 0
-                                ? Colors.red[600]!
-                                : estoqueRestante < pecaOS.peca.estoqueSeguranca
-                                    ? Colors.orange[600]!
-                                    : Colors.green[600]!;
-                            return Text(
-                              'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. | Disponível: $maxPermitido unid. (Usando: ${pecaOS.quantidade})',
-                              style: TextStyle(
-                                color: stockColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            );
-                          }),
-                          const SizedBox(height: 4),
-                          Builder(builder: (_) {
-                            final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
-                            final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
-                            final estoqueRestante = maxPermitido - pecaOS.quantidade;
-                            final barColor = estoqueRestante <= 0
-                                ? Colors.red[400]!
-                                : estoqueRestante < pecaOS.peca.estoqueSeguranca
-                                    ? Colors.orange[400]!
-                                    : Colors.green[400]!;
-                            return Container(
-                              height: 4,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(2),
-                                color: Colors.grey[300],
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: maxPermitido > 0 ? (pecaOS.quantidade / maxPermitido).clamp(0.0, 1.0) : 1.0,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(2),
-                                    color: barColor,
-                                  ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pecaOS.peca.nome,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: _isViewMode
-                              ? null
-                              : () {
-                                  if (pecaOS.quantidade > 1) {
-                                    setState(() {
-                                      pecaOS.quantidade--;
-                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                    });
-                                    _resetarDescontos();
-                                    _calcularPrecoTotal();
-                                  }
-                                },
-                          icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          padding: EdgeInsets.zero,
-                        ),
-                        SizedBox(
-                          width: 60,
-                          height: 32,
-                          child: TextFormField(
-                            key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
-                            initialValue: '${pecaOS.quantidade}',
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            enabled: !_isViewMode,
-                            style: TextStyle(
-                              color: Colors.blue.shade700,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade200),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Código: ${pecaOS.peca.codigoFabricante}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade200),
+                              Text(
+                                'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
                               ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(4),
-                                borderSide: BorderSide(color: Colors.blue.shade400),
-                              ),
-                              filled: true,
-                              fillColor: Colors.blue.shade50,
-                            ),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                int novaQuantidade = int.tryParse(value) ?? 1;
-
-                                if (novaQuantidade <= 0) {
-                                  novaQuantidade = 1;
-                                }
-
-                                int totalUsadoOutrasPecas = _pecasSelecionadas
-                                    .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
-                                    .fold(0, (total, p) => total + p.quantidade);
-
+                              Builder(builder: (_) {
                                 final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
                                 final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
-
-                                if (novaQuantidade + totalUsadoOutrasPecas > maxPermitido) {
-                                  _showErrorSnackBar(
-                                      'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o disponível para esta OS ($maxPermitido unidades)');
-                                  return;
-                                }
-
-                                setState(() {
-                                  pecaOS.quantidade = novaQuantidade;
-                                  pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                  pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                });
-                                _resetarDescontos();
-                                _calcularPrecoTotal();
-                              }
-                            },
+                                final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                                final Color stockColor = estoqueRestante <= 0
+                                    ? Colors.red[600]!
+                                    : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                        ? Colors.orange[600]!
+                                        : Colors.green[600]!;
+                                return Text(
+                                  'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. | Disponível: $maxPermitido unid. (Usando: ${pecaOS.quantidade})',
+                                  style: TextStyle(
+                                    color: stockColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 4),
+                              Builder(builder: (_) {
+                                final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+                                final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                                final barColor = estoqueRestante <= 0
+                                    ? Colors.red[400]!
+                                    : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                        ? Colors.orange[400]!
+                                        : Colors.green[400]!;
+                                return Container(
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(2),
+                                    color: Colors.grey[300],
+                                  ),
+                                  child: FractionallySizedBox(
+                                    alignment: Alignment.centerLeft,
+                                    widthFactor: maxPermitido > 0 ? (pecaOS.quantidade / maxPermitido).clamp(0.0, 1.0) : 1.0,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(2),
+                                        color: barColor,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
-                        ),
-                        IconButton(
-                          onPressed: _isViewMode
-                              ? null
-                              : () {
-                                  int totalUsadoOutrasPecas = _pecasSelecionadas
-                                      .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
-                                      .fold(0, (total, p) => total + p.quantidade);
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: _isViewMode
+                                        ? null
+                                        : () {
+                                            if (pecaOS.quantidade > 1) {
+                                              setState(() {
+                                                pecaOS.quantidade--;
+                                                pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                                pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                              });
+                                              _resetarDescontos();
+                                              _calcularPrecoTotal();
+                                            }
+                                          },
+                                    icon: Icon(Icons.remove_circle_outline,
+                                        size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  SizedBox(
+                                    width: 60,
+                                    height: 32,
+                                    child: TextFormField(
+                                      key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
+                                      initialValue: '${pecaOS.quantidade}',
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      enabled: !_isViewMode,
+                                      style: TextStyle(
+                                        color: Colors.blue.shade700,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      decoration: InputDecoration(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                          borderSide: BorderSide(color: Colors.blue.shade200),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                          borderSide: BorderSide(color: Colors.blue.shade200),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                          borderSide: BorderSide(color: Colors.blue.shade400),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.blue.shade50,
+                                      ),
+                                      onChanged: (value) {
+                                        if (value.isNotEmpty) {
+                                          int novaQuantidade = int.tryParse(value) ?? 1;
 
+                                          if (novaQuantidade <= 0) {
+                                            novaQuantidade = 1;
+                                          }
+
+                                          int totalUsadoOutrasPecas = _pecasSelecionadas
+                                              .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                              .fold(0, (total, p) => total + p.quantidade);
+
+                                          final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                          final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                          if (novaQuantidade + totalUsadoOutrasPecas > maxPermitido) {
+                                            _showErrorSnackBar(
+                                                'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o disponível para esta OS ($maxPermitido unidades)');
+                                            return;
+                                          }
+
+                                          setState(() {
+                                            pecaOS.quantidade = novaQuantidade;
+                                            pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                            pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                          });
+                                          _resetarDescontos();
+                                          _calcularPrecoTotal();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: _isViewMode
+                                        ? null
+                                        : () {
+                                            int totalUsadoOutrasPecas = _pecasSelecionadas
+                                                .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                                .fold(0, (total, p) => total + p.quantidade);
+
+                                            final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                            final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                            if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= maxPermitido) {
+                                              setState(() {
+                                                pecaOS.quantidade++;
+                                                pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                                pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                              });
+                                              _resetarDescontos();
+                                              _calcularPrecoTotal();
+                                            } else {
+                                              _showErrorSnackBar(
+                                                  'Não é possível aumentar quantidade. Disponível para esta OS: $maxPermitido unidades');
+                                            }
+                                          },
+                                    icon:
+                                        Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (!_isViewMode)
+                                IconButton(
+                                  onPressed: () async => await _removerPeca(pecaOS),
+                                  icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
+                                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                  padding: EdgeInsets.zero,
+                                ),
+                            ],
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pecaOS.peca.nome,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Código: ${pecaOS.peca.codigoFabricante}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Preço final: R\$ ${pecaOS.peca.precoFinal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Builder(builder: (_) {
                                   final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
                                   final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+                                  final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                                  final Color stockColor = estoqueRestante <= 0
+                                      ? Colors.red[600]!
+                                      : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                          ? Colors.orange[600]!
+                                          : Colors.green[600]!;
+                                  return Text(
+                                    'Estoque: ${pecaOS.peca.quantidadeEstoque} unid. | Disponível: $maxPermitido unid. (Usando: ${pecaOS.quantidade})',
+                                    style: TextStyle(
+                                      color: stockColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 4),
+                                Builder(builder: (_) {
+                                  final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                  final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+                                  final estoqueRestante = maxPermitido - pecaOS.quantidade;
+                                  final barColor = estoqueRestante <= 0
+                                      ? Colors.red[400]!
+                                      : estoqueRestante < pecaOS.peca.estoqueSeguranca
+                                          ? Colors.orange[400]!
+                                          : Colors.green[400]!;
+                                  return Container(
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(2),
+                                      color: Colors.grey[300],
+                                    ),
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: maxPermitido > 0 ? (pecaOS.quantidade / maxPermitido).clamp(0.0, 1.0) : 1.0,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(2),
+                                          color: barColor,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: _isViewMode
+                                    ? null
+                                    : () {
+                                        if (pecaOS.quantidade > 1) {
+                                          setState(() {
+                                            pecaOS.quantidade--;
+                                            pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                            pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                          });
+                                          _resetarDescontos();
+                                          _calcularPrecoTotal();
+                                        }
+                                      },
+                                icon: Icon(Icons.remove_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                padding: EdgeInsets.zero,
+                              ),
+                              SizedBox(
+                                width: 60,
+                                height: 32,
+                                child: TextFormField(
+                                  key: ValueKey('quantidade_${pecaOS.peca.id}_${pecaOS.quantidade}'),
+                                  initialValue: '${pecaOS.quantidade}',
+                                  textAlign: TextAlign.center,
+                                  keyboardType: TextInputType.number,
+                                  enabled: !_isViewMode,
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  decoration: InputDecoration(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                      borderSide: BorderSide(color: Colors.blue.shade200),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                      borderSide: BorderSide(color: Colors.blue.shade200),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                      borderSide: BorderSide(color: Colors.blue.shade400),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.blue.shade50,
+                                  ),
+                                  onChanged: (value) {
+                                    if (value.isNotEmpty) {
+                                      int novaQuantidade = int.tryParse(value) ?? 1;
 
-                                  if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= maxPermitido) {
-                                    setState(() {
-                                      pecaOS.quantidade++;
-                                      pecaOS.valorUnitario = pecaOS.peca.precoFinal;
-                                      pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
-                                    });
-                                    _resetarDescontos();
-                                    _calcularPrecoTotal();
-                                  } else {
-                                    _showErrorSnackBar(
-                                        'Não é possível aumentar quantidade. Disponível para esta OS: $maxPermitido unidades');
-                                  }
-                                },
-                          icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade700,
-                        fontSize: 14,
+                                      if (novaQuantidade <= 0) {
+                                        novaQuantidade = 1;
+                                      }
+
+                                      int totalUsadoOutrasPecas = _pecasSelecionadas
+                                          .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                          .fold(0, (total, p) => total + p.quantidade);
+
+                                      final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                      final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                      if (novaQuantidade + totalUsadoOutrasPecas > maxPermitido) {
+                                        _showErrorSnackBar(
+                                            'Quantidade total solicitada (${novaQuantidade + totalUsadoOutrasPecas}) excede o disponível para esta OS ($maxPermitido unidades)');
+                                        return;
+                                      }
+
+                                      setState(() {
+                                        pecaOS.quantidade = novaQuantidade;
+                                        pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                        pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                      });
+                                      _resetarDescontos();
+                                      _calcularPrecoTotal();
+                                    }
+                                  },
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _isViewMode
+                                    ? null
+                                    : () {
+                                        int totalUsadoOutrasPecas = _pecasSelecionadas
+                                            .where((p) => p.peca.id == pecaOS.peca.id && p != pecaOS)
+                                            .fold(0, (total, p) => total + p.quantidade);
+
+                                        final disponivelLivre = pecaOS.peca.quantidadeEstoque - (pecaOS.peca.unidadesUsadasEmOS ?? 0);
+                                        final maxPermitido = disponivelLivre + pecaOS.originalQuantidade;
+
+                                        if ((pecaOS.quantidade + 1) + totalUsadoOutrasPecas <= maxPermitido) {
+                                          setState(() {
+                                            pecaOS.quantidade++;
+                                            pecaOS.valorUnitario = pecaOS.peca.precoFinal;
+                                            pecaOS.valorTotal = pecaOS.valorUnitario! * pecaOS.quantidade;
+                                          });
+                                          _resetarDescontos();
+                                          _calcularPrecoTotal();
+                                        } else {
+                                          _showErrorSnackBar(
+                                              'Não é possível aumentar quantidade. Disponível para esta OS: $maxPermitido unidades');
+                                        }
+                                      },
+                                icon: Icon(Icons.add_circle_outline, size: 20, color: _isViewMode ? Colors.grey[400] : Colors.grey[600]),
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'R\$ ${pecaOS.valorTotalCalculado.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (!_isViewMode)
+                            IconButton(
+                              onPressed: () async => await _removerPeca(pecaOS),
+                              icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: EdgeInsets.zero,
+                            ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (!_isViewMode)
-                      IconButton(
-                        onPressed: () async => await _removerPeca(pecaOS),
-                        icon: Icon(Icons.delete, color: Colors.red.shade400, size: 20),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        padding: EdgeInsets.zero,
-                      ),
-                  ],
-                ),
               );
             }).toList()),
             const SizedBox(height: 12),
@@ -3434,14 +4085,26 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total das Peças:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green.shade800,
-                      fontSize: 16,
+                  if (isMobile)
+                    Expanded(
+                      child: Text(
+                        'Total das Peças:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade800,
+                          fontSize: 16,
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      'Total das Peças:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green.shade800,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
                   Text(
                     'R\$ ${_calcularTotalPecas().toStringAsFixed(2)}',
                     style: TextStyle(
@@ -3483,6 +4146,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildResponsibleSection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3490,123 +4155,135 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
               children: [
-                Text(
-                  'Mecânico Responsável',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<Funcionario>(
-                  initialValue:
-                      _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione um mecânico'),
-                  items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
-                      return DropdownMenuItem<Funcionario>(
-                        value: funcionario,
-                        child: Text(funcionario.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _mecanicoSelecionado = value;
-                          });
-                        },
-                ),
+                _buildMecanicoField(),
+                const SizedBox(height: 16),
+                _buildConsultorField(),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildMecanicoField()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildConsultorField()),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Consultor Responsável',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<Funcionario>(
-                  initialValue:
-                      _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione um consultor'),
-                  items: (() {
-                    final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
-                      return DropdownMenuItem<Funcionario>(
-                        value: funcionario,
-                        child: Text(funcionario.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: (_isViewMode || !_isAdmin)
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _consultorSelecionado = value;
-                          });
-                        },
-                ),
-              ],
+    );
+  }
+
+  Widget _buildMecanicoField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Mecânico Responsável',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Funcionario>(
+          initialValue: _mecanicoSelecionado != null ? _funcionarios.where((f) => f.id == _mecanicoSelecionado!.id).firstOrNull : null,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
-        ],
-      ),
+          hint: const Text('Selecione um mecânico'),
+          items: (() {
+            final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 3).toList();
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+              return DropdownMenuItem<Funcionario>(
+                value: funcionario,
+                child: Text(funcionario.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: _isViewMode
+              ? null
+              : (value) {
+                  setState(() {
+                    _mecanicoSelecionado = value;
+                  });
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsultorField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Consultor Responsável',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<Funcionario>(
+          initialValue: _consultorSelecionado != null ? _funcionarios.where((f) => f.id == _consultorSelecionado!.id).firstOrNull : null,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Selecione um consultor'),
+          items: (() {
+            final lista = _funcionarios.where((funcionario) => funcionario.nivelAcesso == 2).toList();
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map<DropdownMenuItem<Funcionario>>((funcionario) {
+              return DropdownMenuItem<Funcionario>(
+                value: funcionario,
+                child: Text(funcionario.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: (_isViewMode || !_isAdmin)
+              ? null
+              : (value) {
+                  setState(() {
+                    _consultorSelecionado = value;
+                  });
+                },
+        ),
+      ],
     );
   }
 
   Widget _buildWarrantyAndPayment() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3614,213 +4291,225 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
               children: [
-                Text(
-                  'Garantia (meses)',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: _garantiaMeses,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  items: [1, 2, 3, 6, 12, 24].map((meses) {
-                    return DropdownMenuItem<int>(
-                      value: meses,
-                      child: Text('$meses mês${meses > 1 ? 'es' : ''}${meses == 3 ? ' (padrão legal)' : ''}'),
-                    );
-                  }).toList(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _garantiaMeses = value ?? 3;
-                          });
-                        },
-                ),
+                _buildWarrantyField(),
+                const SizedBox(height: 16),
+                _buildPaymentField(),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: _buildWarrantyField()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildPaymentField()),
               ],
             ),
+    );
+  }
+
+  Widget _buildWarrantyField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Garantia (meses)',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          initialValue: _garantiaMeses,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Forma de Pagamento',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<TipoPagamento>(
-                  initialValue: _tipoPagamentoSelecionado,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                  hint: const Text('Selecione'),
-                  items: (() {
-                    final lista = List<TipoPagamento>.from(_tiposPagamento);
-                    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-                    return lista.map((tipo) {
-                      return DropdownMenuItem<TipoPagamento>(
-                        value: tipo,
-                        child: Text(tipo.nome),
-                      );
-                    }).toList();
-                  })(),
-                  onChanged: _isViewMode
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _tipoPagamentoSelecionado = value;
-                            if (value?.idFormaPagamento != 1) {
-                              _numeroParcelas = null;
-                            }
-                            if (value?.idFormaPagamento != 2) {
-                              _prazoFiadoDias = null;
-                            }
-                          });
-                        },
-                ),
-                if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Número de Parcelas',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: _numeroParcelas,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    items: List.generate(12, (i) => i + 1).map((parcelas) {
-                      return DropdownMenuItem<int>(
-                        value: parcelas,
-                        child: Text('${parcelas}x'),
-                      );
-                    }).toList(),
-                    onChanged: _isViewMode
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _numeroParcelas = value;
-                            });
-                          },
-                  ),
-                ],
-                if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    'Prazo (meses)',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: _prazoFiadoDias != null && _prazoFiadoDias! > 0
-                        ? () {
-                            int meses = _prazoFiadoDias! ~/ 30;
-                            if (meses < 1) meses = 1;
-                            if (meses > 12) meses = 12;
-                            return meses;
-                          }()
-                        : null,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    ),
-                    items: List.generate(12, (i) => i + 1).map((mes) {
-                      return DropdownMenuItem<int>(
-                        value: mes,
-                        child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
-                      );
-                    }).toList(),
-                    onChanged: _isViewMode
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _prazoFiadoDias = value != null ? value * 30 : null;
-                            });
-                          },
-                  ),
-                ],
-              ],
+          items: [1, 2, 3, 6, 12, 24].map((meses) {
+            return DropdownMenuItem<int>(
+              value: meses,
+              child: Text('$meses mês${meses > 1 ? 'es' : ''}${meses == 3 ? ' (padrão legal)' : ''}'),
+            );
+          }).toList(),
+          onChanged: _isViewMode
+              ? null
+              : (value) {
+                  setState(() {
+                    _garantiaMeses = value ?? 3;
+                  });
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Forma de Pagamento',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<TipoPagamento>(
+          initialValue: _tipoPagamentoSelecionado,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          ),
+          hint: const Text('Selecione'),
+          items: (() {
+            final lista = List<TipoPagamento>.from(_tiposPagamento);
+            lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+            return lista.map((tipo) {
+              return DropdownMenuItem<TipoPagamento>(
+                value: tipo,
+                child: Text(tipo.nome),
+              );
+            }).toList();
+          })(),
+          onChanged: _isViewMode
+              ? null
+              : (value) {
+                  setState(() {
+                    _tipoPagamentoSelecionado = value;
+                    if (value?.idFormaPagamento != 1) {
+                      _numeroParcelas = null;
+                    }
+                    if (value?.idFormaPagamento != 2) {
+                      _prazoFiadoDias = null;
+                    }
+                  });
+                },
+        ),
+        if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Número de Parcelas',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            initialValue: _numeroParcelas,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: List.generate(12, (i) => i + 1).map((parcelas) {
+              return DropdownMenuItem<int>(
+                value: parcelas,
+                child: Text('${parcelas}x'),
+              );
+            }).toList(),
+            onChanged: _isViewMode
+                ? null
+                : (value) {
+                    setState(() {
+                      _numeroParcelas = value;
+                    });
+                  },
           ),
         ],
-      ),
+        if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Prazo (meses)',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            initialValue: _prazoFiadoDias != null && _prazoFiadoDias! > 0
+                ? () {
+                    int meses = _prazoFiadoDias! ~/ 30;
+                    if (meses < 1) meses = 1;
+                    if (meses > 12) meses = 12;
+                    return meses;
+                  }()
+                : null,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.orange.shade400, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: List.generate(12, (i) => i + 1).map((mes) {
+              return DropdownMenuItem<int>(
+                value: mes,
+                child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
+              );
+            }).toList(),
+            onChanged: _isViewMode
+                ? null
+                : (value) {
+                    setState(() {
+                      _prazoFiadoDias = value != null ? value * 30 : null;
+                    });
+                  },
+          ),
+        ],
+      ],
     );
   }
 
@@ -3860,6 +4549,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   }
 
   Widget _buildPriceSummarySection() {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
     double totalPecas = _calcularTotalPecas();
     double totalServicos = _precoTotalServicos;
     double totalServicosComDesconto = totalServicos - _descontoServicos;
@@ -3885,33 +4576,64 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total de Serviços:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.green.shade800,
-                            fontSize: 16,
+                isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Total de Serviços:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'R\$ ${totalServicos.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade800,
-                        fontSize: 16,
+                          const SizedBox(height: 6),
+                          Text(
+                            'R\$ ${totalServicos.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.handyman, color: Colors.green.shade600, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Total de Serviços:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green.shade800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'R\$ ${totalServicos.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
                 if (_tipoOrdem == 'diagnostico_servico' && _precoDiagnostico > 0) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -3945,10 +4667,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ],
                 if (!_isViewMode) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
+                  isMobile
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
@@ -3974,27 +4694,52 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                 isDense: true,
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            _buildMaxDiscountBadge(
+                              'Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}',
+                              Colors.green,
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Desconto Serviços (máx 10%):',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  TextField(
+                                    controller: _descontoServicosController,
+                                    keyboardType: TextInputType.number,
+                                    onChanged: _onDescontoServicosChanged,
+                                    decoration: InputDecoration(
+                                      prefixText: 'R\$ ',
+                                      hintText: '0,00',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                      isDense: true,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildMaxDiscountBadge(
+                              'Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}',
+                              Colors.green,
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'Máx: R\$ ${_calcularMaxDescontoServicos().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
                 if (_descontoServicos > 0) ...[
                   const SizedBox(height: 8),
@@ -4042,39 +4787,68 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Total de Peças:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade800,
-                              fontSize: 16,
+                  isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Total de Peças:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue.shade800,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'R\$ ${totalPecas.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade800,
-                          fontSize: 16,
+                            const SizedBox(height: 6),
+                            Text(
+                              'R\$ ${totalPecas.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade800,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.build_circle, color: Colors.blue.shade600, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Total de Peças:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'R\$ ${totalPecas.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade800,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
                   if (!_isViewMode) ...[
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
+                    isMobile
+                        ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
@@ -4100,27 +4874,52 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                                   isDense: true,
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              _buildMaxDiscountBadge(
+                                'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
+                                Colors.blue,
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Desconto Peças (máx margem lucro):',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    TextField(
+                                      controller: _descontoPecasController,
+                                      keyboardType: TextInputType.number,
+                                      onChanged: _onDescontoPecasChanged,
+                                      decoration: InputDecoration(
+                                        prefixText: 'R\$ ',
+                                        hintText: '0,00',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              _buildMaxDiscountBadge(
+                                'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
+                                Colors.blue,
+                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'Máx: R\$ ${_calcularMaxDescontoPecas().toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                   if (_descontoPecas > 0) ...[
                     const SizedBox(height: 8),
@@ -4242,35 +5041,84 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.receipt_long, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'VALOR TOTAL GERAL:',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 18,
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'VALOR TOTAL GERAL:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'R\$ ${totalGeral.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 18,
+                      const SizedBox(height: 8),
+                      Text(
+                        'R\$ ${totalGeral.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.receipt_long, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'VALOR TOTAL GERAL:',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'R\$ ${totalGeral.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMaxDiscountBadge(String text, MaterialColor color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.shade100,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          color: color.shade700,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -5865,11 +6713,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
-            Text(message),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
+              ),
+            ),
           ],
         ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -5882,11 +6738,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           children: [
             const Icon(Icons.error, color: Colors.white),
             const SizedBox(width: 8),
-            Text(message),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
+              ),
+            ),
           ],
         ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );

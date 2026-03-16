@@ -292,11 +292,13 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final hoje = DateTime.now();
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
       firstDate: DateTime(1940),
-      lastDate: DateTime(2100, 12, 31),
+      lastDate: hojeSemHora,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -351,7 +353,18 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
         }
       }
 
-      final dataNascimentoFormatada = DateFormat('dd/MM/yyyy').parse(_dataNascimentoController.text);
+      final dataNascimentoFormatada = DateFormat('dd/MM/yyyy').parseStrict(_dataNascimentoController.text);
+      final hojeSemHora = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final dataNascimentoSemHora = DateTime(dataNascimentoFormatada.year, dataNascimentoFormatada.month, dataNascimentoFormatada.day);
+
+      if (dataNascimentoSemHora.isAfter(hojeSemHora)) {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'A data de nascimento não pode ser no futuro');
+        setState(() {
+          _isSaving = false;
+        });
+        return;
+      }
 
       final cliente = Cliente(
         nome: _nomeController.text,
@@ -1073,7 +1086,23 @@ class _CadastroClientePageState extends State<CadastroClientePage> with TickerPr
                 icon: Icons.calendar_today,
                 readOnly: true,
                 onTap: () => _selectDate(context),
-                validator: (v) => v!.isEmpty ? 'Informe a data de nascimento' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) {
+                    return 'Informe a data de nascimento';
+                  }
+                  try {
+                    final data = DateFormat('dd/MM/yyyy').parseStrict(v);
+                    final hoje = DateTime.now();
+                    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+                    final dataSemHora = DateTime(data.year, data.month, data.day);
+                    if (dataSemHora.isAfter(hojeSemHora)) {
+                      return 'Data de nascimento não pode ser futura';
+                    }
+                  } catch (_) {
+                    return 'Data inválida';
+                  }
+                  return null;
+                },
               );
               if (isNarrow) {
                 return Column(

@@ -2095,7 +2095,10 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                           .map((fornecedor) => DropdownMenuItem<Fornecedor>(
                                 value: fornecedor,
                                 child: Text(
-                                    "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)"),
+                                  "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ))
                           .toList(),
                       onChanged: (value) {
@@ -2218,6 +2221,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }) {
     return DropdownButtonFormField<T>(
       initialValue: value,
+      isExpanded: true,
       onChanged: onChanged,
       validator: validator,
       decoration: InputDecoration(

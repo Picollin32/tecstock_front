@@ -53,12 +53,30 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   }
 
   void _gerarListaMeses() {
-    final agora = DateTime.now();
-    todosMeses.clear();
+    _sincronizarListaMeses();
+  }
 
-    for (int i = 0; i < 12; i++) {
-      final mes = DateTime(agora.year, agora.month - i, 1);
-      todosMeses.add(mes);
+  DateTime _normalizarMes(DateTime data) {
+    return DateTime(data.year, data.month, 1);
+  }
+
+  void _sincronizarListaMeses({List<DateTime>? mesesComLogs}) {
+    final agora = _normalizarMes(DateTime.now());
+    final mesesNormalizados = (mesesComLogs ?? mesesDisponiveis).map(_normalizarMes).toSet().toList()..sort((a, b) => b.compareTo(a));
+
+    final mesMaisAntigoComLog = mesesNormalizados.isNotEmpty ? mesesNormalizados.reduce((a, b) => a.isBefore(b) ? a : b) : agora;
+
+    final quantidadeEntreAtualEAntigo = ((agora.year - mesMaisAntigoComLog.year) * 12) + (agora.month - mesMaisAntigoComLog.month) + 1;
+    final quantidadeMeses = quantidadeEntreAtualEAntigo < 12 ? 12 : quantidadeEntreAtualEAntigo;
+
+    todosMeses = List.generate(quantidadeMeses, (i) => DateTime(agora.year, agora.month - i, 1));
+
+    final mesSelecionadoNormalizado = mesSelecionado != null ? _normalizarMes(mesSelecionado!) : null;
+    final existeMesSelecionado = mesSelecionadoNormalizado != null &&
+        todosMeses.any((m) => m.year == mesSelecionadoNormalizado.year && m.month == mesSelecionadoNormalizado.month);
+
+    if (!existeMesSelecionado) {
+      mesSelecionado = agora;
     }
   }
 
@@ -94,10 +112,20 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
         return;
       }
 
-      entidadesDisponiveis = await AuditoriaService.listarEntidadesAuditadas(token!);
-      usuariosDisponiveis = await AuditoriaService.listarUsuariosAtivos(token!);
+      final resultados = await Future.wait([
+        AuditoriaService.listarEntidadesAuditadas(token!),
+        AuditoriaService.listarUsuariosAtivos(token!),
+        AuditoriaService.buscarMesesDisponiveis(token!),
+      ]);
 
-      await _carregarMesesDisponiveis();
+      if (mounted) {
+        setState(() {
+          entidadesDisponiveis = resultados[0] as List<String>;
+          usuariosDisponiveis = resultados[1] as List<String>;
+          mesesDisponiveis = (resultados[2] as List<DateTime>).map(_normalizarMes).toList();
+          _sincronizarListaMeses(mesesComLogs: mesesDisponiveis);
+        });
+      }
 
       await _buscarLogs();
     } catch (e) {
@@ -715,23 +743,6 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
 
   String _formatarData(DateTime data) {
     return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
-  }
-
-  Future<void> _carregarMesesDisponiveis() async {
-    if (token == null) return;
-
-    try {
-      final meses = await AuditoriaService.buscarMesesDisponiveis(token!);
-      if (mounted) {
-        setState(() {
-          mesesDisponiveis = meses;
-        });
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Erro ao carregar meses disponíveis: $e');
-      }
-    }
   }
 
   void _limparFiltros() {

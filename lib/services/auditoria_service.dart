@@ -240,50 +240,72 @@ class AuditoriaService {
   static Future<List<DateTime>> buscarMesesDisponiveis(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl?page=0&size=1&sortBy=dataHora&sortDir=desc'),
+        Uri.parse('$baseUrl/meses'),
         headers: _getHeaders(token),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        final totalElements = data['totalElements'] as int;
+        final data = json.decode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+        final meses = data.map((item) => _parseMesAno(item.toString())).whereType<DateTime>().toList()..sort((a, b) => b.compareTo(a));
 
-        if (totalElements == 0) {
-          return [];
-        }
-
-        final logRecente = AuditoriaLog.fromJson(data['content'][0]);
-
-        final responseAntigo = await http.get(
-          Uri.parse('$baseUrl?page=0&size=1&sortBy=dataHora&sortDir=asc'),
-          headers: _getHeaders(token),
-        );
-
-        if (responseAntigo.statusCode == 200) {
-          final dataAntiga = json.decode(utf8.decode(responseAntigo.bodyBytes));
-          final logAntigo = AuditoriaLog.fromJson(dataAntiga['content'][0]);
-
-          final meses = <DateTime>[];
-          var mesAtual = DateTime(logAntigo.dataHora.year, logAntigo.dataHora.month, 1);
-          final mesRecente = DateTime(logRecente.dataHora.year, logRecente.dataHora.month, 1);
-
-          while (mesAtual.isBefore(mesRecente) || mesAtual.isAtSameMomentAs(mesRecente)) {
-            meses.add(mesAtual);
-
-            mesAtual = DateTime(mesAtual.year, mesAtual.month + 1, 1);
-          }
-
-          return meses.reversed.toList();
-        }
+        return meses;
       }
 
-      return [];
+      return await _buscarMesesDisponiveisPorPaginacao(token);
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao buscar meses disponíveis: $e');
       }
-      return [];
+      return await _buscarMesesDisponiveisPorPaginacao(token);
     }
+  }
+
+  static DateTime? _parseMesAno(String valor) {
+    final partes = valor.split('-');
+    if (partes.length < 2) return null;
+
+    final ano = int.tryParse(partes[0]);
+    final mes = int.tryParse(partes[1]);
+    if (ano == null || mes == null || mes < 1 || mes > 12) return null;
+
+    return DateTime(ano, mes, 1);
+  }
+
+  static Future<List<DateTime>> _buscarMesesDisponiveisPorPaginacao(String token) async {
+    const int pageSize = 200;
+    const int maxPages = 200;
+    final mesesUnicos = <DateTime>{};
+    int page = 0;
+    int totalPages = 1;
+
+    while (page < totalPages && page < maxPages) {
+      final response = await http.get(
+        Uri.parse('$baseUrl?page=$page&size=$pageSize&sortBy=dataHora&sortDir=desc'),
+        headers: _getHeaders(token),
+      );
+
+      if (response.statusCode != 200) {
+        break;
+      }
+
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      final content = data['content'] as List<dynamic>? ?? [];
+
+      for (final item in content) {
+        final log = AuditoriaLog.fromJson(item);
+        mesesUnicos.add(DateTime(log.dataHora.year, log.dataHora.month, 1));
+      }
+
+      totalPages = data['totalPages'] as int? ?? 0;
+      if (totalPages == 0 || content.isEmpty) {
+        break;
+      }
+
+      page++;
+    }
+
+    final mesesOrdenados = mesesUnicos.toList()..sort((a, b) => b.compareTo(a));
+    return mesesOrdenados;
   }
 
   static Future<void> exportarRegistrosCSV(

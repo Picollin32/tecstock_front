@@ -4637,7 +4637,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
-              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
               keyboardType: _isViewMode ? null : TextInputType.number,
               onChanged: _isViewMode
                   ? null

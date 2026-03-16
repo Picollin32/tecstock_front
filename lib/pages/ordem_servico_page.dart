@@ -2250,7 +2250,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               controller: controller,
               focusNode: focusNode,
               readOnly: _isViewMode,
-              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: _isViewMode ? null : [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
               keyboardType: _isViewMode ? null : TextInputType.number,
               onChanged: _isViewMode
                   ? null

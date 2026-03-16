@@ -70,6 +70,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
   String _ufSelecionada = 'GO';
   final ValueNotifier<String> _ufNotifier = ValueNotifier('GO');
   String _regimeTributarioSelecionado = '1';
+  bool _empresaAtiva = true;
 
   bool _isLoading = false;
   bool _isLoadingEmpresas = true;
@@ -440,6 +441,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
         codigoMunicipio: _codigoMunicipioController.text.trim().isEmpty ? null : _codigoMunicipioController.text.trim(),
         regimeTributario: _regimeTributarioSelecionado,
         cnae: _cnaeController.text.trim().isEmpty ? null : _cnaeController.text.trim(),
+        ativa: _empresaAtiva,
       );
 
       Map<String, dynamic> result;
@@ -500,6 +502,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       _ufSelecionada = 'GO';
       _ufNotifier.value = _ufSelecionada;
       _regimeTributarioSelecionado = '1';
+      _empresaAtiva = true;
       _cepAutoPreenchido.value = false;
       _lastSearchedCep = '';
       _cnpjAutoPreenchido.value = false;
@@ -532,6 +535,7 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
       final validRegimes = {'1', '2', '3', '4'};
       _regimeTributarioSelecionado = validRegimes.contains(empresa.regimeTributario) ? empresa.regimeTributario! : '1';
       _cnaeController.text = empresa.cnae != null ? BrazilianValidators.formatarCNAE(empresa.cnae!) : '';
+      _empresaAtiva = empresa.ativa;
     });
     _showFormModal();
   }
@@ -1072,6 +1076,66 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     );
   }
 
+  Future<void> _confirmarAlteracaoStatus(Empresa empresa) async {
+    final vaiAtivar = !empresa.ativa;
+    final acao = vaiAtivar ? 'ativar' : 'inativar';
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(vaiAtivar ? Icons.check_circle : Icons.warning_amber_rounded,
+                color: vaiAtivar ? successColor : Colors.orange.shade700, size: 28),
+            const SizedBox(width: 12),
+            Text('Confirmar ${vaiAtivar ? 'Ativação' : 'Inativação'}'),
+          ],
+        ),
+        content: Text('Deseja $acao a empresa "${empresa.nomeFantasia}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: vaiAtivar ? successColor : Colors.orange.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(vaiAtivar ? 'Ativar' : 'Inativar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      await _alterarStatusEmpresa(empresa, vaiAtivar);
+    }
+  }
+
+  Future<void> _alterarStatusEmpresa(Empresa empresa, bool ativa) async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await EmpresaService.ativarDesativarEmpresa(empresa.id!, ativa);
+      if (result['success'] == true) {
+        await _carregarEmpresas();
+        if (!mounted) return;
+        _showSuccessSnackBar(ativa ? 'Empresa ativada com sucesso' : 'Empresa inativada com sucesso');
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, result['message'] ?? 'Erro ao alterar status da empresa');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao alterar status');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _excluirEmpresa(Empresa empresa) async {
     setState(() => _isLoading = true);
     try {
@@ -1245,6 +1309,8 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -1705,7 +1771,20 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
                 Container(
                   decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
                   child: IconButton(
-                    icon: Icon(Icons.admin_panel_settings, color: Colors.green.shade600, size: 20),
+                    icon: Icon(
+                      empresa.ativa ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
+                      color: Colors.green.shade700,
+                      size: 20,
+                    ),
+                    onPressed: () => _confirmarAlteracaoStatus(empresa),
+                    tooltip: empresa.ativa ? 'Inativar Empresa' : 'Ativar Empresa',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: IconButton(
+                    icon: Icon(Icons.admin_panel_settings, color: Colors.orange.shade700, size: 20),
                     onPressed: () => _gerenciarAdmins(empresa),
                     tooltip: 'Gerenciar Admins',
                   ),
@@ -1870,8 +1949,24 @@ class _GerenciarEmpresasPageState extends State<GerenciarEmpresasPage> with Tick
               ),
               child: IconButton(
                 icon: Icon(
+                  empresa.ativa ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
+                  color: Colors.green.shade700,
+                  size: 20,
+                ),
+                onPressed: () => _confirmarAlteracaoStatus(empresa),
+                tooltip: empresa.ativa ? 'Inativar Empresa' : 'Ativar Empresa',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                icon: Icon(
                   Icons.admin_panel_settings,
-                  color: Colors.green.shade600,
+                  color: Colors.orange.shade700,
                   size: 20,
                 ),
                 onPressed: () => _gerenciarAdmins(empresa),

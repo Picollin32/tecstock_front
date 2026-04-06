@@ -22,6 +22,7 @@ import '../model/checklist.dart';
 import '../model/servico.dart';
 import '../model/tipo_pagamento.dart';
 import '../model/ordem_servico.dart';
+import '../model/diagnostico_item.dart';
 import '../model/peca_ordem_servico.dart';
 import '../model/peca.dart';
 import '../model/funcionario.dart';
@@ -87,6 +88,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   Checklist? _checklistSelecionado;
   final List<Servico> _servicosSelecionados = [];
   final List<PecaOrdemServico> _pecasSelecionadas = [];
+  final List<DiagnosticoItem> _diagnosticosSelecionados = [];
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
@@ -128,6 +130,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   String? _tipoOrdem;
   double _precoDiagnostico = 0.0;
   final TextEditingController _precoDiagnosticoController = TextEditingController();
+  final TextEditingController _descricaoDiagnosticoController = TextEditingController();
+  final TextEditingController _valorDiagnosticoController = TextEditingController();
   String? _categoriaSelecionada;
   bool _isViewMode = false;
   double _descontoServicos = 0.0;
@@ -228,6 +232,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _descontoServicosController.dispose();
       _descontoPecasController.dispose();
       _precoDiagnosticoController.dispose();
+      _descricaoDiagnosticoController.dispose();
+      _valorDiagnosticoController.dispose();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
     }
@@ -477,7 +483,50 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     });
   }
 
+  double _calcularTotalDiagnosticos() {
+    return _diagnosticosSelecionados.fold(0.0, (total, d) => total + d.valor);
+  }
+
+  void _adicionarDiagnostico() {
+    final descricao = _descricaoDiagnosticoController.text.trim();
+    final valor = double.tryParse(_valorDiagnosticoController.text.replaceAll(',', '.')) ?? 0.0;
+
+    if (descricao.isEmpty) {
+      _showErrorSnackBar('Informe a descrição do diagnóstico');
+      return;
+    }
+
+    if (valor <= 0) {
+      _showErrorSnackBar('Informe um valor válido para o diagnóstico');
+      return;
+    }
+
+    setState(() {
+      _diagnosticosSelecionados.add(DiagnosticoItem(descricao: descricao, valor: valor));
+      _descricaoDiagnosticoController.clear();
+      _valorDiagnosticoController.clear();
+      _precoDiagnostico = _calcularTotalDiagnosticos();
+      _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
+      _resetarDescontos();
+    });
+
+    _calcularPrecoTotal();
+  }
+
+  void _removerDiagnostico(DiagnosticoItem diagnostico) {
+    setState(() {
+      _diagnosticosSelecionados.remove(diagnostico);
+      _precoDiagnostico = _calcularTotalDiagnosticos();
+      _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
+      _resetarDescontos();
+    });
+
+    _calcularPrecoTotal();
+  }
+
   void _calcularPrecoTotal() {
+    _precoDiagnostico = _calcularTotalDiagnosticos();
+
     if (_tipoOrdem == 'diagnostico') {
       setState(() {
         _precoTotalServicos = _precoDiagnostico;
@@ -757,11 +806,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _descontoServicosController.clear();
     _descontoPecasController.clear();
     _precoDiagnosticoController.clear();
+    _descricaoDiagnosticoController.clear();
+    _valorDiagnosticoController.clear();
 
     setState(() {
       _checklistSelecionado = null;
       _servicosSelecionados.clear();
       _pecasSelecionadas.clear();
+      _diagnosticosSelecionados.clear();
       _tipoPagamentoSelecionado = null;
       _garantiaMeses = 3;
       _numeroParcelas = null;
@@ -3008,6 +3060,145 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
+  Widget _buildDiagnosticoPanel({
+    required String title,
+    required MaterialColor iconColor,
+    required MaterialColor containerColor,
+  }) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: containerColor.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: containerColor.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.search, color: iconColor.shade600, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: iconColor.shade800,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Total: R\$ ${_calcularTotalDiagnosticos().toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: iconColor.shade800,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          if (!_isViewMode) ...[
+            const SizedBox(height: 12),
+            isMobile
+                ? Column(
+                    children: [
+                      TextField(
+                        controller: _descricaoDiagnosticoController,
+                        decoration: InputDecoration(
+                          hintText: 'Descrição do diagnóstico',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _valorDiagnosticoController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          prefixText: 'R\$ ',
+                          hintText: '0,00',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _adicionarDiagnostico,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Adicionar diagnóstico'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: _descricaoDiagnosticoController,
+                          decoration: InputDecoration(
+                            hintText: 'Descrição do diagnóstico',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _valorDiagnosticoController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            prefixText: 'R\$ ',
+                            hintText: '0,00',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _adicionarDiagnostico,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Adicionar'),
+                      ),
+                    ],
+                  ),
+          ],
+          if (_diagnosticosSelecionados.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _diagnosticosSelecionados.map((diagnostico) {
+                return InputChip(
+                  label: Text('${diagnostico.descricao} • R\$ ${diagnostico.valor.toStringAsFixed(2)}'),
+                  onDeleted: _isViewMode ? null : () => _removerDiagnostico(diagnostico),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildServicesSelection() {
     final isMobile = MediaQuery.of(context).size.width < 768;
 
@@ -3076,117 +3267,19 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             ]),
           if (_tipoOrdem == 'diagnostico')
             ...([
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.indigo.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.search, color: Colors.indigo.shade600, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Valor do Diagnóstico',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.indigo.shade800,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _precoDiagnosticoController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      enabled: !_isViewMode,
-                      decoration: InputDecoration(
-                        prefixText: 'R\$ ',
-                        hintText: '0,00',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.indigo.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.indigo.shade500, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _precoDiagnostico = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
-                        });
-                        _calcularPrecoTotal();
-                      },
-                    ),
-                  ],
-                ),
+              _buildDiagnosticoPanel(
+                title: 'Diagnósticos da OS',
+                iconColor: Colors.indigo,
+                containerColor: Colors.indigo,
               ),
             ])
           else ...[
             if (_tipoOrdem == 'diagnostico_servico')
               ...([
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.teal.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.search, color: Colors.teal.shade600, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Taxa de Diagnóstico',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.teal.shade800,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _precoDiagnosticoController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        enabled: !_isViewMode,
-                        decoration: InputDecoration(
-                          prefixText: 'R\$ ',
-                          hintText: '0,00',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.teal.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.teal.shade500, width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _precoDiagnostico = double.tryParse(value.replaceAll(',', '.')) ?? 0.0;
-                          });
-                          _calcularPrecoTotal();
-                        },
-                      ),
-                    ],
-                  ),
+                _buildDiagnosticoPanel(
+                  title: 'Diagnósticos da OS',
+                  iconColor: Colors.teal,
+                  containerColor: Colors.teal,
                 ),
                 const SizedBox(height: 16),
               ]),
@@ -3396,6 +3489,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           if (_tipoOrdem != 'diagnostico' && _tipoOrdem != 'diagnostico_servico') {
             _precoDiagnostico = 0.0;
             _precoDiagnosticoController.clear();
+            _diagnosticosSelecionados.clear();
+            _descricaoDiagnosticoController.clear();
+            _valorDiagnosticoController.clear();
             if (_tipoOrdem == null) {
               _descontoServicos = 0.0;
               _descontoServicosController.clear();
@@ -5149,8 +5245,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
 
     if (_tipoOrdem == 'diagnostico') {
-      if (_precoDiagnostico <= 0) {
-        _showErrorSnackBar('Por favor, informe o valor do diagnóstico');
+      if (_diagnosticosSelecionados.isEmpty) {
+        _showErrorSnackBar('Por favor, adicione ao menos um diagnóstico');
         return;
       }
     } else if (_servicosSelecionados.isEmpty) {
@@ -5158,8 +5254,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       return;
     }
 
-    if (_tipoOrdem == 'diagnostico_servico' && _precoDiagnostico <= 0) {
-      _showErrorSnackBar('Por favor, informe o valor da taxa de diagnóstico');
+    if (_tipoOrdem == 'diagnostico_servico' && _diagnosticosSelecionados.isEmpty) {
+      _showErrorSnackBar('Por favor, adicione ao menos um diagnóstico');
       return;
     }
 
@@ -5192,6 +5288,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         queixaPrincipal: _queixaPrincipalController.text,
         servicosRealizados: _tipoOrdem == 'diagnostico' ? [] : _servicosSelecionados,
         pecasUtilizadas: _tipoOrdem == 'diagnostico' ? [] : _pecasSelecionadas,
+        diagnosticosOS: _tipoOrdem != null ? _diagnosticosSelecionados : [],
         precoTotal: _precoTotal,
         precoTotalServicos: _precoTotalServicos,
         precoTotalPecas: _tipoOrdem == 'diagnostico' ? 0.0 : _calcularTotalPecas(),
@@ -5205,7 +5302,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.isEmpty ? null : _observacoesController.text,
         tipoDiagnostico: _tipoOrdem,
-        precoDiagnostico: _tipoOrdem != null ? _precoDiagnostico : null,
+        precoDiagnostico: _tipoOrdem != null ? _calcularTotalDiagnosticos() : null,
       );
 
       bool sucesso;
@@ -6276,7 +6373,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _tipoOrdem = osCompleta.tipoDiagnostico;
-          _precoDiagnostico = osCompleta.precoDiagnostico ?? 0.0;
+          _diagnosticosSelecionados.clear();
+          _diagnosticosSelecionados.addAll(osCompleta.diagnosticosOS);
+          if (_diagnosticosSelecionados.isEmpty && (osCompleta.precoDiagnostico ?? 0) > 0) {
+            _diagnosticosSelecionados.add(
+              DiagnosticoItem(descricao: 'Diagnóstico', valor: osCompleta.precoDiagnostico!),
+            );
+          }
+          _precoDiagnostico = _calcularTotalDiagnosticos();
           _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;
@@ -6452,7 +6556,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _descontoServicosController.text = _descontoServicos > 0 ? _descontoServicos.toStringAsFixed(2) : '';
           _descontoPecasController.text = _descontoPecas > 0 ? _descontoPecas.toStringAsFixed(2) : '';
           _tipoOrdem = osCompleta.tipoDiagnostico;
-          _precoDiagnostico = osCompleta.precoDiagnostico ?? 0.0;
+          _diagnosticosSelecionados.clear();
+          _diagnosticosSelecionados.addAll(osCompleta.diagnosticosOS);
+          if (_diagnosticosSelecionados.isEmpty && (osCompleta.precoDiagnostico ?? 0) > 0) {
+            _diagnosticosSelecionados.add(
+              DiagnosticoItem(descricao: 'Diagnóstico', valor: osCompleta.precoDiagnostico!),
+            );
+          }
+          _precoDiagnostico = _calcularTotalDiagnosticos();
           _precoDiagnosticoController.text = _precoDiagnostico > 0 ? _precoDiagnostico.toStringAsFixed(2) : '';
           _numeroParcelas = osCompleta.numeroParcelas;
           _prazoFiadoDias = osCompleta.prazoFiadoDias;

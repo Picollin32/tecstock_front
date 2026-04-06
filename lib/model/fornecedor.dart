@@ -4,6 +4,7 @@ class Fornecedor {
   String cnpj;
   String telefone;
   String email;
+  bool servico;
   double? margemLucro;
   String? cep;
   String? rua;
@@ -22,6 +23,7 @@ class Fornecedor {
     required this.cnpj,
     required this.telefone,
     required this.email,
+    this.servico = false,
     this.margemLucro,
     this.cep,
     this.rua,
@@ -38,19 +40,20 @@ class Fornecedor {
   factory Fornecedor.fromJson(Map<String, dynamic> json) {
     return Fornecedor(
       id: json['id'],
-      nome: json['nome'],
-      cnpj: json['cnpj'],
-      telefone: json['telefone'],
-      email: json['email'],
+      nome: (json['nome'] ?? '').toString(),
+      cnpj: (json['cnpj'] ?? '').toString(),
+      telefone: (json['telefone'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      servico: json['servico'] ?? false,
       margemLucro: (json['margemLucro'] as num?)?.toDouble(),
-      cep: json['cep'],
-      rua: json['rua'],
-      numeroCasa: json['numeroCasa'],
-      complemento: json['complemento'],
-      bairro: json['bairro'],
-      cidade: json['cidade'],
-      uf: json['uf'],
-      codigoMunicipio: json['codigoMunicipio'],
+      cep: json['cep']?.toString(),
+      rua: json['rua']?.toString(),
+      numeroCasa: json['numeroCasa']?.toString(),
+      complemento: json['complemento']?.toString(),
+      bairro: json['bairro']?.toString(),
+      cidade: json['cidade']?.toString(),
+      uf: json['uf']?.toString(),
+      codigoMunicipio: json['codigoMunicipio']?.toString(),
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -63,6 +66,7 @@ class Fornecedor {
       'cnpj': cnpj,
       'telefone': telefone,
       'email': email,
+      'servico': servico,
       'margemLucro': margemLucro,
       'cep': cep,
       'rua': rua,

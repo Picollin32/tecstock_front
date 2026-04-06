@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../model/categoria_financeira.dart';
 import '../model/conta.dart';
+import '../model/fornecedor.dart';
+import '../services/categoria_financeira_service.dart';
 import '../services/conta_service.dart';
+import '../services/fornecedor_service.dart';
+
+class _ParcelaDraft {
+  _ParcelaDraft({required this.numero, required this.valor, required this.vencimento});
+
+  int numero;
+  double valor;
+  DateTime vencimento;
+}
 
 class ContasPage extends StatefulWidget {
   const ContasPage({super.key});
@@ -19,7 +31,16 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   List<Conta> _contasAPagar = [];
   List<Conta> _contasAReceber = [];
   List<Conta> _contasAtrasadas = [];
+  List<CategoriaFinanceira> _categoriasFinanceiras = [];
+  List<Fornecedor> _fornecedores = [];
   Map<String, double> _resumo = {};
+  String _modoAgrupamentoAPagar = 'TODAS';
+  String _ordenacaoAPagar = 'VENCIMENTO';
+  String _filtroStatusAPagar = 'TODOS';
+  String _ordenacaoAReceber = 'VENCIMENTO';
+  String _filtroStatusAReceber = 'TODOS';
+  int? _filtroFornecedorId;
+  final Set<String> _categoriasExpandidas = <String>{};
 
   static const Color _corPagar = Color(0xFFDC2626);
   static const Color _corReceber = Color(0xFF16A34A);
@@ -53,12 +74,16 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         ContaService.listarAReceberPorMesAno(mes, ano),
         ContaService.resumoMes(mes, ano),
         ContaService.listarAtrasadas(),
+        CategoriaFinanceiraService.listar(),
+        FornecedorService.listarFornecedores(),
       ]);
       setState(() {
         _contasAPagar = results[0] as List<Conta>;
         _contasAReceber = results[1] as List<Conta>;
         _resumo = results[2] as Map<String, double>;
         _contasAtrasadas = results[3] as List<Conta>;
+        _categoriasFinanceiras = results[4] as List<CategoriaFinanceira>;
+        _fornecedores = results[5] as List<Fornecedor>;
         _isLoading = false;
       });
     } catch (e) {
@@ -90,6 +115,387 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
   String get _labelMes {
     return DateFormat('MMMM yyyy', 'pt_BR').format(_mesAtual);
+  }
+
+  List<Conta> _ordenarContas(List<Conta> contas, String ordenacao) {
+    final ordenadas = [...contas];
+    switch (ordenacao) {
+      case 'NOME':
+        ordenadas.sort((a, b) => a.descricao.toLowerCase().compareTo(b.descricao.toLowerCase()));
+        break;
+      case 'VALOR':
+        ordenadas.sort((a, b) => b.valor.compareTo(a.valor));
+        break;
+      default:
+        ordenadas.sort((a, b) {
+          final dataA = a.dataVencimento ?? DateTime(2100);
+          final dataB = b.dataVencimento ?? DateTime(2100);
+          return dataA.compareTo(dataB);
+        });
+        break;
+    }
+    return ordenadas;
+  }
+
+  String _mesesAtrasoLabel(List<Conta> contas) {
+    final meses = <String>{};
+    for (final conta in contas) {
+      final data = conta.dataVencimento;
+      if (data == null) continue;
+      meses.add(DateFormat('MM/yyyy', 'pt_BR').format(data));
+    }
+    final lista = meses.toList()..sort();
+    if (lista.isEmpty) return '-';
+    return lista.join(', ');
+  }
+
+  String _nomeCategoriaConta(Conta conta) {
+    final nome = conta.categoriaNome?.trim();
+    if (nome == null || nome.isEmpty) return 'Sem categoria';
+    return nome;
+  }
+
+  Map<int, Map<String, int>> _fornecedoresComContasAtivasNoMes() {
+    final mapa = <int, Map<String, int>>{};
+    for (final conta in _contasAPagar) {
+      final fornecedorId = conta.fornecedorId;
+      if (fornecedorId == null) continue;
+      final resumo = mapa.putIfAbsent(
+        fornecedorId,
+        () => {
+          'total': 0,
+          'pagos': 0,
+          'pendentes': 0,
+        },
+      );
+      resumo['total'] = (resumo['total'] ?? 0) + 1;
+      if (conta.pago) {
+        resumo['pagos'] = (resumo['pagos'] ?? 0) + 1;
+      } else {
+        resumo['pendentes'] = (resumo['pendentes'] ?? 0) + 1;
+      }
+    }
+    return mapa;
+  }
+
+  Map<String, List<Conta>> _agruparPorCategoria(List<Conta> contas) {
+    final mapa = <String, List<Conta>>{};
+    for (final conta in contas) {
+      final chave = _nomeCategoriaConta(conta);
+      mapa.putIfAbsent(chave, () => []);
+      mapa[chave]!.add(conta);
+    }
+    return mapa;
+  }
+
+  Future<void> _abrirGerenciarCategorias() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx2, setDialogState) {
+            Future<void> recarregarCategorias() async {
+              final categorias = await CategoriaFinanceiraService.listar();
+              if (!mounted) return;
+              setState(() => _categoriasFinanceiras = categorias);
+              setDialogState(() {});
+            }
+
+            Future<void> abrirFormulario({CategoriaFinanceira? categoria}) async {
+              final nomeCtrl = TextEditingController(text: categoria?.nome ?? '');
+              final descricaoCtrl = TextEditingController(text: categoria?.descricao ?? '');
+              final formKey = GlobalKey<FormState>();
+
+              await showDialog<void>(
+                context: ctx2,
+                builder: (dCtx) => AlertDialog(
+                  title: Text(categoria == null ? 'Nova Categoria' : 'Editar Categoria'),
+                  content: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: nomeCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Nome *',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Informe o nome' : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: descricaoCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Descrição',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancelar')),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        Map<String, dynamic> result;
+                        if (categoria == null) {
+                          result = await CategoriaFinanceiraService.criar(
+                            nomeCtrl.text.trim(),
+                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
+                          );
+                        } else {
+                          result = await CategoriaFinanceiraService.atualizar(
+                            categoria.id!,
+                            nomeCtrl.text.trim(),
+                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
+                          );
+                        }
+
+                        if (result['sucesso'] == true) {
+                          if (!mounted) return;
+                          if (!dCtx.mounted) return;
+                          Navigator.pop(dCtx);
+                          _mostrarSucesso(categoria == null ? 'Categoria criada!' : 'Categoria atualizada!');
+                          await recarregarCategorias();
+                        } else {
+                          _mostrarErro(result['mensagem'] ?? 'Erro ao salvar categoria');
+                        }
+                      },
+                      child: const Text('Salvar'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Future<void> excluirCategoria(CategoriaFinanceira categoria) async {
+              final confirmar = await showDialog<bool>(
+                context: ctx2,
+                builder: (dCtx) => AlertDialog(
+                  title: const Text('Excluir categoria'),
+                  content: Text('Deseja excluir a categoria "${categoria.nome}"?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancelar')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(dCtx, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Excluir'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmar != true) return;
+
+              final result = await CategoriaFinanceiraService.deletar(categoria.id!);
+              if (result['sucesso'] == true) {
+                _mostrarSucesso('Categoria removida!');
+                await recarregarCategorias();
+              } else {
+                _mostrarErro(result['mensagem'] ?? 'Erro ao excluir categoria');
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Plano de Contas - Categorias'),
+              content: SizedBox(
+                width: 540,
+                height: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () => abrirFormulario(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Nova Categoria'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: _categoriasFinanceiras.isEmpty
+                          ? const Center(child: Text('Nenhuma categoria cadastrada.'))
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: _categoriasFinanceiras.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final categoria = _categoriasFinanceiras[i];
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(categoria.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  subtitle: (categoria.descricao != null && categoria.descricao!.trim().isNotEmpty)
+                                      ? Text(categoria.descricao!)
+                                      : null,
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Editar',
+                                        onPressed: () => abrirFormulario(categoria: categoria),
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Excluir',
+                                        onPressed: () => excluirCategoria(categoria),
+                                        icon: const Icon(Icons.delete_outline),
+                                        color: Colors.red,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fechar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  List<_ParcelaDraft> _gerarParcelasPadrao({
+    required double valorTotal,
+    required int quantidade,
+    required DateTime base,
+  }) {
+    final parcelas = <_ParcelaDraft>[];
+    if (quantidade < 1) return parcelas;
+
+    final valorBase = (valorTotal / quantidade);
+    double acumulado = 0;
+
+    for (int i = 0; i < quantidade; i++) {
+      final valorParcela =
+          i == quantidade - 1 ? ((valorTotal - acumulado) * 100).roundToDouble() / 100 : (valorBase * 100).roundToDouble() / 100;
+      acumulado += valorParcela;
+      parcelas.add(
+        _ParcelaDraft(
+          numero: i + 1,
+          valor: valorParcela,
+          vencimento: DateTime(base.year, base.month + i, base.day),
+        ),
+      );
+    }
+
+    return parcelas;
+  }
+
+  Future<Map<String, dynamic>?> _mostrarDialogBaixaConta(Conta conta) async {
+    DateTime dataPagamento = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final acrescimoCtrl = TextEditingController();
+    final descontoCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Baixa da Conta', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(conta.descricao, style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: () async {
+                    final hoje = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+                    final picked = await showDatePicker(
+                      context: ctx2,
+                      initialDate: dataPagamento,
+                      firstDate: DateTime(2020),
+                      lastDate: hoje,
+                      locale: const Locale('pt', 'BR'),
+                    );
+                    if (picked != null) {
+                      setDialogState(() => dataPagamento = picked);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Data do pagamento *',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text(DateFormat('dd/MM/yyyy').format(dataPagamento), style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: acrescimoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Acréscimo (R\$) - opcional',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.replaceAll(',', '.'));
+                    if (n == null || n < 0) return 'Valor inválido';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: descontoCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Desconto (R\$) - opcional',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final n = double.tryParse(v.replaceAll(',', '.'));
+                    if (n == null || n < 0) return 'Valor inválido';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                final acrescimo = acrescimoCtrl.text.trim().isEmpty ? null : double.parse(acrescimoCtrl.text.replaceAll(',', '.'));
+                final desconto = descontoCtrl.text.trim().isEmpty ? null : double.parse(descontoCtrl.text.replaceAll(',', '.'));
+                Navigator.pop(ctx, {
+                  'dataPagamento': dataPagamento,
+                  'acrescimo': acrescimo,
+                  'desconto': desconto,
+                });
+              },
+              child: const Text('Confirmar Baixa'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _togglePago(Conta conta) async {
@@ -220,7 +626,29 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       if (confirmar != true) return;
     }
 
-    final result = conta.pago ? await ContaService.desmarcarPagamento(conta.id!) : await ContaService.marcarComoPago(conta.id!);
+    Map<String, dynamic> result;
+    if (conta.pago) {
+      result = await ContaService.desmarcarPagamento(conta.id!);
+    } else {
+      DateTime dataPagamento = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      double? acrescimo;
+      double? desconto;
+
+      if (conta.isAPagar) {
+        final baixa = await _mostrarDialogBaixaConta(conta);
+        if (baixa == null) return;
+        dataPagamento = baixa['dataPagamento'] as DateTime;
+        acrescimo = baixa['acrescimo'] as double?;
+        desconto = baixa['desconto'] as double?;
+      }
+
+      result = await ContaService.marcarComoPago(
+        conta.id!,
+        dataPagamento: dataPagamento,
+        acrescimo: acrescimo,
+        desconto: desconto,
+      );
+    }
 
     if (result['sucesso'] == true) {
       if (conta.isFiado && !conta.pago) {
@@ -387,28 +815,110 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     DateTime vencimento = DateTime(_mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
 
     bool isFrete = false;
-    String? fretePagamento;
-    int freteNumeroParcelas = 2;
-    DateTime? freteBoleto30Venc;
+    String? formaPagamento;
+    int? categoriaFinanceiraId;
+    int? fornecedorId;
+    int numeroParcelas = 2;
+    List<_ParcelaDraft> parcelas = [];
+    DateTime? boleto30Vencimento;
+    final boleto3060Valor1Ctrl = TextEditingController();
+    final boleto3060Valor2Ctrl = TextEditingController();
+    DateTime? boleto3060Venc1;
+    DateTime? boleto3060Venc2;
 
-    final freteFormas = [
+    final formas = [
       (key: 'dinheiro', label: 'Dinheiro', backend: 'AVISTA', icon: Icons.payments_outlined),
       (key: 'pix', label: 'Pix', backend: 'AVISTA', icon: Icons.pix),
       (key: 'debito', label: 'Débito', backend: 'AVISTA', icon: Icons.credit_card),
-      (key: 'credito', label: 'Crédito', backend: 'CREDITO', icon: Icons.credit_score),
+      (key: 'credito', label: 'Cartão de Crédito', backend: 'CREDITO', icon: Icons.credit_score),
       (key: 'boleto30', label: 'Boleto 30 dias', backend: 'BOLETO30', icon: Icons.receipt_long),
+      (key: 'boleto30_60', label: 'Boleto 30/60', backend: 'BOLETO30_60', icon: Icons.receipt_long),
     ];
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDialogState) {
-          bool freteValido() {
-            if (!isFrete) return true;
-            final v = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
-            if (v <= 0 || fretePagamento == null || descricaoCtrl.text.trim().isEmpty) return false;
-            if (fretePagamento == 'boleto30' && freteBoleto30Venc == null) return false;
+          final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+
+          bool isCredito() => formaPagamento == 'credito';
+
+          bool isBoleto30() => formaPagamento == 'boleto30';
+
+          bool isBoleto3060() => formaPagamento == 'boleto30_60';
+
+          bool usaTabelaParcelas() => isCredito();
+
+          double somaParcelas() => parcelas.fold<double>(0, (s, p) => s + p.valor);
+
+          void recalcularParcelas() {
+            if (!usaTabelaParcelas()) {
+              parcelas = [];
+              return;
+            }
+            final total = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
+            if (total <= 0) {
+              parcelas = [];
+              return;
+            }
+            parcelas = _gerarParcelasPadrao(valorTotal: total, quantidade: numeroParcelas, base: vencimento);
+          }
+
+          bool formularioValido() {
+            final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
+            if (descricaoCtrl.text.trim().isEmpty || valor <= 0 || formaPagamento == null) return false;
+            if (!isFrete && categoriaFinanceiraId == null) return false;
+            if (usaTabelaParcelas()) {
+              if (parcelas.isEmpty) return false;
+              final soma = somaParcelas();
+              return (soma - valor).abs() <= 0.02;
+            }
+
+            if (isBoleto30()) {
+              if (boleto30Vencimento == null) return false;
+              return !boleto30Vencimento!.isBefore(hojeSemHora);
+            }
+
+            if (isBoleto3060()) {
+              final valor1 = double.tryParse(boleto3060Valor1Ctrl.text.replaceAll(',', '.')) ?? 0;
+              final valor2 = double.tryParse(boleto3060Valor2Ctrl.text.replaceAll(',', '.')) ?? 0;
+              if (valor1 <= 0 || valor2 <= 0) return false;
+              if (((valor1 + valor2) - valor).abs() > 0.02) return false;
+              if (boleto3060Venc1 == null || boleto3060Venc2 == null) return false;
+              if (boleto3060Venc1!.isBefore(hojeSemHora) || boleto3060Venc2!.isBefore(hojeSemHora)) return false;
+              if (!boleto3060Venc2!.isAfter(boleto3060Venc1!)) return false;
+            }
+
             return true;
+          }
+
+          Future<void> editarValorParcela(int idx) async {
+            final ctrl = TextEditingController(text: parcelas[idx].valor.toStringAsFixed(2).replaceAll('.', ','));
+            final novo = await showDialog<double>(
+              context: ctx2,
+              builder: (dialogCtx) => AlertDialog(
+                title: Text('Parcela ${idx + 1}'),
+                content: TextField(
+                  controller: ctrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor (R\$)'),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+                  TextButton(
+                    onPressed: () {
+                      final parsed = double.tryParse(ctrl.text.replaceAll(',', '.'));
+                      if (parsed == null || parsed <= 0) return;
+                      Navigator.pop(dialogCtx, parsed);
+                    },
+                    child: const Text('Salvar'),
+                  ),
+                ],
+              ),
+            );
+            if (novo != null) {
+              setDialogState(() => parcelas[idx].valor = novo);
+            }
           }
 
           return AlertDialog(
@@ -444,7 +954,23 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                       children: [
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setDialogState(() => isFrete = false),
+                            onTap: () => setDialogState(() {
+                              if (!isFrete) return;
+                              isFrete = false;
+                              descricaoCtrl.clear();
+                              valorCtrl.clear();
+                              formaPagamento = null;
+                              categoriaFinanceiraId = null;
+                              fornecedorId = null;
+                              numeroParcelas = 2;
+                              parcelas = [];
+                              boleto30Vencimento = null;
+                              boleto3060Valor1Ctrl.clear();
+                              boleto3060Valor2Ctrl.clear();
+                              boleto3060Venc1 = null;
+                              boleto3060Venc2 = null;
+                              vencimento = DateTime(_mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
@@ -469,7 +995,23 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                         ),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => setDialogState(() => isFrete = true),
+                            onTap: () => setDialogState(() {
+                              if (isFrete) return;
+                              isFrete = true;
+                              descricaoCtrl.clear();
+                              valorCtrl.clear();
+                              formaPagamento = null;
+                              categoriaFinanceiraId = null;
+                              fornecedorId = null;
+                              numeroParcelas = 2;
+                              parcelas = [];
+                              boleto30Vencimento = null;
+                              boleto3060Valor1Ctrl.clear();
+                              boleto3060Valor2Ctrl.clear();
+                              boleto3060Venc1 = null;
+                              boleto3060Venc2 = null;
+                              vencimento = DateTime(_mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
+                            }),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 10),
                               decoration: BoxDecoration(
@@ -502,11 +1044,51 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                       ),
                       validator: (v) => v == null || v.trim().isEmpty ? 'Campo obrigatório' : null,
                     ),
+                    if (!isFrete) ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        initialValue: categoriaFinanceiraId,
+                        decoration: InputDecoration(
+                          labelText: 'Categoria financeira *',
+                          prefixIcon: const Icon(Icons.category_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        items: _categoriasFinanceiras
+                            .map(
+                              (c) => DropdownMenuItem<int>(
+                                value: c.id,
+                                child: Text(c.nome),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setDialogState(() => categoriaFinanceiraId = v),
+                        validator: (v) => v == null ? 'Selecione uma categoria' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int?>(
+                        initialValue: fornecedorId,
+                        decoration: InputDecoration(
+                          labelText: 'Fornecedor (opcional)',
+                          prefixIcon: const Icon(Icons.store_outlined),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(value: null, child: Text('Sem fornecedor')),
+                          ..._fornecedores.map(
+                            (f) => DropdownMenuItem<int?>(
+                              value: f.id,
+                              child: Text(f.nome),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) => setDialogState(() => fornecedorId = v),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: valorCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setDialogState(() {}),
+                      onChanged: (_) => setDialogState(recalcularParcelas),
                       decoration: const InputDecoration(
                         labelText: 'Valor (R\$) *',
                         prefixIcon: Icon(Icons.attach_money),
@@ -520,182 +1102,290 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                       },
                     ),
                     const SizedBox(height: 12),
-                    if (!isFrete)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx2,
+                          initialDate: vencimento,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2035),
+                          locale: const Locale('pt', 'BR'),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            vencimento = picked;
+                            recalcularParcelas();
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event, color: Colors.grey),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Vencimento base', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                Text(
+                                  DateFormat('dd/MM/yyyy').format(vencimento),
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: formaPagamento,
+                      decoration: InputDecoration(
+                        labelText: 'Forma de Pagamento *',
+                        prefixIcon: Icon(Icons.payment, color: isFrete ? Colors.orange.shade700 : _corPagar),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: formas.map((f) {
+                        return DropdownMenuItem<String>(
+                          value: f.key,
+                          child: Row(
+                            children: [
+                              Icon(f.icon, size: 18, color: isFrete ? Colors.orange.shade700 : _corPagar),
+                              const SizedBox(width: 8),
+                              Text(f.label),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setDialogState(() {
+                        formaPagamento = v;
+                        numeroParcelas = 2;
+                        boleto30Vencimento = null;
+                        boleto3060Valor1Ctrl.clear();
+                        boleto3060Valor2Ctrl.clear();
+                        boleto3060Venc1 = null;
+                        boleto3060Venc2 = null;
+                        recalcularParcelas();
+                      }),
+                      validator: (v) => v == null ? 'Selecione a forma de pagamento' : null,
+                    ),
+                    if (isBoleto30()) ...[
+                      const SizedBox(height: 12),
                       InkWell(
-                        borderRadius: BorderRadius.circular(8),
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: ctx2,
                             initialDate: vencimento,
-                            firstDate: DateTime(2020),
+                            firstDate: hojeSemHora,
                             lastDate: DateTime(2035),
                             locale: const Locale('pt', 'BR'),
                           );
                           if (picked != null) {
-                            setDialogState(() => vencimento = picked);
+                            setDialogState(() => boleto30Vencimento = picked);
                           }
                         },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade400),
-                            borderRadius: BorderRadius.circular(8),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Vencimento do Boleto *',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.event, color: Colors.grey),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Vencimento', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                                  Text(
-                                    DateFormat('dd/MM/yyyy').format(vencimento),
-                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          child: Text(
+                            boleto30Vencimento != null ? DateFormat('dd/MM/yyyy').format(boleto30Vencimento!) : 'Selecionar data',
+                            style: TextStyle(
+                              color: boleto30Vencimento != null ? Colors.black87 : Colors.grey.shade500,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isBoleto3060()) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: boleto3060Valor1Ctrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Parcela 1 (R\$) *',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: ctx2,
+                                  initialDate: vencimento,
+                                  firstDate: hojeSemHora,
+                                  lastDate: DateTime(2035),
+                                  locale: const Locale('pt', 'BR'),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => boleto3060Venc1 = picked);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Venc. 1 *',
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: Text(
+                                  boleto3060Venc1 != null ? DateFormat('dd/MM/yyyy').format(boleto3060Venc1!) : 'Selecionar',
+                                  style: TextStyle(color: boleto3060Venc1 != null ? Colors.black87 : Colors.grey.shade500),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: boleto3060Valor2Ctrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Parcela 2 (R\$) *',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final inicial = (boleto3060Venc1 ?? vencimento).add(const Duration(days: 1));
+                                final picked = await showDatePicker(
+                                  context: ctx2,
+                                  initialDate: inicial,
+                                  firstDate: hojeSemHora,
+                                  lastDate: DateTime(2035),
+                                  locale: const Locale('pt', 'BR'),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => boleto3060Venc2 = picked);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Venc. 2 *',
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: Text(
+                                  boleto3060Venc2 != null ? DateFormat('dd/MM/yyyy').format(boleto3060Venc2!) : 'Selecionar',
+                                  style: TextStyle(color: boleto3060Venc2 != null ? Colors.black87 : Colors.grey.shade500),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Builder(
+                          builder: (_) {
+                            final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
+                            final valor1 = double.tryParse(boleto3060Valor1Ctrl.text.replaceAll(',', '.')) ?? 0;
+                            final valor2 = double.tryParse(boleto3060Valor2Ctrl.text.replaceAll(',', '.')) ?? 0;
+                            final okSoma = ((valor1 + valor2) - valor).abs() <= 0.02;
+                            return Text(
+                              'Soma 30/60: R\$ ${(valor1 + valor2).toStringAsFixed(2).replaceAll('.', ',')}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: okSoma ? Colors.green.shade700 : Colors.red.shade700,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    if (usaTabelaParcelas()) ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        initialValue: numeroParcelas,
+                        decoration: const InputDecoration(
+                          labelText: 'Número de Parcelas',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(12, (i) => i + 2)
+                            .map((n) => DropdownMenuItem<int>(value: n, child: Text('$n parcelas')))
+                            .toList(),
+                        onChanged: (v) => setDialogState(() {
+                          numeroParcelas = v ?? 2;
+                          recalcularParcelas();
+                        }),
+                      ),
+                      const SizedBox(height: 10),
+                      if (parcelas.isNotEmpty)
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('Parcela')),
+                              DataColumn(label: Text('Vencimento')),
+                              DataColumn(label: Text('Valor')),
+                              DataColumn(label: Text('Ações')),
+                            ],
+                            rows: parcelas.map((p) {
+                              final idx = p.numero - 1;
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text('${p.numero}/$numeroParcelas')),
+                                  DataCell(
+                                    InkWell(
+                                      onTap: () async {
+                                        final picked = await showDatePicker(
+                                          context: ctx2,
+                                          initialDate: p.vencimento,
+                                          firstDate: DateTime(2020),
+                                          lastDate: DateTime(2035),
+                                          locale: const Locale('pt', 'BR'),
+                                        );
+                                        if (picked != null) {
+                                          setDialogState(() => parcelas[idx].vencimento = picked);
+                                        }
+                                      },
+                                      child: Text(DateFormat('dd/MM/yyyy').format(p.vencimento)),
+                                    ),
+                                  ),
+                                  DataCell(Text('R\$ ${p.valor.toStringAsFixed(2).replaceAll('.', ',')}')),
+                                  DataCell(
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, size: 18),
+                                      onPressed: () => editarValorParcela(idx),
+                                    ),
                                   ),
                                 ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (isFrete) ...[
-                      DropdownButtonFormField<String>(
-                        initialValue: fretePagamento,
-                        decoration: InputDecoration(
-                          labelText: 'Forma de Pagamento *',
-                          prefixIcon: Icon(Icons.payment, color: Colors.orange.shade700),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.orange.shade300),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: Colors.orange.shade700, width: 2),
-                          ),
-                          filled: true,
-                          fillColor: Colors.orange.shade50,
-                        ),
-                        items: freteFormas.map((f) {
-                          return DropdownMenuItem<String>(
-                            value: f.key,
-                            child: Row(
-                              children: [
-                                Icon(f.icon, size: 18, color: Colors.orange.shade700),
-                                const SizedBox(width: 8),
-                                Text(f.label),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (v) => setDialogState(() {
-                          fretePagamento = v;
-                          freteBoleto30Venc = null;
-                          freteNumeroParcelas = 2;
-                        }),
-                        validator: (v) => isFrete && v == null ? 'Selecione a forma de pagamento' : null,
-                      ),
-                      if (fretePagamento == 'credito') ...[
-                        const SizedBox(height: 12),
-                        Builder(builder: (ctx3) {
-                          final val = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
-                          return DropdownButtonFormField<int>(
-                            initialValue: freteNumeroParcelas,
-                            decoration: InputDecoration(
-                              labelText: 'Número de Parcelas',
-                              prefixIcon: Icon(Icons.format_list_numbered, color: Colors.orange.shade700),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: Colors.orange.shade300),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(color: Colors.orange.shade700, width: 2),
-                              ),
-                              filled: true,
-                              fillColor: Colors.orange.shade50,
-                            ),
-                            items: List.generate(12, (i) => i + 2).map((n) {
-                              final vp = val > 0 ? val / n : 0.0;
-                              return DropdownMenuItem<int>(
-                                value: n,
-                                child: Text('${n}x  (parcela ~R\$ ${vp.toStringAsFixed(2)})'),
                               );
                             }).toList(),
-                            onChanged: (v) => setDialogState(() => freteNumeroParcelas = v ?? 2),
-                          );
-                        }),
-                      ],
-                      if (fretePagamento == 'boleto30') ...[
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: ctx2,
-                              initialDate: DateTime.now().add(const Duration(days: 30)),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 365)),
-                              locale: const Locale('pt', 'BR'),
-                            );
-                            if (picked != null) setDialogState(() => freteBoleto30Venc = picked);
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: freteBoleto30Venc != null ? Colors.orange.shade400 : Colors.grey.shade400),
-                              borderRadius: BorderRadius.circular(8),
-                              color: Colors.orange.shade50,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.event, color: Colors.orange.shade700),
-                                const SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Vencimento', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                    Text(
-                                      freteBoleto30Venc != null ? DateFormat('dd/MM/yyyy').format(freteBoleto30Venc!) : 'Selecionar data',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                        color: freteBoleto30Venc != null ? Colors.black87 : Colors.grey.shade500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
                           ),
                         ),
-                        if (freteBoleto30Venc == null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4, left: 4),
-                            child: Text('Selecione a data de vencimento', style: TextStyle(fontSize: 11, color: Colors.red.shade400)),
-                          ),
-                      ],
-                      if (fretePagamento != null && fretePagamento != 'credito' && fretePagamento != 'boleto30') ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle_outline, size: 14, color: Colors.green.shade700),
-                              const SizedBox(width: 6),
-                              Text('Registrado como já pago',
-                                  style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
-                            ],
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'Soma: R\$ ${somaParcelas().toStringAsFixed(2).replaceAll('.', ',')}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: (somaParcelas() - (double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0)).abs() <= 0.02
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ],
                 ),
@@ -716,46 +1406,52 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                 label: const Text('Adicionar'),
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  if (!freteValido()) return;
+                  if (!formularioValido()) {
+                    _mostrarErro('Confira forma de pagamento e parcelas.');
+                    return;
+                  }
                   Navigator.pop(ctx);
 
-                  if (!isFrete) {
-                    final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
-                    final nova = Conta(
-                      tipo: 'A_PAGAR',
-                      descricao: descricaoCtrl.text.trim(),
-                      valor: valor,
-                      mesReferencia: vencimento.month,
-                      anoReferencia: vencimento.year,
-                      dataVencimento: vencimento,
-                    );
-                    final result = await ContaService.adicionarContaPagar(nova);
-                    if (result['sucesso'] == true) {
-                      _mostrarSucesso('Conta adicionada com sucesso!');
-                      _carregarDados();
-                    } else {
-                      _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar conta');
-                    }
+                  final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
+                  final backend = formas.firstWhere((f) => f.key == formaPagamento).backend;
+                  final pagamentoData = <String, dynamic>{
+                    'formaPagamento': backend,
+                  };
+
+                  if (isCredito()) {
+                    pagamentoData['parcelasDetalhadas'] = parcelas
+                        .map((p) => {
+                              'numero': p.numero,
+                              'valor': p.valor,
+                              'vencimento': p.vencimento.toIso8601String().substring(0, 10),
+                            })
+                        .toList();
+                    pagamentoData['numeroParcelas'] = parcelas.length;
+                  } else if (isBoleto30()) {
+                    pagamentoData['boleto30Vencimento'] = boleto30Vencimento!.toIso8601String().substring(0, 10);
+                  } else if (isBoleto3060()) {
+                    pagamentoData['boleto30_60Parcela1Valor'] = double.parse(boleto3060Valor1Ctrl.text.replaceAll(',', '.'));
+                    pagamentoData['boleto30_60Parcela1Vencimento'] = boleto3060Venc1!.toIso8601String().substring(0, 10);
+                    pagamentoData['boleto30_60Parcela2Valor'] = double.parse(boleto3060Valor2Ctrl.text.replaceAll(',', '.'));
+                    pagamentoData['boleto30_60Parcela2Vencimento'] = boleto3060Venc2!.toIso8601String().substring(0, 10);
                   } else {
-                    final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
-                    final backend = freteFormas.firstWhere((f) => f.key == fretePagamento).backend;
-                    final pagamentoData = <String, dynamic>{'formaPagamento': backend};
-                    if (fretePagamento == 'credito') {
-                      pagamentoData['numeroParcelas'] = freteNumeroParcelas;
-                    } else if (fretePagamento == 'boleto30') {
-                      pagamentoData['boleto30Vencimento'] = freteBoleto30Venc!.toIso8601String().substring(0, 10);
-                    }
-                    final result = await ContaService.adicionarFrete(
-                      descricao: descricaoCtrl.text.trim(),
-                      valor: valor,
-                      pagamento: pagamentoData,
-                    );
-                    if (result['sucesso'] == true) {
-                      _mostrarSucesso('Frete adicionado com sucesso!');
-                      _carregarDados();
-                    } else {
-                      _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar frete');
-                    }
+                    pagamentoData['boleto30Vencimento'] = vencimento.toIso8601String().substring(0, 10);
+                  }
+
+                  final result = await ContaService.adicionarLancamentoAPagar(
+                    descricao: descricaoCtrl.text.trim(),
+                    valor: valor,
+                    origem: isFrete ? 'FRETE' : 'DESPESA',
+                    pagamento: pagamentoData,
+                    categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
+                    fornecedorId: isFrete ? null : fornecedorId,
+                  );
+
+                  if (result['sucesso'] == true) {
+                    _mostrarSucesso(isFrete ? 'Frete adicionado com sucesso!' : 'Despesa adicionada com sucesso!');
+                    _carregarDados();
+                  } else {
+                    _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar lançamento');
                   }
                 },
               ),
@@ -963,18 +1659,37 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton.extended(
-              backgroundColor: _corPagar,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add),
-              label: const Text('Nova Conta'),
-              onPressed: _abrirDialogAdicionarConta,
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'fab_categorias',
+                  backgroundColor: const Color(0xFF334155),
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.category_outlined),
+                  label: const Text('Gerenciar Categorias'),
+                  onPressed: _abrirGerenciarCategorias,
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton.extended(
+                  heroTag: 'fab_nova_conta',
+                  backgroundColor: _corPagar,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Nova Conta'),
+                  onPressed: _abrirDialogAdicionarConta,
+                ),
+              ],
             )
           : null,
       body: Column(
         children: [
           _buildHeader(),
-          if (_contasAtrasadas.isNotEmpty) _buildAlertaAtrasadas(),
+          if (_tabController.index == 0 && _contasAtrasadas.any((c) => c.isAPagar))
+            _buildAlertaAtrasadasTipo('A_PAGAR')
+          else if (_tabController.index == 1 && _contasAtrasadas.any((c) => c.isAReceber))
+            _buildAlertaAtrasadasTipo('A_RECEBER'),
           _buildTabBar(),
           Expanded(
             child: _isLoading
@@ -992,9 +1707,14 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildAlertaAtrasadas() {
-    final aPagar = _contasAtrasadas.where((c) => c.isAPagar).toList();
-    final aReceber = _contasAtrasadas.where((c) => c.isAReceber).toList();
+  Widget _buildAlertaAtrasadasTipo(String tipo) {
+    final atrasadas =
+        tipo == 'A_PAGAR' ? _contasAtrasadas.where((c) => c.isAPagar).toList() : _contasAtrasadas.where((c) => c.isAReceber).toList();
+    final total =
+        tipo == 'A_PAGAR' ? atrasadas.fold<double>(0, (s, c) => s + c.valor) : atrasadas.fold<double>(0, (s, c) => s + c.valorPendente);
+    final tituloTipo = tipo == 'A_PAGAR' ? 'A Pagar' : 'A Receber';
+    final corTipo = tipo == 'A_PAGAR' ? const Color(0xFFDC2626) : const Color(0xFF059669);
+    final mesesAtraso = _mesesAtrasoLabel(atrasadas);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
@@ -1016,24 +1736,22 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${_contasAtrasadas.length} conta${_contasAtrasadas.length != 1 ? "s" : ""} com vencimento passado',
+                  '${atrasadas.length} conta${atrasadas.length != 1 ? "s" : ""} com vencimento passado',
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF92400E)),
                 ),
               ),
             ],
           ),
-          if (aPagar.isNotEmpty || aReceber.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const Divider(color: Color(0xFFB45309), height: 1),
-            const SizedBox(height: 8),
-          ],
-          if (aPagar.isNotEmpty)
-            _buildAlertaLinha('A Pagar (${aPagar.length})', aPagar.fold<double>(0, (s, c) => s + c.valor), const Color(0xFFDC2626),
-                Icons.arrow_circle_up_outlined),
-          if (aPagar.isNotEmpty && aReceber.isNotEmpty) const SizedBox(height: 6),
-          if (aReceber.isNotEmpty)
-            _buildAlertaLinha('A Receber (${aReceber.length})', aReceber.fold<double>(0, (s, c) => s + c.valorPendente),
-                const Color(0xFF059669), Icons.arrow_circle_down_outlined),
+          const SizedBox(height: 8),
+          const Divider(color: Color(0xFFB45309), height: 1),
+          const SizedBox(height: 8),
+          _buildAlertaLinha('$tituloTipo (${atrasadas.length})', total, corTipo,
+              tipo == 'A_PAGAR' ? Icons.arrow_circle_up_outlined : Icons.arrow_circle_down_outlined),
+          const SizedBox(height: 6),
+          Text(
+            'Mês(es) em atraso: $mesesAtraso',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+          ),
         ],
       ),
     );
@@ -1211,6 +1929,33 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
   Widget _buildListaContas(List<Conta> contas, String tipo) {
     final cor = tipo == 'A_PAGAR' ? _corPagar : _corReceber;
+    List<Conta> contasBase = List<Conta>.from(contas);
+
+    if (tipo == 'A_PAGAR') {
+      if (_filtroStatusAPagar == 'PENDENTES') {
+        contasBase = contasBase.where((c) => !c.pago && !c.isAtrasada).toList();
+      } else if (_filtroStatusAPagar == 'ATRASADAS') {
+        contasBase = contasBase.where((c) => !c.pago && c.isAtrasada).toList();
+      } else if (_filtroStatusAPagar == 'PAGAS') {
+        contasBase = contasBase.where((c) => c.pago).toList();
+      }
+    } else {
+      if (_filtroStatusAReceber == 'PENDENTES') {
+        contasBase = contasBase.where((c) => !c.pago && !c.isAtrasada).toList();
+      } else if (_filtroStatusAReceber == 'ATRASADAS') {
+        contasBase = contasBase.where((c) => !c.pago && c.isAtrasada).toList();
+      } else if (_filtroStatusAReceber == 'RECEBIDAS') {
+        contasBase = contasBase.where((c) => c.pago).toList();
+      }
+    }
+
+    final fornecedoresAtivosNoMes = _fornecedoresComContasAtivasNoMes();
+    final filtroFornecedorValido = _filtroFornecedorId != null && fornecedoresAtivosNoMes.containsKey(_filtroFornecedorId);
+    if (tipo == 'A_PAGAR' && filtroFornecedorValido) {
+      contasBase = contasBase.where((c) => c.fornecedorId == _filtroFornecedorId).toList();
+    }
+    final contasOrdenadas = _ordenarContas(contasBase, tipo == 'A_PAGAR' ? _ordenacaoAPagar : _ordenacaoAReceber);
+    final semResultadosComFiltro = contas.isNotEmpty && contasOrdenadas.isEmpty;
 
     if (contas.isEmpty) {
       return Center(
@@ -1245,36 +1990,355 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       );
     }
 
-    final atrasadas = contas.where((c) => c.isAtrasada).toList();
-    final pendentes = contas.where((c) => !c.pago && !c.isAtrasada).toList();
-    final pagas = contas.where((c) => c.pago).toList();
+    if (tipo == 'A_PAGAR' && _modoAgrupamentoAPagar == 'CATEGORIAS') {
+      return RefreshIndicator(
+        onRefresh: _carregarDados,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+          children: [
+            _buildAbaResumo(contasOrdenadas, tipo),
+            const SizedBox(height: 12),
+            _buildFiltrosAPagar(),
+            const SizedBox(height: 12),
+            _buildVisaoCategorias(contasOrdenadas),
+          ],
+        ),
+      );
+    }
+
+    final atrasadas = contasOrdenadas.where((c) => c.isAtrasada).toList();
+    final pendentes = contasOrdenadas.where((c) => !c.pago && !c.isAtrasada).toList();
+    final pagas = contasOrdenadas.where((c) => c.pago).toList();
 
     return RefreshIndicator(
       onRefresh: _carregarDados,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         children: [
-          _buildAbaResumo(contas, tipo),
-          const SizedBox(height: 12),
-          if (atrasadas.isNotEmpty) ...[
-            _buildSecaoLabel('ATRASADAS', _corAtrasada, Icons.warning_amber_rounded),
-            const SizedBox(height: 6),
-            ...atrasadas.map((c) => _buildContaCard(c, cor)),
+          _buildAbaResumo(contasOrdenadas, tipo),
+          if (tipo == 'A_PAGAR') ...[
             const SizedBox(height: 12),
-          ],
-          if (pendentes.isNotEmpty) ...[
-            _buildSecaoLabel(tipo == 'A_PAGAR' ? 'PENDENTES' : 'A RECEBER', cor, Icons.radio_button_unchecked),
-            const SizedBox(height: 6),
-            ...pendentes.map((c) => _buildContaCard(c, cor)),
+            _buildFiltrosAPagar(),
+          ] else ...[
             const SizedBox(height: 12),
+            _buildFiltrosAReceber(),
           ],
-          if (pagas.isNotEmpty) ...[
-            _buildSecaoLabel(tipo == 'A_PAGAR' ? 'PAGAS' : 'RECEBIDAS', Colors.grey, Icons.check_circle_outline),
-            const SizedBox(height: 6),
-            ...pagas.map((c) => _buildContaCard(c, cor)),
+          if (semResultadosComFiltro) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Text(
+                'Nenhuma conta encontrada com os filtros selecionados.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            if (atrasadas.isNotEmpty) ...[
+              _buildSecaoLabel('ATRASADAS', _corAtrasada, Icons.warning_amber_rounded),
+              const SizedBox(height: 6),
+              ...atrasadas.map((c) => _buildContaCard(c, cor)),
+              const SizedBox(height: 12),
+            ],
+            if (pendentes.isNotEmpty) ...[
+              _buildSecaoLabel(tipo == 'A_PAGAR' ? 'PENDENTES' : 'A RECEBER', cor, Icons.radio_button_unchecked),
+              const SizedBox(height: 6),
+              ...pendentes.map((c) => _buildContaCard(c, cor)),
+              const SizedBox(height: 12),
+            ],
+            if (pagas.isNotEmpty) ...[
+              _buildSecaoLabel(tipo == 'A_PAGAR' ? 'PAGAS' : 'RECEBIDAS', Colors.grey, Icons.check_circle_outline),
+              const SizedBox(height: 6),
+              ...pagas.map((c) => _buildContaCard(c, cor)),
+            ],
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildFiltrosAPagar() {
+    final fornecedoresAtivosNoMes = _fornecedoresComContasAtivasNoMes();
+    final fornecedoresFiltraveis = _fornecedores.where((f) => f.id != null && fornecedoresAtivosNoMes.containsKey(f.id!)).toList()
+      ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    final int? filtroFornecedorAtual =
+        (_filtroFornecedorId != null && fornecedoresAtivosNoMes.containsKey(_filtroFornecedorId)) ? _filtroFornecedorId : null;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          SizedBox(
+            width: 280,
+            child: DropdownButtonFormField<String>(
+              initialValue: _modoAgrupamentoAPagar,
+              decoration: const InputDecoration(
+                labelText: 'Visualização',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'TODAS', child: Text('Todas as contas')),
+                DropdownMenuItem(value: 'CATEGORIAS', child: Text('Por categorias')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _modoAgrupamentoAPagar = v);
+              },
+            ),
+          ),
+          SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String>(
+              initialValue: _ordenacaoAPagar,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Ordenar por',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _ordenacaoAPagar = v);
+              },
+            ),
+          ),
+          SizedBox(
+            width: 200,
+            child: DropdownButtonFormField<String>(
+              initialValue: _filtroStatusAPagar,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Status',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
+                DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+                DropdownMenuItem(value: 'PAGAS', child: Text('Pagas')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _filtroStatusAPagar = v);
+              },
+            ),
+          ),
+          SizedBox(
+            width: 280,
+            child: DropdownButtonFormField<int?>(
+              initialValue: filtroFornecedorAtual,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Fornecedor',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('Todos os fornecedores')),
+                ...fornecedoresFiltraveis.map(
+                  (f) {
+                    final resumo = fornecedoresAtivosNoMes[f.id] ?? const {'total': 0, 'pagos': 0, 'pendentes': 0};
+                    final total = resumo['total'] ?? 0;
+                    return DropdownMenuItem<int?>(
+                      value: f.id,
+                      child: Text('${f.nome} ($total)'),
+                    );
+                  },
+                ),
+              ],
+              onChanged: (v) => setState(() => _filtroFornecedorId = v),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFiltrosAReceber() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String>(
+              initialValue: _ordenacaoAReceber,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Ordenar por',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _ordenacaoAReceber = v);
+              },
+            ),
+          ),
+          SizedBox(
+            width: 220,
+            child: DropdownButtonFormField<String>(
+              initialValue: _filtroStatusAReceber,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Status',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'TODOS', child: Text('Todas')),
+                DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                DropdownMenuItem(value: 'RECEBIDAS', child: Text('Recebidas')),
+                DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _filtroStatusAReceber = v);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVisaoCategorias(List<Conta> contasAPagar) {
+    final agrupado = _agruparPorCategoria(contasAPagar);
+    final categorias = agrupado.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    if (categorias.isEmpty) {
+      return const Center(child: Text('Nenhuma conta disponível para agrupar.'));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: categorias.map((nomeCategoria) {
+        final expandida = _categoriasExpandidas.contains(nomeCategoria);
+        final contasCategoria = _ordenarContas(agrupado[nomeCategoria] ?? [], _ordenacaoAPagar);
+        final totalCategoria = contasCategoria.fold<double>(0, (s, c) => s + c.valor);
+        final atrasadas = contasCategoria.where((c) => c.isAtrasada && !c.pago).toList();
+        final pendentes = contasCategoria.where((c) => !c.pago && !c.isAtrasada).toList();
+        final pagas = contasCategoria.where((c) => c.pago).toList();
+        final totalPendentes = atrasadas.length + pendentes.length;
+        final totalPagas = pagas.length;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    if (expandida) {
+                      _categoriasExpandidas.remove(nomeCategoria);
+                    } else {
+                      _categoriasExpandidas.add(nomeCategoria);
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _corPagar.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          nomeCategoria,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      Text(
+                        '$totalPendentes pend. | $totalPagas pag.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'R\$ ${totalCategoria.toStringAsFixed(2).replaceAll('.', ',')}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: _corPagar),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        expandida ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                        color: Colors.grey.shade700,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 180),
+                crossFadeState: expandida ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: const SizedBox.shrink(),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (atrasadas.isNotEmpty) ...[
+                        _buildSecaoLabel('ATRASADAS', _corAtrasada, Icons.warning_amber_rounded),
+                        const SizedBox(height: 6),
+                        ...atrasadas.map((conta) => _buildContaCard(conta, _corPagar)),
+                        const SizedBox(height: 10),
+                      ],
+                      if (pendentes.isNotEmpty) ...[
+                        _buildSecaoLabel('PENDENTES', _corPagar, Icons.radio_button_unchecked),
+                        const SizedBox(height: 6),
+                        ...pendentes.map((conta) => _buildContaCard(conta, _corPagar)),
+                        const SizedBox(height: 10),
+                      ],
+                      if (pagas.isNotEmpty) ...[
+                        _buildSecaoLabel('PAGAS', Colors.grey, Icons.check_circle_outline),
+                        const SizedBox(height: 6),
+                        ...pagas.map((conta) => _buildContaCard(conta, _corPagar)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -1450,6 +2514,25 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                           ],
                         ],
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Categoria: ${_nomeCategoriaConta(conta)}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                      ),
+                      if (conta.fornecedorNome != null && conta.fornecedorNome!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fornecedor: ${conta.fornecedorNome}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                      if (conta.pago && ((conta.acrescimo ?? 0) > 0 || (conta.desconto ?? 0) > 0)) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Acr.: R\$ ${(conta.acrescimo ?? 0).toStringAsFixed(2).replaceAll('.', ',')} | Desc.: R\$ ${(conta.desconto ?? 0).toStringAsFixed(2).replaceAll('.', ',')}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                        ),
+                      ],
                       if (conta.isCredito && conta.parcelaNumero != null && conta.totalParcelas != null) ...[
                         const SizedBox(height: 2),
                         Text(

@@ -142,17 +142,80 @@ class ContaService {
     }
   }
 
-  static Future<Map<String, dynamic>> marcarComoPago(int id) async {
+  static Future<Map<String, dynamic>> adicionarLancamentoAPagar({
+    required String descricao,
+    required double valor,
+    required String origem,
+    required Map<String, dynamic> pagamento,
+    int? categoriaFinanceiraId,
+    int? fornecedorId,
+  }) async {
     try {
+      final body = <String, dynamic>{
+        'descricao': descricao,
+        'valor': valor,
+        'origem': origem,
+        'pagamento': pagamento,
+      };
+      if (categoriaFinanceiraId != null) {
+        body['categoriaFinanceiraId'] = categoriaFinanceiraId;
+      }
+      if (fornecedorId != null) {
+        body['fornecedorId'] = fornecedorId;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/a-pagar/lancamento'),
+        headers: await AuthService.getAuthHeaders(),
+        body: jsonEncode(body),
+      );
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {'sucesso': true};
+      }
+      String msg = 'Erro ao adicionar lançamento';
+      try {
+        final err = jsonDecode(utf8.decode(response.bodyBytes));
+        if (err['message'] != null) msg = err['message'];
+      } catch (_) {}
+      return {'sucesso': false, 'mensagem': msg};
+    } catch (e) {
+      if (kDebugMode) print('Erro ao adicionar lançamento: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> marcarComoPago(
+    int id, {
+    required DateTime dataPagamento,
+    double? acrescimo,
+    double? desconto,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'dataPagamento': dataPagamento.toIso8601String().substring(0, 10),
+      };
+      if (acrescimo != null && acrescimo > 0) {
+        body['acrescimo'] = acrescimo;
+      }
+      if (desconto != null && desconto > 0) {
+        body['desconto'] = desconto;
+      }
+
       final response = await http.patch(
         Uri.parse('$baseUrl/$id/pagar'),
         headers: await AuthService.getAuthHeaders(),
+        body: jsonEncode(body),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return {'sucesso': true, 'conta': Conta.fromJson(data)};
       }
-      return {'sucesso': false, 'mensagem': 'Erro ao marcar como pago'};
+      String msg = 'Erro ao marcar como pago';
+      try {
+        final err = jsonDecode(utf8.decode(response.bodyBytes));
+        if (err['message'] != null) msg = err['message'];
+      } catch (_) {}
+      return {'sucesso': false, 'mensagem': msg};
     } catch (e) {
       if (kDebugMode) print('Erro ao marcar conta como paga: $e');
       return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};

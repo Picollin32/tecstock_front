@@ -18,6 +18,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
   List<String> usuariosDisponiveis = [];
   Set<String> entidadesSelecionadas = {};
   bool isLoading = true;
+  bool isLoadingMes = false;
   String? token;
   String? filtroUsuario;
   String? filtroOperacao;
@@ -138,8 +139,12 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     }
   }
 
-  Future<void> _buscarLogs() async {
+  Future<void> _buscarLogs({bool exibirLoadingMes = false}) async {
     if (token == null) return;
+
+    if (exibirLoadingMes && mounted) {
+      setState(() => isLoadingMes = true);
+    }
 
     try {
       final entidadeId = filtroIdController.text.isEmpty ? null : int.tryParse(filtroIdController.text);
@@ -176,6 +181,10 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
     } catch (e) {
       if (mounted) {
         _mostrarErro('Erro ao buscar logs: $e');
+      }
+    } finally {
+      if (exibirLoadingMes && mounted) {
+        setState(() => isLoadingMes = false);
       }
     }
   }
@@ -1557,6 +1566,32 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                       child: Column(
                         children: [
                           _buildSeletorMes(),
+                          if (isLoadingMes)
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(isMobile ? 12 : 20, 8, isMobile ? 12 : 20, 0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE0F2FE),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFF7DD3FC)),
+                                ),
+                                child: Row(
+                                  children: const [
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Text(
+                                      'Carregando logs do período selecionado...',
+                                      style: TextStyle(fontSize: 13, color: Color(0xFF0C4A6E), fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           _buildFiltros(),
                           _buildListaLogs(),
                         ],
@@ -1657,7 +1692,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
                                   mesSelecionado = mes;
                                   currentPage = 0;
                                 });
-                                _buscarLogs();
+                                _buscarLogs(exibirLoadingMes: true);
                               }
                             }
                           : null,
@@ -1780,7 +1815,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               mesSelecionado = todosMeses[j];
               currentPage = 0;
             });
-            _buscarLogs();
+            _buscarLogs(exibirLoadingMes: true);
             return;
           }
         }
@@ -1799,7 +1834,7 @@ class _AuditoriaPageState extends State<AuditoriaPage> with TickerProviderStateM
               mesSelecionado = todosMeses[j];
               currentPage = 0;
             });
-            _buscarLogs();
+            _buscarLogs(exibirLoadingMes: true);
             return;
           }
         }

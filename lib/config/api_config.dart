@@ -31,4 +31,5 @@ class ApiConfig {
   static String get usuariosUrl => '$baseUrl/api/usuarios';
   static String get veiculosUrl => '$baseUrl/api/veiculos';
   static String get contasUrl => '$baseUrl/api/contas';
+  static String get categoriasFinanceirasUrl => '$baseUrl/api/categorias-financeiras';
 }

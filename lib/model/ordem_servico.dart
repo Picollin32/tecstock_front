@@ -2,6 +2,7 @@ import 'servico.dart';
 import 'tipo_pagamento.dart';
 import 'peca_ordem_servico.dart';
 import 'funcionario.dart';
+import 'diagnostico_item.dart';
 
 class OrdemServico {
   int? id;
@@ -25,6 +26,7 @@ class OrdemServico {
   String queixaPrincipal;
   List<Servico> servicosRealizados;
   List<PecaOrdemServico> pecasUtilizadas;
+  List<DiagnosticoItem> diagnosticosOS;
   double precoTotal;
   double? precoTotalServicos;
   double? precoTotalPecas;
@@ -66,6 +68,7 @@ class OrdemServico {
     required this.queixaPrincipal,
     required this.servicosRealizados,
     this.pecasUtilizadas = const [],
+    this.diagnosticosOS = const [],
     required this.precoTotal,
     this.precoTotalServicos,
     this.precoTotalPecas,
@@ -111,6 +114,8 @@ class OrdemServico {
           json['servicosRealizados'] != null ? (json['servicosRealizados'] as List).map((s) => Servico.fromJson(s)).toList() : [],
       pecasUtilizadas:
           json['pecasUtilizadas'] != null ? (json['pecasUtilizadas'] as List).map((p) => PecaOrdemServico.fromJson(p)).toList() : [],
+      diagnosticosOS:
+          json['diagnosticosOS'] != null ? (json['diagnosticosOS'] as List).map((d) => DiagnosticoItem.fromJson(d)).toList() : [],
       precoTotal: json['precoTotal']?.toDouble() ?? 0.0,
       precoTotalServicos: json['precoTotalServicos']?.toDouble(),
       precoTotalPecas: json['precoTotalPecas']?.toDouble(),
@@ -156,6 +161,7 @@ class OrdemServico {
     map['queixaPrincipal'] = queixaPrincipal;
     map['servicosRealizados'] = servicosRealizados.map((s) => s.toJson()).toList();
     map['pecasUtilizadas'] = pecasUtilizadas.map((p) => p.toJson()).toList();
+    map['diagnosticosOS'] = diagnosticosOS.map((d) => d.toJson()).toList();
     map['precoTotal'] = precoTotal;
     if (precoTotalServicos != null) map['precoTotalServicos'] = precoTotalServicos;
     if (precoTotalPecas != null) map['precoTotalPecas'] = precoTotalPecas;

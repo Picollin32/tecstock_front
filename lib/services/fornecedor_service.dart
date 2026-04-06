@@ -130,8 +130,14 @@ class FornecedorService {
     }
   }
 
-  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
-    String baseUrl = '${ApiConfig.fornecedoresUrl}/buscarPaginado?query=$query&page=$page&size=$size';
+  static Future<Map<String, dynamic>> buscarPaginado(
+    String query,
+    int page, {
+    int size = 30,
+    bool? servico,
+  }) async {
+    final servicoParam = servico == null ? '' : '&servico=$servico';
+    String baseUrl = '${ApiConfig.fornecedoresUrl}/buscarPaginado?query=$query&page=$page&size=$size$servicoParam';
     try {
       final headers = await AuthService.getAuthHeaders();
       final response = await http.get(Uri.parse(baseUrl), headers: headers);

@@ -2,6 +2,7 @@ import 'servico.dart';
 import 'tipo_pagamento.dart';
 import 'peca_ordem_servico.dart';
 import 'funcionario.dart';
+import 'diagnostico_item.dart';
 
 class Orcamento {
   int? id;
@@ -23,6 +24,7 @@ class Orcamento {
   String queixaPrincipal;
   List<Servico> servicosOrcados;
   List<PecaOrdemServico> pecasOrcadas;
+  List<DiagnosticoItem> diagnosticosOrcados;
   double precoTotal;
   double? precoTotalServicos;
   double? precoTotalPecas;
@@ -58,6 +60,7 @@ class Orcamento {
     required this.queixaPrincipal,
     required this.servicosOrcados,
     this.pecasOrcadas = const [],
+    this.diagnosticosOrcados = const [],
     required this.precoTotal,
     this.precoTotalServicos,
     this.precoTotalPecas,
@@ -95,6 +98,8 @@ class Orcamento {
       queixaPrincipal: json['queixaPrincipal'] ?? '',
       servicosOrcados: json['servicosOrcados'] != null ? (json['servicosOrcados'] as List).map((s) => Servico.fromJson(s)).toList() : [],
       pecasOrcadas: json['pecasOrcadas'] != null ? (json['pecasOrcadas'] as List).map((p) => PecaOrdemServico.fromJson(p)).toList() : [],
+      diagnosticosOrcados:
+          json['diagnosticosOrcados'] != null ? (json['diagnosticosOrcados'] as List).map((d) => DiagnosticoItem.fromJson(d)).toList() : [],
       precoTotal: json['precoTotal']?.toDouble() ?? 0.0,
       precoTotalServicos: json['precoTotalServicos']?.toDouble(),
       precoTotalPecas: json['precoTotalPecas']?.toDouble(),
@@ -134,6 +139,7 @@ class Orcamento {
     map['queixaPrincipal'] = queixaPrincipal;
     map['servicosOrcados'] = servicosOrcados.map((s) => s.toJson()).toList();
     map['pecasOrcadas'] = pecasOrcadas.map((p) => p.toJson()).toList();
+    map['diagnosticosOrcados'] = diagnosticosOrcados.map((d) => d.toJson()).toList();
     map['precoTotal'] = precoTotal;
     if (precoTotalServicos != null) map['precoTotalServicos'] = precoTotalServicos;
     if (precoTotalPecas != null) map['precoTotalPecas'] = precoTotalPecas;

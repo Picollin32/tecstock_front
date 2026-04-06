@@ -36,6 +36,9 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
   final _searchController = TextEditingController();
   String _ufSelecionada = 'GO';
   final ValueNotifier<String> _ufNotifier = ValueNotifier('GO');
+  bool _isServicoFornecedor = false;
+  final ValueNotifier<bool> _isServicoFornecedorNotifier = ValueNotifier(false);
+  String _filtroTipoFornecedor = 'TODOS';
 
   final _maskCnpj = MaskTextInputFormatter(
     mask: '##.###.###/####-##',
@@ -174,6 +177,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _isLoadingCnpj.dispose();
     _cnpjAutoPreenchido.dispose();
     _ufNotifier.dispose();
+    _isServicoFornecedorNotifier.dispose();
     super.dispose();
   }
 
@@ -338,8 +342,19 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
     setState(() => _isLoadingFornecedores = true);
 
+    final bool? filtroServico = switch (_filtroTipoFornecedor) {
+      'SERVICOS' => true,
+      'PECAS' => false,
+      _ => null,
+    };
+
     try {
-      final resultado = await FornecedorService.buscarPaginado(queryParaBusca, _currentPage, size: _pageSize);
+      final resultado = await FornecedorService.buscarPaginado(
+        queryParaBusca,
+        _currentPage,
+        size: _pageSize,
+        servico: filtroServico,
+      );
 
       if (resultado['success']) {
         setState(() {
@@ -375,8 +390,13 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
   Future<void> _carregarFornecedores() async {
     setState(() => _isLoadingFornecedores = true);
+    final bool? filtroServico = switch (_filtroTipoFornecedor) {
+      'SERVICOS' => true,
+      'PECAS' => false,
+      _ => null,
+    };
     try {
-      final resultado = await FornecedorService.buscarPaginado('', 0, size: _pageSize);
+      final resultado = await FornecedorService.buscarPaginado('', 0, size: _pageSize, servico: filtroServico);
 
       if (resultado['success']) {
         setState(() {
@@ -405,8 +425,9 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
     try {
       final cnpjLimpo = _cnpjController.text.replaceAll(RegExp(r'[^\d]'), '');
+      final possuiCnpj = cnpjLimpo.isNotEmpty;
 
-      if (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj.replaceAll(RegExp(r'[^\d]'), '') != cnpjLimpo) {
+      if (possuiCnpj && (_fornecedorEmEdicao == null || _fornecedorEmEdicao!.cnpj.replaceAll(RegExp(r'[^\d]'), '') != cnpjLimpo)) {
         final todosFornecedores = await FornecedorService.listarFornecedores();
 
         final fornecedorExistente = todosFornecedores.firstWhere(
@@ -432,15 +453,16 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       }
 
       final margemText = _margemLucroController.text.replaceAll(',', '.');
-      final margemValue = double.tryParse(margemText) ?? 0;
+      final margemValue = double.tryParse(margemText);
 
       final fornecedor = Fornecedor(
         id: _fornecedorEmEdicao?.id,
-        nome: _nomeController.text,
+        nome: _nomeController.text.trim(),
         cnpj: cnpjLimpo,
         telefone: _telefoneController.text.replaceAll(RegExp(r'[^\d]'), ''),
-        email: _emailController.text,
-        margemLucro: margemValue / 100,
+        email: _emailController.text.trim(),
+        servico: _isServicoFornecedor,
+        margemLucro: _isServicoFornecedor ? null : ((margemValue ?? 0) / 100),
         rua: _ruaController.text,
         numeroCasa: _numeroCasaController.text,
         bairro: _bairroController.text,
@@ -512,6 +534,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
         _telefoneController.text = _maskTelefone.maskText(fornecedor.telefone);
       }
 
+      _isServicoFornecedor = fornecedor.servico;
+      _isServicoFornecedorNotifier.value = _isServicoFornecedor;
       _fornecedorEmEdicao = fornecedor;
     });
     _showFormModal();
@@ -605,6 +629,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _ufSelecionada = 'GO';
     _ufNotifier.value = 'GO';
     _fornecedorEmEdicao = null;
+    _isServicoFornecedor = false;
+    _isServicoFornecedorNotifier.value = false;
   }
 
   void _showSuccessSnackBar(String message) {
@@ -721,6 +747,37 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFiltroTipoFornecedor({bool compact = false}) {
+    return SizedBox(
+      width: compact ? double.infinity : 220,
+      child: DropdownButtonFormField<String>(
+        initialValue: _filtroTipoFornecedor,
+        decoration: InputDecoration(
+          labelText: 'Tipo',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryColor, width: 2)),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
+          DropdownMenuItem(value: 'PECAS', child: Text('Peças')),
+          DropdownMenuItem(value: 'SERVICOS', child: Text('Serviços')),
+        ],
+        onChanged: (v) {
+          if (v == null) return;
+          setState(() {
+            _filtroTipoFornecedor = v;
+            _currentPage = 0;
+          });
+          _filtrarFornecedores();
+        },
       ),
     );
   }
@@ -871,18 +928,36 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          if (!fornecedor.servico) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: margemColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
+                                style: TextStyle(
+                                  color: margemColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: margemColor.withValues(alpha: 0.1),
+                              color: (fornecedor.servico ? Colors.indigo : Colors.teal).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
+                              fornecedor.servico ? 'Serviço' : 'Peças',
                               style: TextStyle(
-                                color: margemColor,
+                                color: fornecedor.servico ? Colors.indigo.shade700 : Colors.teal.shade700,
                                 fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -1031,15 +1106,33 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          if (!fornecedor.servico) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: margemColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
+                                style: TextStyle(color: margemColor, fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: margemColor.withValues(alpha: 0.1),
+                              color: (fornecedor.servico ? Colors.indigo : Colors.teal).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Margem: ${margem.toStringAsFixed(2).replaceAll('.', ',')}%',
-                              style: TextStyle(color: margemColor, fontSize: 11, fontWeight: FontWeight.w600),
+                              fornecedor.servico ? 'Serviço' : 'Peças',
+                              style: TextStyle(
+                                color: fornecedor.servico ? Colors.indigo.shade700 : Colors.teal.shade700,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
@@ -1187,6 +1280,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                   fillColor: Colors.grey[50],
                 ),
                 validator: (v) {
+                  if (_isServicoFornecedor) return null;
                   if (v == null || v.isEmpty) return 'Informe o CNPJ';
                   if (!CNPJValidator.isValid(v)) return 'CNPJ inválido';
                   return null;
@@ -1201,6 +1295,47 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             icon: Icons.store,
             validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
           ),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<bool>(
+            valueListenable: _isServicoFornecedorNotifier,
+            builder: (context, marcado, _) => AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: marcado ? primaryColor.withValues(alpha: 0.10) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: marcado ? primaryColor.withValues(alpha: 0.55) : Colors.grey.shade300,
+                ),
+              ),
+              child: CheckboxListTile(
+                value: marcado,
+                onChanged: (v) {
+                  final novoValor = v ?? false;
+                  if (novoValor) {
+                    _margemLucroController.clear();
+                  }
+                  _isServicoFornecedorNotifier.value = novoValor;
+                  setState(() => _isServicoFornecedor = novoValor);
+                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                title: Text(
+                  'Serviço',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: marcado ? primaryColor : Colors.grey.shade800,
+                  ),
+                ),
+                subtitle: Text(
+                  'Marcado: somente nome é obrigatório.',
+                  style: TextStyle(color: marcado ? primaryColor.withValues(alpha: 0.9) : Colors.grey.shade700),
+                ),
+                checkColor: Colors.white,
+                activeColor: primaryColor,
+                side: BorderSide(color: marcado ? primaryColor : Colors.grey.shade600, width: 1.8),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1211,16 +1346,21 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 icon: Icons.phone,
                 keyboardType: TextInputType.number,
                 inputFormatters: [_maskTelefone],
-                validator: (v) => v!.isEmpty ? 'Informe o telefone' : null,
+                validator: (v) {
+                  if (_isServicoFornecedor) return null;
+                  return v == null || v.isEmpty ? 'Informe o telefone' : null;
+                },
               );
               final margemField = _buildTextField(
                 controller: _margemLucroController,
                 label: 'Margem de Lucro',
                 icon: Icons.trending_up,
+                enabled: !_isServicoFornecedor,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [_decimalFormatter],
                 suffixText: '%',
                 validator: (v) {
+                  if (_isServicoFornecedor) return null;
                   if (v == null || v.isEmpty) {
                     return 'Informe a margem';
                   }
@@ -1257,6 +1397,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             icon: Icons.email,
             keyboardType: TextInputType.emailAddress,
             validator: (email) {
+              if (_isServicoFornecedor) return null;
               if (email == null || email.isEmpty) {
                 return 'Por favor, insira um e-mail';
               }
@@ -1344,7 +1485,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             controller: _ruaController,
             label: 'Rua',
             icon: Icons.location_on,
-            validator: (v) => v!.isEmpty ? 'Informe a rua' : null,
+            validator: (v) {
+              if (_isServicoFornecedor) return null;
+              return v == null || v.isEmpty ? 'Informe a rua' : null;
+            },
           ),
           const SizedBox(height: 16),
           LayoutBuilder(
@@ -1354,7 +1498,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 controller: _bairroController,
                 label: 'Bairro',
                 icon: Icons.location_city,
-                validator: (v) => v!.isEmpty ? 'Informe o bairro' : null,
+                validator: (v) {
+                  if (_isServicoFornecedor) return null;
+                  return v == null || v.isEmpty ? 'Informe o bairro' : null;
+                },
               );
               final numeroField = _buildTextField(
                 controller: _numeroCasaController,
@@ -1362,7 +1509,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 icon: Icons.home,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => v!.isEmpty ? 'Informe o número' : null,
+                validator: (v) {
+                  if (_isServicoFornecedor) return null;
+                  return v == null || v.isEmpty ? 'Informe o número' : null;
+                },
               );
               if (isNarrow) {
                 return Column(
@@ -1390,7 +1540,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 controller: _cidadeController,
                 label: 'Cidade',
                 icon: Icons.location_city,
-                validator: (v) => v!.isEmpty ? 'Informe a cidade' : null,
+                validator: (v) {
+                  if (_isServicoFornecedor) return null;
+                  return v == null || v.isEmpty ? 'Informe a cidade' : null;
+                },
               );
               final ufField = ValueListenableBuilder<String>(
                 valueListenable: _ufNotifier,
@@ -1492,6 +1645,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    bool enabled = true,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
@@ -1503,6 +1657,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      enabled: enabled,
       inputFormatters: inputFormatters,
       validator: validator,
       readOnly: readOnly,
@@ -1531,7 +1686,7 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
           borderSide: const BorderSide(color: errorColor),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: enabled ? Colors.grey[50] : Colors.grey[200],
       ),
     );
   }
@@ -1584,6 +1739,10 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: _buildFiltroTipoFornecedor(compact: true),
           ),
           Expanded(
             child: SingleChildScrollView(
@@ -1663,6 +1822,8 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
                     Row(
                       children: [
                         Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 12),
+                        _buildFiltroTipoFornecedor(),
                         const SizedBox(width: 16),
                         Container(
                           decoration: BoxDecoration(

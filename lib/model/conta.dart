@@ -15,6 +15,12 @@ class Conta {
   final String? origemTipo;
   final String? fiadoGrupoId;
   final double valorPagoParcial;
+  final double? acrescimo;
+  final double? desconto;
+  final int? categoriaId;
+  final String? categoriaNome;
+  final int? fornecedorId;
+  final String? fornecedorNome;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -35,6 +41,12 @@ class Conta {
     this.origemTipo,
     this.fiadoGrupoId,
     this.valorPagoParcial = 0.0,
+    this.acrescimo,
+    this.desconto,
+    this.categoriaId,
+    this.categoriaNome,
+    this.fornecedorId,
+    this.fornecedorNome,
     this.createdAt,
     this.updatedAt,
   });
@@ -77,6 +89,12 @@ class Conta {
       origemTipo: json['origemTipo'],
       fiadoGrupoId: json['fiadoGrupoId'],
       valorPagoParcial: (json['valorPagoParcial'] ?? 0.0).toDouble(),
+      acrescimo: json['acrescimo'] != null ? (json['acrescimo'] as num).toDouble() : null,
+      desconto: json['desconto'] != null ? (json['desconto'] as num).toDouble() : null,
+      categoriaId: json['categoriaId'],
+      categoriaNome: json['categoriaNome'],
+      fornecedorId: json['fornecedorId'],
+      fornecedorNome: json['fornecedorNome'],
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
     );
@@ -100,6 +118,12 @@ class Conta {
       if (origemTipo != null) 'origemTipo': origemTipo,
       if (fiadoGrupoId != null) 'fiadoGrupoId': fiadoGrupoId,
       'valorPagoParcial': valorPagoParcial,
+      if (acrescimo != null) 'acrescimo': acrescimo,
+      if (desconto != null) 'desconto': desconto,
+      if (categoriaId != null) 'categoriaId': categoriaId,
+      if (categoriaNome != null) 'categoriaNome': categoriaNome,
+      if (fornecedorId != null) 'fornecedorId': fornecedorId,
+      if (fornecedorNome != null) 'fornecedorNome': fornecedorNome,
     };
   }
 
@@ -120,6 +144,12 @@ class Conta {
     String? origemTipo,
     String? fiadoGrupoId,
     double? valorPagoParcial,
+    double? acrescimo,
+    double? desconto,
+    int? categoriaId,
+    String? categoriaNome,
+    int? fornecedorId,
+    String? fornecedorNome,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -140,6 +170,12 @@ class Conta {
       origemTipo: origemTipo ?? this.origemTipo,
       valorPagoParcial: valorPagoParcial ?? this.valorPagoParcial,
       fiadoGrupoId: fiadoGrupoId ?? this.fiadoGrupoId,
+      acrescimo: acrescimo ?? this.acrescimo,
+      desconto: desconto ?? this.desconto,
+      categoriaId: categoriaId ?? this.categoriaId,
+      categoriaNome: categoriaNome ?? this.categoriaNome,
+      fornecedorId: fornecedorId ?? this.fornecedorId,
+      fornecedorNome: fornecedorNome ?? this.fornecedorNome,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -24,6 +24,7 @@ class ContasPage extends StatefulWidget {
 
 class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _abaAtual = 0;
 
   DateTime _mesAtual = DateTime(DateTime.now().year, DateTime.now().month, 1);
   bool _isLoading = false;
@@ -41,6 +42,8 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   String _filtroStatusAReceber = 'TODOS';
   int? _filtroFornecedorId;
   final Set<String> _categoriasExpandidas = <String>{};
+  bool _filtrosAPagarExpandidos = false;
+  bool _filtrosAReceberExpandidos = false;
 
   static const Color _corPagar = Color(0xFFDC2626);
   static const Color _corReceber = Color(0xFF16A34A);
@@ -51,8 +54,11 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        setState(() {});
+      if (!mounted) return;
+      if (_abaAtual != _tabController.index) {
+        setState(() {
+          _abaAtual = _tabController.index;
+        });
       }
     });
     _carregarDados();
@@ -206,68 +212,117 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               final descricaoCtrl = TextEditingController(text: categoria?.descricao ?? '');
               final formKey = GlobalKey<FormState>();
 
-              await showDialog<void>(
-                context: ctx2,
-                builder: (dCtx) => AlertDialog(
-                  title: Text(categoria == null ? 'Nova Categoria' : 'Editar Categoria'),
-                  content: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          controller: nomeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome *',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'Informe o nome' : null,
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: descricaoCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Descrição',
-                            border: OutlineInputBorder(),
-                          ),
-                          maxLines: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Cancelar')),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (!formKey.currentState!.validate()) return;
-                        Map<String, dynamic> result;
-                        if (categoria == null) {
-                          result = await CategoriaFinanceiraService.criar(
-                            nomeCtrl.text.trim(),
-                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
-                          );
-                        } else {
-                          result = await CategoriaFinanceiraService.atualizar(
-                            categoria.id!,
-                            nomeCtrl.text.trim(),
-                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
-                          );
-                        }
+              final isEdicao = categoria != null;
 
-                        if (result['sucesso'] == true) {
-                          if (!mounted) return;
-                          if (!dCtx.mounted) return;
-                          Navigator.pop(dCtx);
-                          _mostrarSucesso(categoria == null ? 'Categoria criada!' : 'Categoria atualizada!');
-                          await recarregarCategorias();
-                        } else {
-                          _mostrarErro(result['mensagem'] ?? 'Erro ao salvar categoria');
-                        }
-                      },
-                      child: const Text('Salvar'),
+              await showModalBottomSheet<void>(
+                context: ctx2,
+                isScrollControlled: true,
+                useSafeArea: true,
+                backgroundColor: Colors.transparent,
+                builder: (sheetCtx) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 20)],
+                          ),
+                          child: Form(
+                            key: formKey,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isEdicao ? 'Editar Categoria' : 'Nova Categoria',
+                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                                ),
+                                const SizedBox(height: 14),
+                                TextFormField(
+                                  controller: nomeCtrl,
+                                  decoration: InputDecoration(
+                                    labelText: 'Nome *',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.6),
+                                    ),
+                                  ),
+                                  validator: (v) => v == null || v.trim().isEmpty ? 'Informe o nome' : null,
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  controller: descricaoCtrl,
+                                  decoration: InputDecoration(
+                                    labelText: 'Descrição',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.6),
+                                    ),
+                                  ),
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(sheetCtx),
+                                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF475569)),
+                                      child: const Text('Cancelar'),
+                                    ),
+                                    const Spacer(),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF1565C0),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      onPressed: () async {
+                                        if (!formKey.currentState!.validate()) return;
+                                        Map<String, dynamic> result;
+                                        if (!isEdicao) {
+                                          result = await CategoriaFinanceiraService.criar(
+                                            nomeCtrl.text.trim(),
+                                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
+                                          );
+                                        } else {
+                                          result = await CategoriaFinanceiraService.atualizar(
+                                            categoria.id!,
+                                            nomeCtrl.text.trim(),
+                                            descricao: descricaoCtrl.text.trim().isEmpty ? null : descricaoCtrl.text.trim(),
+                                          );
+                                        }
+
+                                        if (result['sucesso'] == true) {
+                                          if (!mounted) return;
+                                          if (!sheetCtx.mounted) return;
+                                          Navigator.pop(sheetCtx);
+                                          _mostrarSucesso(!isEdicao ? 'Categoria criada!' : 'Categoria atualizada!');
+                                          await recarregarCategorias();
+                                        } else {
+                                          _mostrarErro(result['mensagem'] ?? 'Erro ao salvar categoria');
+                                        }
+                                      },
+                                      child: const Text('Salvar'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             }
 
@@ -299,7 +354,20 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             }
 
             return AlertDialog(
-              title: const Text('Plano de Contas - Categorias'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              title: const Row(
+                children: [
+                  Icon(Icons.category_outlined, color: Color(0xFF1565C0)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Plano de Contas - Categorias',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
               content: SizedBox(
                 width: 540,
                 height: 420,
@@ -309,6 +377,11 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1565C0),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                         onPressed: () => abrirFormulario(),
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Nova Categoria'),
@@ -355,6 +428,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               ),
               actions: [
                 TextButton(
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF475569)),
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Fechar'),
                 ),
@@ -1654,41 +1728,98 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _abrirAcoesRapidasMobile() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline, color: _corPagar),
+                title: const Text('Nova Conta', style: TextStyle(fontWeight: FontWeight.w700)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _abrirDialogAdicionarConta();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.category_outlined, color: Color(0xFF334155)),
+                title: const Text('Gerenciar Categorias', style: TextStyle(fontWeight: FontWeight.w700)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _abrirGerenciarCategorias();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFabAcoes() {
+    if (_isTelaCompacta()) {
+      return FloatingActionButton(
+        heroTag: 'fab_acoes_mobile',
+        backgroundColor: _corPagar,
+        foregroundColor: Colors.white,
+        onPressed: _abrirAcoesRapidasMobile,
+        child: const Icon(Icons.add),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        FloatingActionButton.extended(
+          heroTag: 'fab_categorias',
+          backgroundColor: const Color(0xFF334155),
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.category_outlined),
+          label: const Text('Gerenciar Categorias'),
+          onPressed: _abrirGerenciarCategorias,
+        ),
+        const SizedBox(height: 10),
+        FloatingActionButton.extended(
+          heroTag: 'fab_nova_conta',
+          backgroundColor: _corPagar,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add),
+          label: const Text('Nova Conta'),
+          onPressed: _abrirDialogAdicionarConta,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      floatingActionButton: _tabController.index == 0
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.extended(
-                  heroTag: 'fab_categorias',
-                  backgroundColor: const Color(0xFF334155),
-                  foregroundColor: Colors.white,
-                  icon: const Icon(Icons.category_outlined),
-                  label: const Text('Gerenciar Categorias'),
-                  onPressed: _abrirGerenciarCategorias,
-                ),
-                const SizedBox(height: 10),
-                FloatingActionButton.extended(
-                  heroTag: 'fab_nova_conta',
-                  backgroundColor: _corPagar,
-                  foregroundColor: Colors.white,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nova Conta'),
-                  onPressed: _abrirDialogAdicionarConta,
-                ),
-              ],
-            )
-          : null,
+      floatingActionButton: _abaAtual == 0 ? _buildFabAcoes() : null,
       body: Column(
         children: [
           _buildHeader(),
-          if (_tabController.index == 0 && _contasAtrasadas.any((c) => c.isAPagar))
+          if (_abaAtual == 0 && _contasAtrasadas.any((c) => c.isAPagar))
             _buildAlertaAtrasadasTipo('A_PAGAR')
-          else if (_tabController.index == 1 && _contasAtrasadas.any((c) => c.isAReceber))
+          else if (_abaAtual == 1 && _contasAtrasadas.any((c) => c.isAReceber))
             _buildAlertaAtrasadasTipo('A_RECEBER'),
           _buildTabBar(),
           Expanded(
@@ -1878,9 +2009,9 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       color: Colors.white,
       child: TabBar(
         controller: _tabController,
-        labelColor: _tabController.index == 0 ? _corPagar : _corReceber,
+        labelColor: _abaAtual == 0 ? _corPagar : _corReceber,
         unselectedLabelColor: Colors.grey,
-        indicatorColor: _tabController.index == 0 ? _corPagar : _corReceber,
+        indicatorColor: _abaAtual == 0 ? _corPagar : _corReceber,
         indicatorWeight: 3,
         tabs: [
           Tab(
@@ -1922,7 +2053,171 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             ),
           ),
         ],
-        onTap: (_) => setState(() {}),
+        onTap: (index) => setState(() => _abaAtual = index),
+      ),
+    );
+  }
+
+  bool _isTelaCompacta() => MediaQuery.of(context).size.width <= 700;
+
+  String _labelOrdenacao(String valor) {
+    switch (valor) {
+      case 'NOME':
+        return 'Nome';
+      case 'VALOR':
+        return 'Valor';
+      default:
+        return 'Vencimento';
+    }
+  }
+
+  String _labelStatusAPagar(String valor) {
+    switch (valor) {
+      case 'PENDENTES':
+        return 'Pendentes';
+      case 'ATRASADAS':
+        return 'Atrasadas';
+      case 'PAGAS':
+        return 'Pagas';
+      default:
+        return 'Todos';
+    }
+  }
+
+  String _labelStatusAReceber(String valor) {
+    switch (valor) {
+      case 'PENDENTES':
+        return 'Pendentes';
+      case 'RECEBIDAS':
+        return 'Recebidas';
+      case 'ATRASADAS':
+        return 'Atrasadas';
+      default:
+        return 'Todas';
+    }
+  }
+
+  String _nomeFornecedorSelecionado() {
+    if (_filtroFornecedorId == null) return 'Todos';
+    for (final fornecedor in _fornecedores) {
+      if (fornecedor.id == _filtroFornecedorId) {
+        return fornecedor.nome;
+      }
+    }
+    return 'Todos';
+  }
+
+  String _resumoFiltros(String tipo) {
+    if (tipo == 'A_PAGAR') {
+      final partes = <String>[
+        'Status: ${_labelStatusAPagar(_filtroStatusAPagar)}',
+        'Ordenar: ${_labelOrdenacao(_ordenacaoAPagar)}',
+      ];
+      if (_modoAgrupamentoAPagar != 'TODAS') {
+        partes.add('Visão: Categorias');
+      }
+      if (_filtroFornecedorId != null) {
+        partes.add('Forn.: ${_nomeFornecedorSelecionado()}');
+      }
+      return partes.join(' | ');
+    }
+
+    return 'Status: ${_labelStatusAReceber(_filtroStatusAReceber)} | Ordenar: ${_labelOrdenacao(_ordenacaoAReceber)}';
+  }
+
+  Widget _buildPainelFiltros(String tipo) {
+    final compacto = _isTelaCompacta();
+    final conteudo = tipo == 'A_PAGAR' ? _buildFiltrosAPagar() : _buildFiltrosAReceber();
+
+    if (!compacto) return conteudo;
+
+    final expandido = tipo == 'A_PAGAR' ? _filtrosAPagarExpandidos : _filtrosAReceberExpandidos;
+    final subtitulo = tipo == 'A_PAGAR' ? 'Visualização, ordenação, status e fornecedor' : 'Ordenação e status';
+    final resumo = _resumoFiltros(tipo);
+    final corAtiva = tipo == 'A_PAGAR' ? _corPagar : _corReceber;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+      ),
+      child: Column(
+        children: [
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                setState(() {
+                  if (tipo == 'A_PAGAR') {
+                    _filtrosAPagarExpandidos = !_filtrosAPagarExpandidos;
+                  } else {
+                    _filtrosAReceberExpandidos = !_filtrosAReceberExpandidos;
+                  }
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(Icons.tune, size: 18, color: expandido ? corAtiva : Colors.grey.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Filtros',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: expandido ? corAtiva : Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            expandido ? subtitulo : resumo,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: expandido ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeInOutCubic,
+                      child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey.shade700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeInOutCubicEmphasized,
+            alignment: Alignment.topCenter,
+            child: ClipRect(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: expandido
+                    ? Padding(
+                        key: ValueKey('filtros_abertos_$tipo'),
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                        child: conteudo,
+                      )
+                    : const SizedBox(
+                        key: ValueKey('filtros_fechados'),
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1998,7 +2293,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           children: [
             _buildAbaResumo(contasOrdenadas, tipo),
             const SizedBox(height: 12),
-            _buildFiltrosAPagar(),
+            _buildPainelFiltros('A_PAGAR'),
             const SizedBox(height: 12),
             _buildVisaoCategorias(contasOrdenadas),
           ],
@@ -2018,10 +2313,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           _buildAbaResumo(contasOrdenadas, tipo),
           if (tipo == 'A_PAGAR') ...[
             const SizedBox(height: 12),
-            _buildFiltrosAPagar(),
+            _buildPainelFiltros('A_PAGAR'),
           ] else ...[
             const SizedBox(height: 12),
-            _buildFiltrosAReceber(),
+            _buildPainelFiltros('A_RECEBER'),
           ],
           if (semResultadosComFiltro) ...[
             const SizedBox(height: 14),
@@ -2065,6 +2360,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   }
 
   Widget _buildFiltrosAPagar() {
+    final compacto = _isTelaCompacta();
     final fornecedoresAtivosNoMes = _fornecedoresComContasAtivasNoMes();
     final fornecedoresFiltraveis = _fornecedores.where((f) => f.id != null && fornecedoresAtivosNoMes.containsKey(f.id!)).toList()
       ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
@@ -2076,162 +2372,308 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        boxShadow: compacto ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          SizedBox(
-            width: 280,
-            child: DropdownButtonFormField<String>(
-              initialValue: _modoAgrupamentoAPagar,
-              decoration: const InputDecoration(
-                labelText: 'Visualização',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'TODAS', child: Text('Todas as contas')),
-                DropdownMenuItem(value: 'CATEGORIAS', child: Text('Por categorias')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _modoAgrupamentoAPagar = v);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String>(
-              initialValue: _ordenacaoAPagar,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Ordenar por',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
-                DropdownMenuItem(value: 'NOME', child: Text('Nome')),
-                DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _ordenacaoAPagar = v);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              initialValue: _filtroStatusAPagar,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
-                DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
-                DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
-                DropdownMenuItem(value: 'PAGAS', child: Text('Pagas')),
-              ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _filtroStatusAPagar = v);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 280,
-            child: DropdownButtonFormField<int?>(
-              initialValue: filtroFornecedorAtual,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Fornecedor',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('Todos os fornecedores')),
-                ...fornecedoresFiltraveis.map(
-                  (f) {
-                    final resumo = fornecedoresAtivosNoMes[f.id] ?? const {'total': 0, 'pagos': 0, 'pendentes': 0};
-                    final total = resumo['total'] ?? 0;
-                    return DropdownMenuItem<int?>(
-                      value: f.id,
-                      child: Text('${f.nome} ($total)'),
-                    );
-                  },
+      child: compacto
+          ? Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _modoAgrupamentoAPagar,
+                    decoration: const InputDecoration(
+                      labelText: 'Visualização',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODAS', child: Text('Todas as contas')),
+                      DropdownMenuItem(value: 'CATEGORIAS', child: Text('Por categorias')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _modoAgrupamentoAPagar = v);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _ordenacaoAPagar,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordenar por',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                      DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                      DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _ordenacaoAPagar = v);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _filtroStatusAPagar,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
+                      DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                      DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+                      DropdownMenuItem(value: 'PAGAS', child: Text('Pagas')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _filtroStatusAPagar = v);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: filtroFornecedorAtual,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Fornecedor',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('Todos os fornecedores')),
+                      ...fornecedoresFiltraveis.map(
+                        (f) {
+                          final resumo = fornecedoresAtivosNoMes[f.id] ?? const {'total': 0, 'pagos': 0, 'pendentes': 0};
+                          final total = resumo['total'] ?? 0;
+                          return DropdownMenuItem<int?>(
+                            value: f.id,
+                            child: Text('${f.nome} ($total)'),
+                          );
+                        },
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _filtroFornecedorId = v),
+                  ),
                 ),
               ],
-              onChanged: (v) => setState(() => _filtroFornecedorId = v),
+            )
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _modoAgrupamentoAPagar,
+                    decoration: const InputDecoration(
+                      labelText: 'Visualização',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODAS', child: Text('Todas as contas')),
+                      DropdownMenuItem(value: 'CATEGORIAS', child: Text('Por categorias')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _modoAgrupamentoAPagar = v);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _ordenacaoAPagar,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordenar por',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                      DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                      DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _ordenacaoAPagar = v);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 200,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _filtroStatusAPagar,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
+                      DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                      DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+                      DropdownMenuItem(value: 'PAGAS', child: Text('Pagas')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _filtroStatusAPagar = v);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 280,
+                  child: DropdownButtonFormField<int?>(
+                    initialValue: filtroFornecedorAtual,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Fornecedor',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('Todos os fornecedores')),
+                      ...fornecedoresFiltraveis.map(
+                        (f) {
+                          final resumo = fornecedoresAtivosNoMes[f.id] ?? const {'total': 0, 'pagos': 0, 'pendentes': 0};
+                          final total = resumo['total'] ?? 0;
+                          return DropdownMenuItem<int?>(
+                            value: f.id,
+                            child: Text('${f.nome} ($total)'),
+                          );
+                        },
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _filtroFornecedorId = v),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildFiltrosAReceber() {
+    final compacto = _isTelaCompacta();
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
+        boxShadow: compacto ? null : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)],
       ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String>(
-              initialValue: _ordenacaoAReceber,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Ordenar por',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
-                DropdownMenuItem(value: 'NOME', child: Text('Nome')),
-                DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+      child: compacto
+          ? Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _ordenacaoAReceber,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordenar por',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                      DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                      DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _ordenacaoAReceber = v);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _filtroStatusAReceber,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODOS', child: Text('Todas')),
+                      DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                      DropdownMenuItem(value: 'RECEBIDAS', child: Text('Recebidas')),
+                      DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _filtroStatusAReceber = v);
+                    },
+                  ),
+                ),
               ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _ordenacaoAReceber = v);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String>(
-              initialValue: _filtroStatusAReceber,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                isDense: true,
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'TODOS', child: Text('Todas')),
-                DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
-                DropdownMenuItem(value: 'RECEBIDAS', child: Text('Recebidas')),
-                DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+            )
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _ordenacaoAReceber,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ordenar por',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'VENCIMENTO', child: Text('Vencimento')),
+                      DropdownMenuItem(value: 'NOME', child: Text('Nome')),
+                      DropdownMenuItem(value: 'VALOR', child: Text('Valor')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _ordenacaoAReceber = v);
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 220,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _filtroStatusAReceber,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TODOS', child: Text('Todas')),
+                      DropdownMenuItem(value: 'PENDENTES', child: Text('Pendentes')),
+                      DropdownMenuItem(value: 'RECEBIDAS', child: Text('Recebidas')),
+                      DropdownMenuItem(value: 'ATRASADAS', child: Text('Atrasadas')),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _filtroStatusAReceber = v);
+                    },
+                  ),
+                ),
               ],
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _filtroStatusAReceber = v);
-              },
             ),
-          ),
-        ],
-      ),
     );
   }
 

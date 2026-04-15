@@ -119,9 +119,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   String _tipoPesquisa = 'numero';
   Timer? _searchDebounce;
   Timer? _servicoSearchDebounce;
-  Timer? _pecaSearchDebounce;
   String _lastSearchQuery = '';
-  String _pecaDebouncedQuery = '';
   String _textoBuscaPecaAtual = '';
   String _modoBuscaPeca = 'CODIGO';
   final ScrollController _servicosSliderController = ScrollController();
@@ -226,7 +224,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _searchDebounce?.cancel();
       _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
-      _pecaSearchDebounce?.cancel();
       _servicoSearchDebounce?.cancel();
       _servicoSearchController.removeListener(_onServicoSearchChanged);
       _servicoSearchController.dispose();
@@ -480,15 +477,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeOutCubic,
     );
-  }
-
-  void _onPecaSearchChangedDebounced(String value) {
-    _pecaSearchDebounce?.cancel();
-    final termo = value.toLowerCase().trim();
-    _pecaSearchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      setState(() => _pecaDebouncedQuery = termo);
-    });
   }
 
   Future<void> _adicionarPecaViaBusca(String? valorDigitado) async {
@@ -5362,7 +5350,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   : (_) {
                       setState(() {
                         _modoBuscaPeca = 'CODIGO';
-                        _pecaDebouncedQuery = '';
                         _textoBuscaPecaAtual = '';
                         _pecaSearchController.clear();
                         _codigoPecaController.clear();
@@ -5378,7 +5365,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   : (_) {
                       setState(() {
                         _modoBuscaPeca = 'NOME';
-                        _pecaDebouncedQuery = '';
                         _textoBuscaPecaAtual = '';
                         _pecaSearchController.clear();
                         _codigoPecaController.clear();
@@ -5407,7 +5393,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               _codigoPecaController.text = selection.codigoFabricante;
               _textoBuscaPecaAtual = selection.codigoFabricante;
               _pecaSearchController.clear();
-              _pecaDebouncedQuery = '';
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
@@ -5420,7 +5405,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   ? null
                   : (value) {
                       _textoBuscaPecaAtual = value;
-                      _onPecaSearchChangedDebounced(value);
                       if (_pecaEncontrada != null) {
                         setState(() {
                           _pecaEncontrada = null;
@@ -5468,7 +5452,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       await _adicionarPecaViaBusca(value);
                       if (!mounted) return;
                       setState(() {
-                        _pecaDebouncedQuery = '';
                         _textoBuscaPecaAtual = '';
                       });
                       _pecaSearchController.clear();

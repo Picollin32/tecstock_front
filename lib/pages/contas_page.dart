@@ -61,6 +61,15 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         });
       }
     });
+    _tabController.animation?.addListener(() {
+      if (!mounted) return;
+      final indiceAnimado = _tabController.animation!.value.round().clamp(0, 1);
+      if (_abaAtual != indiceAnimado) {
+        setState(() {
+          _abaAtual = indiceAnimado;
+        });
+      }
+    });
     _carregarDados();
   }
 
@@ -2856,11 +2865,17 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
     return Dismissible(
       key: Key('conta_${conta.id}'),
-      direction: conta.isManual ? DismissDirection.endToStart : DismissDirection.none,
-      confirmDismiss: (_) async {
-        if (!conta.isManual) return false;
-        await _confirmarExclusao(conta);
-        return false;
+      direction: DismissDirection.none,
+      onDismissed: (_) async {
+        if (!conta.isManual || conta.id == null) return;
+        final ok = await ContaService.deletarConta(conta.id!);
+        if (ok) {
+          _mostrarSucesso('Conta removida.');
+          _carregarDados();
+        } else {
+          _mostrarErro('Erro ao remover conta.');
+          _carregarDados();
+        }
       },
       background: Container(
         alignment: Alignment.centerRight,

@@ -98,6 +98,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   final TextEditingController _codigoPecaController = TextEditingController();
   final TextEditingController _servicoSearchController = TextEditingController();
+  late TextEditingController _pecaSearchController;
 
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
@@ -117,7 +118,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final TextEditingController _searchController = TextEditingController();
   String _tipoPesquisa = 'numero';
   Timer? _searchDebounce;
+  Timer? _servicoSearchDebounce;
+  Timer? _pecaSearchDebounce;
   String _lastSearchQuery = '';
+  String _pecaDebouncedQuery = '';
+  String _textoBuscaPecaAtual = '';
+  String _modoBuscaPeca = 'CODIGO';
+  final ScrollController _servicosSliderController = ScrollController();
   int _currentPage = 0;
   int _totalPages = 0;
   int _totalElements = 0;
@@ -176,7 +183,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _initializeData();
     _searchController.addListener(_onSearchChanged);
-    _servicoSearchController.addListener(_filtrarServicos);
+    _servicoSearchController.addListener(_onServicoSearchChanged);
+    _pecaSearchController = TextEditingController();
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
 
@@ -225,8 +233,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _searchDebounce?.cancel();
       _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
-      _servicoSearchController.removeListener(_filtrarServicos);
+      _pecaSearchDebounce?.cancel();
+      _servicoSearchDebounce?.cancel();
+      _servicoSearchController.removeListener(_onServicoSearchChanged);
       _servicoSearchController.dispose();
+      _servicosSliderController.dispose();
       _clienteCpfController.removeListener(_onClienteCpfChanged);
       _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
       _descontoServicosController.dispose();
@@ -293,7 +304,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _checklists = checklists;
           _checklistsFiltrados = checklists;
           _servicosDisponiveis = servicos;
-          _servicosFiltrados = servicos;
+          _servicosFiltrados = _servicosRecentes(servicos);
           _tiposPagamento = tiposPagamento;
           _pecasDisponiveis = pecas;
           _clienteByCpf.clear();
@@ -400,17 +411,96 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
-  void _filtrarServicos() {
+  List<Servico> _ordenarServicosPorRecencia(List<Servico> servicos) {
+    final lista = [...servicos];
+    lista.sort((a, b) {
+      final dataA = a.createdAt;
+      final dataB = b.createdAt;
+      if (dataA != null && dataB != null) {
+        return dataB.compareTo(dataA);
+      }
+      if (dataA != null) return -1;
+      if (dataB != null) return 1;
+      return (b.id ?? 0).compareTo(a.id ?? 0);
+    });
+    return lista;
+  }
+
+  List<Servico> _servicosRecentes(List<Servico> servicos) {
+    final ordenados = _ordenarServicosPorRecencia(servicos);
+    return ordenados.take(5).toList();
+  }
+
+  void _onServicoSearchChanged() {
+    _servicoSearchDebounce?.cancel();
+    _servicoSearchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _aplicarFiltroServicos();
+    });
+  }
+
+  void _aplicarFiltroServicos() {
     final query = _servicoSearchController.text.toLowerCase().trim();
     setState(() {
       if (query.isEmpty) {
-        _servicosFiltrados = _servicosDisponiveis;
+        _servicosFiltrados = _servicosRecentes(_servicosDisponiveis);
       } else {
-        _servicosFiltrados = _servicosDisponiveis.where((servico) {
-          return servico.nome.toLowerCase().contains(query);
+        final filtrados = _servicosDisponiveis.where((servico) {
+          return servico.nome.toLowerCase().startsWith(query);
         }).toList();
+        _servicosFiltrados = _ordenarServicosPorRecencia(filtrados);
       }
     });
+  }
+
+  void _deslizarServicos(double delta) {
+    if (!_servicosSliderController.hasClients) return;
+    final atual = _servicosSliderController.offset;
+    final alvo = (atual + delta).clamp(
+      0.0,
+      _servicosSliderController.position.maxScrollExtent,
+    );
+    _servicosSliderController.animateTo(
+      alvo,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _onPecaSearchChangedDebounced(String value) {
+    _pecaSearchDebounce?.cancel();
+    final termo = value.toLowerCase().trim();
+    _pecaSearchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _pecaDebouncedQuery = termo);
+    });
+  }
+
+  Future<void> _adicionarPecaViaBusca(String? valorDigitado) async {
+    if (_pecaEncontrada != null) {
+      await _buscarPecaPorCodigo(_pecaEncontrada!.codigoFabricante);
+      return;
+    }
+
+    final termoBase = (valorDigitado ?? _textoBuscaPecaAtual).trim();
+    if (termoBase.isEmpty) {
+      _showErrorSnackBar(_modoBuscaPeca == 'CODIGO' ? 'Digite o código da peça' : 'Digite o nome da peça');
+      return;
+    }
+
+    if (_modoBuscaPeca == 'CODIGO') {
+      await _buscarPecaPorCodigo(termoBase);
+      return;
+    }
+
+    final termo = termoBase.toLowerCase();
+    final match = _pecasDisponiveis.where((p) => p.nome.toLowerCase().startsWith(termo)).toList();
+    if (match.isEmpty) {
+      _showErrorSnackBar('Peça não encontrada pelo nome: $termoBase');
+      return;
+    }
+
+    await _buscarPecaPorCodigo(match.first.codigoFabricante);
   }
 
   void _filtrarChecklists() {
@@ -802,7 +892,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _osNumberController.clear();
     _checklistController.clear();
     _codigoPecaController.clear();
+    _pecaSearchController.clear();
     _servicoSearchController.clear();
+    _textoBuscaPecaAtual = '';
     _descontoServicosController.clear();
     _descontoPecasController.clear();
     _precoDiagnosticoController.clear();
@@ -2721,14 +2813,54 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ),
         ),
         const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Pesquisar por Código'),
+              selected: _modoBuscaPeca == 'CODIGO',
+              onSelected: _isViewMode
+                  ? null
+                  : (_) {
+                      setState(() {
+                        _modoBuscaPeca = 'CODIGO';
+                        _pecaDebouncedQuery = '';
+                        _textoBuscaPecaAtual = '';
+                        _pecaSearchController.clear();
+                        _codigoPecaController.clear();
+                        _pecaEncontrada = null;
+                      });
+                    },
+            ),
+            ChoiceChip(
+              label: const Text('Pesquisar por Nome'),
+              selected: _modoBuscaPeca == 'NOME',
+              onSelected: _isViewMode
+                  ? null
+                  : (_) {
+                      setState(() {
+                        _modoBuscaPeca = 'NOME';
+                        _pecaDebouncedQuery = '';
+                        _textoBuscaPecaAtual = '';
+                        _pecaSearchController.clear();
+                        _codigoPecaController.clear();
+                        _pecaEncontrada = null;
+                      });
+                    },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         Autocomplete<Peca>(
           optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) return const Iterable<Peca>.empty();
+            final searchText = textEditingValue.text.toLowerCase().trim();
+            if (searchText.isEmpty) return const Iterable<Peca>.empty();
             return _pecasDisponiveis.where((peca) {
-              final searchText = textEditingValue.text.toLowerCase();
-              return peca.codigoFabricante.toLowerCase().contains(searchText) ||
-                  peca.nome.toLowerCase().contains(searchText) ||
-                  peca.fabricante.nome.toLowerCase().contains(searchText);
+              if (_modoBuscaPeca == 'CODIGO') {
+                return peca.codigoFabricante.toLowerCase().startsWith(searchText);
+              }
+              return peca.nome.toLowerCase().startsWith(searchText);
             });
           },
           displayStringForOption: (Peca peca) => '${peca.codigoFabricante} - ${peca.nome} (${peca.fabricante.nome})',
@@ -2736,9 +2868,12 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             setState(() {
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
+              _textoBuscaPecaAtual = selection.codigoFabricante;
+              _pecaDebouncedQuery = '';
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+            _pecaSearchController = controller;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -2746,6 +2881,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               onChanged: _isViewMode
                   ? null
                   : (value) {
+                      _textoBuscaPecaAtual = value;
+                      _onPecaSearchChangedDebounced(value);
                       if (_pecaEncontrada != null) {
                         setState(() {
                           _pecaEncontrada = null;
@@ -2753,9 +2890,9 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       }
                     },
               decoration: InputDecoration(
-                labelText: 'Código da Peça',
-                hintText: 'Digite o código, nome ou fabricante...',
-                prefixIcon: Icon(Icons.qr_code, color: Colors.grey[600]),
+                labelText: _modoBuscaPeca == 'CODIGO' ? 'Código da Peça' : 'Nome da Peça',
+                hintText: _modoBuscaPeca == 'CODIGO' ? 'Digite o código da peça...' : 'Digite o nome da peça...',
+                prefixIcon: Icon(_modoBuscaPeca == 'CODIGO' ? Icons.qr_code : Icons.search, color: Colors.grey[600]),
                 suffixIcon: _pecaEncontrada != null
                     ? Builder(builder: (_) {
                         final disp = _pecaEncontrada!.quantidadeEstoque - (_pecaEncontrada!.unidadesUsadasEmOS ?? 0);
@@ -2789,12 +2926,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               ),
               onSubmitted: _isViewMode
                   ? null
-                  : (value) {
-                      if (_pecaEncontrada != null) {
-                        _buscarPecaPorCodigo(_pecaEncontrada!.codigoFabricante);
-                      } else {
-                        _buscarPecaPorCodigo(value);
-                      }
+                  : (value) async {
+                      await _adicionarPecaViaBusca(value);
+                      if (!mounted) return;
+                      setState(() {
+                        _pecaDebouncedQuery = '';
+                        _textoBuscaPecaAtual = '';
+                      });
                       controller.clear();
                     },
             );
@@ -2807,65 +2945,72 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 elevation: 4,
                 borderRadius: BorderRadius.circular(8),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 200),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: optList.length,
-                    itemBuilder: (context, index) {
-                      final peca = optList[index];
-                      return ListTile(
-                        dense: true,
-                        leading: Builder(builder: (_) {
-                          final disp = peca.quantidadeEstoque - (peca.unidadesUsadasEmOS ?? 0);
-                          final dispColor = disp <= 0
-                              ? Colors.red
-                              : disp < peca.estoqueSeguranca
-                                  ? Colors.orange
-                                  : Colors.green;
-                          return Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: dispColor[100],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '$disp',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: dispColor[700],
+                  constraints: BoxConstraints(
+                    minWidth: 320,
+                    maxWidth: MediaQuery.of(context).size.width > 900 ? 500 : MediaQuery.of(context).size.width - 56,
+                    maxHeight: 260,
+                  ),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      primary: false,
+                      padding: EdgeInsets.zero,
+                      itemCount: optList.length,
+                      itemBuilder: (context, index) {
+                        final peca = optList[index];
+                        return ListTile(
+                          dense: true,
+                          leading: Builder(builder: (_) {
+                            final disp = peca.quantidadeEstoque - (peca.unidadesUsadasEmOS ?? 0);
+                            final dispColor = disp <= 0
+                                ? Colors.red
+                                : disp < peca.estoqueSeguranca
+                                    ? Colors.orange
+                                    : Colors.green;
+                            return Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: dispColor[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$disp',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: dispColor[700],
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }),
-                        title: Text(
-                          '${peca.codigoFabricante} - ${peca.nome}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Fabricante: ${peca.fabricante.nome}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            Text(
-                              'Preço: R\$ ${peca.precoFinal.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.green[700],
+                            );
+                          }),
+                          title: Text(
+                            '${peca.codigoFabricante} - ${peca.nome}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Fabricante: ${peca.fabricante.nome}',
+                                style: const TextStyle(fontSize: 12),
                               ),
-                            ),
-                          ],
-                        ),
-                        onTap: () => onSelected(peca),
-                      );
-                    },
+                              Text(
+                                'Preço: R\$ ${peca.precoFinal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () => onSelected(peca),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -3411,61 +3556,96 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ),
               )
             else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _servicosFiltrados.map((servico) {
-                  final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
-                  return FilterChip(
-                    selected: isSelected,
-                    label: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          servico.nome,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.grey[700],
-                            fontWeight: FontWeight.w500,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_servicoSearchController.text.trim().isEmpty && _servicosDisponiveis.length > 5)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Mostrando os 5 serviços mais recentes. Pesquise para ver os demais.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: _servicosFiltrados.length > 1 ? () => _deslizarServicos(-260) : null,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        tooltip: 'Serviços anteriores',
+                      ),
+                      Expanded(
+                        child: SizedBox(
+                          height: 74,
+                          child: ListView.separated(
+                            controller: _servicosSliderController,
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _servicosFiltrados.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final servico = _servicosFiltrados[index];
+                              final isSelected = _servicosSelecionados.any((s) => s.id == servico.id);
+                              return FilterChip(
+                                selected: isSelected,
+                                label: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      servico.nome,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (_categoriaSelecionada == 'Caminhonete')
+                                      Text(
+                                        'R\$ ${(servico.precoCaminhonete ?? 0.0).toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white70 : Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      )
+                                    else if (_categoriaSelecionada == 'Passeio')
+                                      Text(
+                                        'R\$ ${(servico.precoPasseio ?? 0.0).toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white70 : Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      )
+                                    else
+                                      Text(
+                                        'Categoria não definida',
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white70 : Colors.orange[600],
+                                          fontSize: 12,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
+                                selectedColor: Colors.orange.shade400,
+                                backgroundColor: Colors.white,
+                                checkmarkColor: Colors.white,
+                                side: BorderSide(
+                                  color: isSelected ? Colors.orange.shade400 : Colors.grey[300]!,
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              );
+                            },
                           ),
                         ),
-                        if (_categoriaSelecionada == 'Caminhonete')
-                          Text(
-                            'R\$ ${(servico.precoCaminhonete ?? 0.0).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white70 : Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          )
-                        else if (_categoriaSelecionada == 'Passeio')
-                          Text(
-                            'R\$ ${(servico.precoPasseio ?? 0.0).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white70 : Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          )
-                        else
-                          Text(
-                            'Categoria não definida',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white70 : Colors.orange[600],
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                      ],
-                    ),
-                    onSelected: _isViewMode ? null : (selected) => _onServicoToggled(servico),
-                    selectedColor: Colors.orange.shade400,
-                    backgroundColor: Colors.white,
-                    checkmarkColor: Colors.white,
-                    side: BorderSide(
-                      color: isSelected ? Colors.orange.shade400 : Colors.grey[300]!,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  );
-                }).toList(),
+                      ),
+                      IconButton(
+                        onPressed: _servicosFiltrados.length > 1 ? () => _deslizarServicos(260) : null,
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        tooltip: 'Próximos serviços',
+                      ),
+                    ],
+                  ),
+                ],
               ),
           ],
         ],
@@ -3598,22 +3778,26 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         ],
                       )
                     : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: _buildPecaAutocomplete(),
                           ),
                           if (!_isViewMode) ...[
                             const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              onPressed: () => _buscarPecaPorCodigo(_codigoPecaController.text),
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Adicionar'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange.shade600,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 84),
+                              child: ElevatedButton.icon(
+                                onPressed: () => _adicionarPecaViaBusca(null),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Adicionar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                               ),
                             ),

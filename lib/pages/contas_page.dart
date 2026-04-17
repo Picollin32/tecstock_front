@@ -923,6 +923,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDialogState) {
           final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+          final fornecedoresServico = _fornecedores.where((f) => f.servico).toList();
 
           bool isCredito() => formaPagamento == 'credito';
 
@@ -1157,7 +1158,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                         ),
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('Sem fornecedor')),
-                          ..._fornecedores.map(
+                          ...fornecedoresServico.map(
                             (f) => DropdownMenuItem<int?>(
                               value: f.id,
                               child: Text(f.nome),

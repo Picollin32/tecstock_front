@@ -3,6 +3,7 @@ import 'package:tecstock/pages/auditoria_page.dart';
 import 'package:tecstock/pages/cadastro_fabricante_page.dart';
 import 'package:tecstock/pages/cadastro_fornecedor_page.dart';
 import 'package:tecstock/pages/cadastro_funcioario_page.dart';
+import 'package:tecstock/pages/cadastro_categoria_financeira_page.dart';
 import 'package:tecstock/pages/cadastro_marca_page.dart';
 import 'package:tecstock/pages/cadastro_peca_page.dart';
 import 'package:tecstock/pages/cadastro_servico_page.dart';
@@ -134,12 +135,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'group': 'Cadastros',
       'items': [
         {'title': 'Clientes', 'icon': Icons.person_search, 'page': const CadastroClientePage()},
-        {'title': 'Marcas', 'icon': Icons.loyalty, 'page': const CadastroMarcaPage()},
         {'title': 'Veículos', 'icon': Icons.directions_car, 'page': const CadastroVeiculoPage()},
-        {'title': 'Fornecedor', 'icon': Icons.local_shipping, 'page': const CadastroFornecedorPage()},
+        {'title': 'Marcas', 'icon': Icons.loyalty, 'page': const CadastroMarcaPage()},
         {'title': 'Fabricantes', 'icon': Icons.factory, 'page': const CadastroFabricantePage()},
+        {'title': 'Fornecedor', 'icon': Icons.local_shipping, 'page': const CadastroFornecedorPage()},
         {'title': 'Peças', 'icon': Icons.settings, 'page': const CadastroPecaPage()},
         {'title': 'Serviços', 'icon': Icons.home_repair_service, 'page': const CadastroServicoPage()},
+        {'title': 'Categorias Financeiras', 'icon': Icons.category_outlined, 'page': const CadastroCategoriaFinanceiraPage()},
       ],
     },
     {

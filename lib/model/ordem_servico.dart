@@ -37,6 +37,7 @@ class OrdemServico {
   int garantiaMeses;
   TipoPagamento? tipoPagamento;
   int? numeroParcelas;
+  String? parcelasDetalhadasBoleto;
   int? prazoFiadoDias;
   bool? fiadoPago;
   Funcionario? mecanico;
@@ -79,6 +80,7 @@ class OrdemServico {
     this.garantiaMeses = 3,
     this.tipoPagamento,
     this.numeroParcelas,
+    this.parcelasDetalhadasBoleto,
     this.prazoFiadoDias,
     this.fiadoPago,
     this.mecanico,
@@ -126,6 +128,7 @@ class OrdemServico {
       garantiaMeses: json['garantiaMeses'] ?? 3,
       tipoPagamento: json['tipoPagamento'] != null ? TipoPagamento.fromJson(json['tipoPagamento']) : null,
       numeroParcelas: json['numeroParcelas'],
+      parcelasDetalhadasBoleto: json['parcelasDetalhadasBoleto'],
       prazoFiadoDias: json['prazoFiadoDias'],
       fiadoPago: json['fiadoPago'],
       mecanico: json['mecanico'] != null ? Funcionario.fromJson(json['mecanico']) : null,
@@ -172,6 +175,7 @@ class OrdemServico {
     map['garantiaMeses'] = garantiaMeses;
     if (tipoPagamento != null) map['tipoPagamento'] = tipoPagamento!.toJson();
     if (numeroParcelas != null) map['numeroParcelas'] = numeroParcelas;
+    if (parcelasDetalhadasBoleto != null) map['parcelasDetalhadasBoleto'] = parcelasDetalhadasBoleto;
     if (prazoFiadoDias != null) map['prazoFiadoDias'] = prazoFiadoDias;
     if (fiadoPago != null) map['fiadoPago'] = fiadoPago;
     if (mecanico != null) map['mecanico'] = mecanico!.toJson();

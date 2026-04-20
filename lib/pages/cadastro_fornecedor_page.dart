@@ -590,19 +590,13 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
 
       if (resultado['success']) {
         await _carregarFornecedores();
-        _showSuccessSnackBar('Fornecedor excluído com sucesso');
+        _showSuccessSnackBar(resultado['message'] ?? 'Fornecedor excluído com sucesso');
       } else {
-        ErrorUtils.showVisibleError(context, resultado['message']);
+        ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao excluir fornecedor');
       }
     } catch (e) {
       if (!mounted) return;
-      String errorMessage = "Erro inesperado ao excluir fornecedor";
-      if (e.toString().contains('Fornecedor não pode ser excluído')) {
-        errorMessage = "Fornecedor em uso";
-      } else if (e.toString().contains('vinculado')) {
-        errorMessage = "Fornecedor em uso";
-      }
-      ErrorUtils.showVisibleError(context, errorMessage);
+      ErrorUtils.showVisibleError(context, 'Erro inesperado ao excluir fornecedor');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -622,9 +616,11 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
     _cepController.clear();
     _complementoController.clear();
     _codigoMunicipioController.clear();
+    _isLoadingCep.value = false;
     _cepAutoPreenchido.value = false;
-    _lastSearchedCep = '';
+    _isLoadingCnpj.value = false;
     _cnpjAutoPreenchido.value = false;
+    _lastSearchedCep = '';
     _lastSearchedCnpj = '';
     _ufSelecionada = 'GO';
     _ufNotifier.value = 'GO';
@@ -1235,6 +1231,47 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
       child: Column(
         children: [
           ValueListenableBuilder<bool>(
+            valueListenable: _isServicoFornecedorNotifier,
+            builder: (context, marcado, _) => AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: marcado ? primaryColor.withValues(alpha: 0.10) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: marcado ? primaryColor.withValues(alpha: 0.55) : Colors.grey.shade300,
+                ),
+              ),
+              child: CheckboxListTile(
+                value: marcado,
+                onChanged: (v) {
+                  final novoValor = v ?? false;
+                  if (novoValor) {
+                    _margemLucroController.clear();
+                  }
+                  _isServicoFornecedorNotifier.value = novoValor;
+                  setState(() => _isServicoFornecedor = novoValor);
+                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                title: Text(
+                  'Serviço',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: marcado ? primaryColor : Colors.grey.shade800,
+                  ),
+                ),
+                subtitle: Text(
+                  'Marcado: somente nome é obrigatório.',
+                  style: TextStyle(color: marcado ? primaryColor.withValues(alpha: 0.9) : Colors.grey.shade700),
+                ),
+                checkColor: Colors.white,
+                activeColor: primaryColor,
+                side: BorderSide(color: marcado ? primaryColor : Colors.grey.shade600, width: 1.8),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ValueListenableBuilder<bool>(
             valueListenable: _isLoadingCnpj,
             builder: (context, isLoading, _) => ValueListenableBuilder<bool>(
               valueListenable: _cnpjAutoPreenchido,
@@ -1294,47 +1331,6 @@ class _CadastroFornecedorPageState extends State<CadastroFornecedorPage> with Ti
             label: 'Nome do Fornecedor',
             icon: Icons.store,
             validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
-          ),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<bool>(
-            valueListenable: _isServicoFornecedorNotifier,
-            builder: (context, marcado, _) => AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              decoration: BoxDecoration(
-                color: marcado ? primaryColor.withValues(alpha: 0.10) : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: marcado ? primaryColor.withValues(alpha: 0.55) : Colors.grey.shade300,
-                ),
-              ),
-              child: CheckboxListTile(
-                value: marcado,
-                onChanged: (v) {
-                  final novoValor = v ?? false;
-                  if (novoValor) {
-                    _margemLucroController.clear();
-                  }
-                  _isServicoFornecedorNotifier.value = novoValor;
-                  setState(() => _isServicoFornecedor = novoValor);
-                },
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                title: Text(
-                  'Serviço',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: marcado ? primaryColor : Colors.grey.shade800,
-                  ),
-                ),
-                subtitle: Text(
-                  'Marcado: somente nome é obrigatório.',
-                  style: TextStyle(color: marcado ? primaryColor.withValues(alpha: 0.9) : Colors.grey.shade700),
-                ),
-                checkColor: Colors.white,
-                activeColor: primaryColor,
-                side: BorderSide(color: marcado ? primaryColor : Colors.grey.shade600, width: 1.8),
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            ),
           ),
           const SizedBox(height: 16),
           LayoutBuilder(

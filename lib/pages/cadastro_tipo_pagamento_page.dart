@@ -15,7 +15,12 @@ class CadastroTipoPagamentoPage extends StatefulWidget {
 class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _quantidadeParcelasController = TextEditingController();
+  final TextEditingController _diasEntreParcelasController = TextEditingController();
+  final TextEditingController _mesesBoletoController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  bool _pagamentoAVista = true;
+  bool _ehBoleto = false;
 
   List<TipoPagamento> _tiposPagamento = [];
   List<TipoPagamento> _tiposPagamentoFiltrados = [];
@@ -65,6 +70,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _nomeController.dispose();
+    _quantidadeParcelasController.dispose();
+    _diasEntreParcelasController.dispose();
+    _mesesBoletoController.dispose();
     super.dispose();
   }
 
@@ -147,9 +155,17 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
 
     setState(() => _isLoading = true);
     try {
+      final mesesBoleto = (int.tryParse(_mesesBoletoController.text.trim()) ?? 1).clamp(1, 12);
+      final nomeBase = _nomeController.text.trim();
+      final nomeFinal = (!_pagamentoAVista && _ehBoleto) ? _nomeComPrazoBoleto(nomeBase, mesesBoleto) : nomeBase;
+
       final tipoPagamento = TipoPagamento(
         id: _tipoPagamentoEmEdicao?.id,
-        nome: _nomeController.text.trim(),
+        nome: nomeFinal,
+        idFormaPagamento: _pagamentoAVista ? 1 : (_ehBoleto ? 3 : 2),
+        quantidadeParcelas:
+            _pagamentoAVista ? 1 : (_ehBoleto ? mesesBoleto : (int.tryParse(_quantidadeParcelasController.text.trim()) ?? 1)),
+        diasEntreParcelas: _pagamentoAVista ? 0 : (_ehBoleto ? 30 : (int.tryParse(_diasEntreParcelasController.text.trim()) ?? 0)),
       );
 
       Map<String, dynamic> resultado;
@@ -176,9 +192,18 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   }
 
   void _editarTipoPagamento(TipoPagamento tipoPagamento) {
+    final quantidade = tipoPagamento.quantidadeParcelas ?? 1;
+    final dias = tipoPagamento.diasEntreParcelas ?? 0;
+    final forma = tipoPagamento.idFormaPagamento ?? ((quantidade == 1 && dias == 0) ? 1 : 2);
+
     setState(() {
       _tipoPagamentoEmEdicao = tipoPagamento;
       _nomeController.text = tipoPagamento.nome;
+      _quantidadeParcelasController.text = quantidade.toString();
+      _diasEntreParcelasController.text = dias.toString();
+      _pagamentoAVista = forma == 1;
+      _ehBoleto = forma == 3;
+      _mesesBoletoController.text = quantidade.clamp(1, 12).toString();
     });
     _showFormModal();
   }
@@ -238,7 +263,68 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   void _limparFormulario() {
     _formKey.currentState?.reset();
     _nomeController.clear();
+    _quantidadeParcelasController.text = '1';
+    _diasEntreParcelasController.text = '0';
+    _mesesBoletoController.text = '1';
+    _pagamentoAVista = true;
+    _ehBoleto = false;
     _tipoPagamentoEmEdicao = null;
+  }
+
+  String _resumoPrazosBoleto(int meses) {
+    final valores = List.generate(meses, (i) => '${(i + 1) * 30}');
+    return valores.join('/');
+  }
+
+  String _nomeComPrazoBoleto(String nomeBase, int meses) {
+    final semSufixo = nomeBase.trim().replaceFirst(RegExp(r'\s*\((\d{1,3}(?:/\d{1,3})*)\)\s*$'), '');
+    return '$semSufixo (${_resumoPrazosBoleto(meses)})';
+  }
+
+  Widget _buildOpcaoBooleana({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? primaryColor.withValues(alpha: 0.12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? primaryColor : Colors.grey.shade300,
+                width: selected ? 1.5 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: selected ? primaryColor : Colors.grey.shade600,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? primaryColor : Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showSuccessSnackBar(String message) {
@@ -321,6 +407,13 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   }
 
   Widget _buildMobileTipoPagamentoCard(TipoPagamento tipoPagamento) {
+    final int forma = tipoPagamento.idFormaPagamento ?? 1;
+    final bool parcelado = forma == 2;
+    final bool boleto = forma == 3;
+    final String formaLabel = boleto ? 'Boleto' : (parcelado ? 'Parcelado' : 'À vista');
+    final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
+    final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -403,6 +496,35 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                     ),
                   ),
                 ],
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Forma: $formaLabel',
+                        style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Parcelas: $parcelas',
+                        style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12))}' : 'Intervalo: $intervalo dias',
+                        style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -471,7 +593,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisExtent: 110,
+            mainAxisExtent: 178,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -486,6 +608,13 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   }
 
   Widget _buildTipoPagamentoCard(TipoPagamento tipoPagamento) {
+    final int forma = tipoPagamento.idFormaPagamento ?? 1;
+    final bool parcelado = forma == 2;
+    final bool boleto = forma == 3;
+    final String formaLabel = boleto ? 'Boleto' : (parcelado ? 'Parcelado' : 'À vista');
+    final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
+    final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -583,6 +712,62 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                   ),
                   child: Column(
                     children: [
+                      Row(
+                        children: [
+                          Icon(
+                            boleto ? Icons.receipt_long : (parcelado ? Icons.credit_card : Icons.payments_outlined),
+                            size: 12,
+                            color: boleto ? Colors.blue[700] : (parcelado ? Colors.orange[700] : Colors.green[700]),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Forma: $formaLabel',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.format_list_numbered, size: 12, color: Colors.grey[700]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Parcelas: $parcelas',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey[700]),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12))}' : 'Intervalo: $intervalo dias',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (tipoPagamento.createdAt != null) const SizedBox(height: 4),
                       if (tipoPagamento.createdAt != null)
                         Row(
                           children: [
@@ -660,70 +845,257 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextFormField(
-                          controller: _nomeController,
-                          decoration: InputDecoration(
-                            labelText: 'Nome do Tipo de Pagamento',
-                            hintText: 'Ex: PIX, Cartão de Débito, Dinheiro',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: primaryColor, width: 2),
-                            ),
-                            prefixIcon: const Icon(Icons.payment),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Nome é obrigatório';
-                            }
-                            if (value.trim().length < 2) {
-                              return 'Nome deve ter pelo menos 2 caracteres';
-                            }
-                            return null;
-                          },
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                        const SizedBox(height: 24),
-                        const SizedBox(height: 32),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _salvarTipoPagamento,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
+                  child: StatefulBuilder(
+                    builder: (context, setModalState) => Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _nomeController,
+                            decoration: InputDecoration(
+                              labelText: 'Nome do Tipo de Pagamento',
+                              hintText: 'Ex: PIX, Cartão de Débito, Dinheiro',
+                              border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              elevation: 2,
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: primaryColor, width: 2),
+                              ),
+                              prefixIcon: const Icon(Icons.payment),
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    _tipoPagamentoEmEdicao != null ? 'Atualizar' : 'Salvar',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Nome é obrigatório';
+                              }
+                              if (value.trim().length < 2) {
+                                return 'Nome deve ter pelo menos 2 caracteres';
+                              }
+                              return null;
+                            },
+                            textCapitalization: TextCapitalization.words,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Pagamento à vista?',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _buildOpcaoBooleana(
+                                      label: 'Sim',
+                                      selected: _pagamentoAVista,
+                                      onTap: () {
+                                        setModalState(() {
+                                          _pagamentoAVista = true;
+                                          _ehBoleto = false;
+                                          _quantidadeParcelasController.text = '1';
+                                          _diasEntreParcelasController.text = '0';
+                                          _mesesBoletoController.text = '1';
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _buildOpcaoBooleana(
+                                      label: 'Não',
+                                      selected: !_pagamentoAVista,
+                                      onTap: () {
+                                        setModalState(() {
+                                          _pagamentoAVista = false;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!_pagamentoAVista) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'É boleto?',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      _buildOpcaoBooleana(
+                                        label: 'Sim',
+                                        selected: _ehBoleto,
+                                        onTap: () {
+                                          setModalState(() {
+                                            _ehBoleto = true;
+                                            _diasEntreParcelasController.text = '30';
+                                            _mesesBoletoController.text =
+                                                (_tipoPagamentoEmEdicao?.quantidadeParcelas ?? 1).clamp(1, 12).toString();
+                                          });
+                                        },
+                                      ),
+                                      const SizedBox(width: 10),
+                                      _buildOpcaoBooleana(
+                                        label: 'Não',
+                                        selected: !_ehBoleto,
+                                        onTap: () {
+                                          setModalState(() {
+                                            _ehBoleto = false;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (!_pagamentoAVista) ...[
+                            const SizedBox(height: 16),
+                            if (_ehBoleto)
+                              TextFormField(
+                                controller: _mesesBoletoController,
+                                decoration: InputDecoration(
+                                  labelText: 'Meses de Boleto (máx. 12)',
+                                  hintText: 'Ex: 1, 2, 3... até 12',
+                                  helperText: (() {
+                                    final meses = int.tryParse(_mesesBoletoController.text.trim()) ?? 1;
+                                    final normalizado = meses.clamp(1, 12);
+                                    return 'Prazos: ${_resumoPrazosBoleto(normalizado)} dias';
+                                  })(),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: primaryColor, width: 2),
+                                  ),
+                                  prefixIcon: const Icon(Icons.receipt_long),
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (_) => setModalState(() {}),
+                                validator: (value) {
+                                  if (_pagamentoAVista || !_ehBoleto) return null;
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Meses de boleto é obrigatório';
+                                  }
+                                  final parsed = int.tryParse(value.trim());
+                                  if (parsed == null || parsed < 1 || parsed > 12) {
+                                    return 'Informe um número entre 1 e 12';
+                                  }
+                                  return null;
+                                },
+                              )
+                            else ...[
+                              TextFormField(
+                                controller: _quantidadeParcelasController,
+                                decoration: InputDecoration(
+                                  labelText: 'Quantidade de Parcelas',
+                                  hintText: 'Ex: 2, 3, 4... ',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: primaryColor, width: 2),
+                                  ),
+                                  prefixIcon: const Icon(Icons.format_list_numbered),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (_pagamentoAVista || _ehBoleto) return null;
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Quantidade de parcelas é obrigatória';
+                                  }
+                                  final parsed = int.tryParse(value.trim());
+                                  if (parsed == null || parsed < 2) {
+                                    return 'Informe um número inteiro maior ou igual a 2';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _diasEntreParcelasController,
+                                decoration: InputDecoration(
+                                  labelText: 'Dias entre Parcelas',
+                                  hintText: 'Ex: 15, 30',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(color: primaryColor, width: 2),
+                                  ),
+                                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (_pagamentoAVista || _ehBoleto) return null;
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Dias entre parcelas é obrigatório';
+                                  }
+                                  final parsed = int.tryParse(value.trim());
+                                  if (parsed == null || parsed < 1) {
+                                    return 'Informe um número inteiro maior ou igual a 1';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ],
+                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _salvarTipoPagamento,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 2,
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      _tipoPagamentoEmEdicao != null ? 'Atualizar' : 'Salvar',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

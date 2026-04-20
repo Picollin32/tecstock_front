@@ -4,6 +4,8 @@ class TipoPagamento {
   int? codigo;
 
   int? idFormaPagamento;
+  int? quantidadeParcelas;
+  int? diasEntreParcelas;
   DateTime? createdAt;
   DateTime? updatedAt;
 
@@ -12,6 +14,8 @@ class TipoPagamento {
     required this.nome,
     this.codigo,
     this.idFormaPagamento,
+    this.quantidadeParcelas,
+    this.diasEntreParcelas,
     this.createdAt,
     this.updatedAt,
   });
@@ -22,6 +26,8 @@ class TipoPagamento {
       nome: json['nome'],
       codigo: json['codigo'],
       idFormaPagamento: json['idFormaPagamento'],
+      quantidadeParcelas: json['quantidadeParcelas'],
+      diasEntreParcelas: json['diasEntreParcelas'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
     );
@@ -33,6 +39,8 @@ class TipoPagamento {
       'nome': nome,
       'codigo': codigo,
       'idFormaPagamento': idFormaPagamento,
+      'quantidadeParcelas': quantidadeParcelas,
+      'diasEntreParcelas': diasEntreParcelas,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
@@ -40,6 +48,6 @@ class TipoPagamento {
 
   @override
   String toString() {
-    return 'TipoPagamento{id: $id, nome: $nome, codigo: $codigo, idFormaPagamento: $idFormaPagamento}';
+    return 'TipoPagamento{id: $id, nome: $nome, codigo: $codigo, idFormaPagamento: $idFormaPagamento, quantidadeParcelas: $quantidadeParcelas, diasEntreParcelas: $diasEntreParcelas}';
   }
 }

@@ -92,7 +92,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   TipoPagamento? _tipoPagamentoSelecionado;
   int _garantiaMeses = 3;
   int? _numeroParcelas;
-  int? _prazoFiadoDias;
+  String? _parcelasDetalhadasBoleto;
+  final List<TextEditingController> _boletoParcelasControllers = [];
   Funcionario? _mecanicoSelecionado;
   Funcionario? _consultorSelecionado;
   String? _categoriaSelecionada;
@@ -236,6 +237,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _scrollController.dispose();
       _servicosSliderController.dispose();
       _clienteFocusNode.dispose();
+      for (final c in _boletoParcelasControllers) {
+        c.dispose();
+      }
+      _boletoParcelasControllers.clear();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
     }
@@ -540,7 +545,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _tipoPagamentoSelecionado = null;
       _garantiaMeses = 3;
       _numeroParcelas = null;
-      _prazoFiadoDias = null;
+      _parcelasDetalhadasBoleto = null;
       _mecanicoSelecionado = null;
       _consultorSelecionado = null;
       _categoriaSelecionada = null;
@@ -553,6 +558,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _descontoPecas = 0.0;
       _tipoOrdem = null;
     });
+
+    for (final c in _boletoParcelasControllers) {
+      c.dispose();
+    }
+    _boletoParcelasControllers.clear();
 
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
@@ -2018,6 +2028,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   pw.Widget _buildPdfPricingSectionOrcamento(Orcamento? orcamento) {
     final tipoPagamento = orcamento?.tipoPagamento ?? _tipoPagamentoSelecionado;
     final numeroParcelas = orcamento?.numeroParcelas ?? _numeroParcelas;
+    final parcelasDetalhadasBoleto = _parseParcelasBoleto(orcamento?.parcelasDetalhadasBoleto ?? _parcelasDetalhadasBoleto);
     final garantiaMeses = orcamento?.garantiaMeses ?? _garantiaMeses;
 
     final pecasParaPDF = orcamento?.pecasOrcadas ?? _pecasSelecionadas;
@@ -2051,11 +2062,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     final totalPecasComDesconto = totalPecas - (descontoPecas > 0 ? descontoPecas : 0.0);
     final totalGeral = totalServicosComDesconto + totalPecasComDesconto;
 
+    final formaPagamento = tipoPagamento?.idFormaPagamento ?? 1;
+    final int parcelasParaExibir =
+        formaPagamento == 1 ? 1 : (formaPagamento == 3 ? _maxParcelasTipo(tipoPagamento) : (numeroParcelas ?? 1));
+    final bool mostrarParcelamento = formaPagamento != 1 && parcelasParaExibir > 0;
+    final String cronogramaParcelas = _cronogramaParcelas(tipoPagamento, parcelasParaExibir);
+    final String rotuloParcelamento = formaPagamento == 3 ? 'BOLETO:' : 'PARCELAMENTO:';
+    final String resumoValoresBoleto = parcelasDetalhadasBoleto.isEmpty
+        ? ''
+        : parcelasDetalhadasBoleto.asMap().entries.map((e) => '${e.key + 1}a: R\$ ${e.value.toStringAsFixed(2)}').join(' | ');
     double valorParcelaCalculado = 0.0;
-    final bool mostrarParcelamento = (tipoPagamento?.idFormaPagamento == 1 && numeroParcelas != null && numeroParcelas > 0);
 
     if (mostrarParcelamento) {
-      final raw = totalGeral / numeroParcelas;
+      final raw = totalGeral / parcelasParaExibir;
       final rounded = double.parse(raw.toStringAsFixed(2));
       valorParcelaCalculado = rounded;
     }
@@ -2180,12 +2199,28 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('PARCELAMENTO:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                  pw.Text('${numeroParcelas}x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}',
+                  pw.Text(rotuloParcelamento, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                  pw.Text(
+                      '${parcelasParaExibir}x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}',
                       style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
                 ],
               ),
             ),
+            pw.SizedBox(height: 3),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Cronograma:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                pw.Text('$cronogramaParcelas dias', style: pw.TextStyle(fontSize: 8, color: PdfColors.blue700)),
+              ],
+            ),
+            if (formaPagamento == 3 && resumoValoresBoleto.isNotEmpty) ...[
+              pw.SizedBox(height: 2),
+              pw.Text(
+                resumoValoresBoleto,
+                style: pw.TextStyle(fontSize: 7.5, color: PdfColors.blue700),
+              ),
+            ],
           ],
           pw.SizedBox(height: 4),
           pw.Row(
@@ -2439,7 +2474,18 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _garantiaMeses = orcamento.garantiaMeses;
       _tipoPagamentoSelecionado = orcamento.tipoPagamento;
       _numeroParcelas = orcamento.numeroParcelas;
-      _prazoFiadoDias = orcamento.prazoFiadoDias;
+      _parcelasDetalhadasBoleto = orcamento.parcelasDetalhadasBoleto;
+
+      if (_tipoPagamentoSelecionado?.idFormaPagamento == 3) {
+        final qtd = _maxParcelasTipo(_tipoPagamentoSelecionado);
+        final valores = _parseParcelasBoleto(_parcelasDetalhadasBoleto);
+        _syncBoletoParcelasControllers(
+          qtd,
+          valores: valores.length == qtd ? valores : _gerarParcelasPadraoBoleto(_precoTotal, qtd),
+        );
+      } else {
+        _syncBoletoParcelasControllers(0);
+      }
 
       if (orcamento.mecanico != null && orcamento.mecanico!.id != null) {
         _mecanicoSelecionado = _funcionarios.where((f) => f.id == orcamento.mecanico!.id && f.nivelAcesso == 3).firstOrNull;
@@ -4360,16 +4406,30 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                     } on StateError {
                       _tipoPagamentoSelecionado = null;
                     }
-                    if (_tipoPagamentoSelecionado?.idFormaPagamento != 1) {
+                    if (_tipoPagamentoSelecionado == null || _tipoPagamentoSelecionado?.idFormaPagamento == 1) {
                       _numeroParcelas = null;
-                    }
-                    if (_tipoPagamentoSelecionado?.idFormaPagamento != 2) {
-                      _prazoFiadoDias = null;
+                      _parcelasDetalhadasBoleto = null;
+                      _syncBoletoParcelasControllers(0);
+                    } else if (_tipoPagamentoSelecionado?.idFormaPagamento == 3) {
+                      _numeroParcelas = _maxParcelasTipo(_tipoPagamentoSelecionado);
+                      _syncBoletoParcelasControllers(
+                        _numeroParcelas!,
+                        valores: _gerarParcelasPadraoBoleto(_precoTotal, _numeroParcelas!),
+                      );
+                    } else {
+                      final max = _maxParcelasTipo(_tipoPagamentoSelecionado);
+                      if (_numeroParcelas == null || _numeroParcelas! < 1 || _numeroParcelas! > max) {
+                        _numeroParcelas = 1;
+                      }
+                      _parcelasDetalhadasBoleto = null;
+                      _syncBoletoParcelasControllers(0);
                     }
                   });
                 },
         ),
-        if (_tipoPagamentoSelecionado?.idFormaPagamento == 1) ...[
+        if (_tipoPagamentoSelecionado != null &&
+            _tipoPagamentoSelecionado?.idFormaPagamento == 2 &&
+            _maxParcelasTipo(_tipoPagamentoSelecionado) > 1) ...[
           const SizedBox(height: 12),
           Text(
             'Número de Parcelas',
@@ -4398,7 +4458,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
-            items: List.generate(12, (i) => i + 1).map((parcelas) {
+            items: List.generate(_maxParcelasTipo(_tipoPagamentoSelecionado), (i) => i + 1).map((parcelas) {
               return DropdownMenuItem<int>(
                 value: parcelas,
                 child: Text('${parcelas}x'),
@@ -4413,52 +4473,131 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   },
           ),
         ],
-        if (_tipoPagamentoSelecionado?.idFormaPagamento == 2) ...[
+        if (_tipoPagamentoSelecionado != null &&
+            _tipoPagamentoSelecionado?.idFormaPagamento == 3 &&
+            _maxParcelasTipo(_tipoPagamentoSelecionado) > 1) ...[
           const SizedBox(height: 12),
           Text(
-            'Prazo (meses)',
+            'Parcelamento (Boleto) - Preencha cada parcela',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: Colors.grey[700],
                   fontWeight: FontWeight.w500,
                 ),
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<int>(
-            initialValue: _prazoFiadoDias != null ? (_prazoFiadoDias! ~/ 30) : null,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+          for (var i = 0; i < _boletoParcelasControllers.length; i++) ...[
+            TextFormField(
+              controller: _boletoParcelasControllers[i],
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
+              readOnly: _isViewMode,
+              decoration: InputDecoration(
+                labelText: 'Parcela ${i + 1} (R\$)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                ),
+                filled: true,
+                fillColor: _isViewMode ? Colors.grey[100] : Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
-            items: List.generate(12, (i) => i + 1).map((mes) {
-              return DropdownMenuItem<int>(
-                value: mes,
-                child: Text('$mes mês${mes > 1 ? 'es' : ''}'),
+            if (i < _boletoParcelasControllers.length - 1) const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 6),
+          Builder(
+            builder: (_) {
+              final soma = _somaParcelasBoleto();
+              final ok = (soma - _precoTotal).abs() <= 0.02;
+              return Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'Soma das parcelas: R\$ ${soma.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: ok ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                ),
               );
-            }).toList(),
-            onChanged: _isViewMode
-                ? null
-                : (value) {
-                    setState(() {
-                      _prazoFiadoDias = value != null ? value * 30 : null;
-                    });
-                  },
+            },
           ),
         ],
       ],
     );
+  }
+
+  int _maxParcelasTipo(TipoPagamento? tipo) {
+    final max = tipo?.quantidadeParcelas ?? 1;
+    return max < 1 ? 1 : max;
+  }
+
+  List<double> _gerarParcelasPadraoBoleto(double valorTotal, int quantidade) {
+    final parcelas = <double>[];
+    if (quantidade < 1) return parcelas;
+    final valorBase = (valorTotal / quantidade);
+    double acumulado = 0;
+    for (int i = 0; i < quantidade; i++) {
+      final valorParcela =
+          i == quantidade - 1 ? ((valorTotal - acumulado) * 100).roundToDouble() / 100 : (valorBase * 100).roundToDouble() / 100;
+      acumulado += valorParcela;
+      parcelas.add(valorParcela);
+    }
+    return parcelas;
+  }
+
+  List<double> _parseParcelasBoleto(String? valor) {
+    if (valor == null || valor.trim().isEmpty) return [];
+    return valor.split(';').map((e) => double.tryParse(e.trim().replaceAll(',', '.')) ?? 0).where((e) => e > 0).toList();
+  }
+
+  void _syncBoletoParcelasControllers(int quantidade, {List<double>? valores}) {
+    for (final c in _boletoParcelasControllers) {
+      c.dispose();
+    }
+    _boletoParcelasControllers.clear();
+    if (quantidade <= 0) return;
+
+    for (int i = 0; i < quantidade; i++) {
+      final valor = (valores != null && i < valores.length) ? valores[i] : 0.0;
+      _boletoParcelasControllers.add(TextEditingController(text: valor > 0 ? valor.toStringAsFixed(2) : ''));
+    }
+  }
+
+  double _somaParcelasBoleto() {
+    return _boletoParcelasControllers.fold<double>(
+      0,
+      (soma, c) => soma + (double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0),
+    );
+  }
+
+  bool _boletoParcelasValidas(double total) {
+    if (_boletoParcelasControllers.isEmpty) return false;
+    for (final c in _boletoParcelasControllers) {
+      final valor = double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0;
+      if (valor <= 0) return false;
+    }
+    return (_somaParcelasBoleto() - total).abs() <= 0.02;
+  }
+
+  String _serializarParcelasBoleto() {
+    return _boletoParcelasControllers.map((c) => (double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0).toStringAsFixed(2)).join(';');
+  }
+
+  String _cronogramaParcelas(TipoPagamento? tipo, int? numeroParcelas) {
+    if (tipo == null) return '';
+    final forma = tipo.idFormaPagamento ?? 1;
+    if (forma == 1) return '';
+    final dias = ((tipo.diasEntreParcelas ?? 30) <= 0) ? 30 : (tipo.diasEntreParcelas ?? 30);
+    final parcelas = forma == 3 ? _maxParcelasTipo(tipo) : ((numeroParcelas ?? 1) < 1 ? 1 : (numeroParcelas ?? 1));
+    return List.generate(parcelas, (i) => '${(i + 1) * dias}').join('/');
   }
 
   Widget _buildPdfButton() {
@@ -4882,6 +5021,29 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     });
 
     try {
+      final formaPagamento = _tipoPagamentoSelecionado?.idFormaPagamento ?? 1;
+      final bool pagamentoAVista = formaPagamento == 1;
+      final int parcelasCalculadas =
+          pagamentoAVista ? 1 : (formaPagamento == 3 ? _maxParcelasTipo(_tipoPagamentoSelecionado) : (_numeroParcelas ?? 1));
+
+      if (formaPagamento == 3) {
+        if (parcelasCalculadas <= 1) {
+          _parcelasDetalhadasBoleto = _precoTotal.toStringAsFixed(2);
+        } else {
+          if (!_boletoParcelasValidas(_precoTotal)) {
+            _showErrorMessage('Preencha os valores das parcelas do boleto e garanta que a soma seja igual ao total.');
+            setState(() => _isSaving = false);
+            return;
+          }
+          _parcelasDetalhadasBoleto = _serializarParcelasBoleto();
+        }
+      } else {
+        _parcelasDetalhadasBoleto = null;
+      }
+
+      final int diasEntreParcelasTipo =
+          ((_tipoPagamentoSelecionado?.diasEntreParcelas ?? 30) <= 0) ? 30 : (_tipoPagamentoSelecionado?.diasEntreParcelas ?? 30);
+
       final orcamento = Orcamento(
         id: _editingOrcamentoId,
         numeroOrcamento: _editingOrcamentoId != null ? _orcamentoNumberController.text : '',
@@ -4908,8 +5070,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         descontoPecas: _descontoPecas > 0 ? _descontoPecas : null,
         garantiaMeses: _garantiaMeses,
         tipoPagamento: _tipoPagamentoSelecionado,
-        numeroParcelas: _numeroParcelas,
-        prazoFiadoDias: _prazoFiadoDias,
+        numeroParcelas: parcelasCalculadas,
+        parcelasDetalhadasBoleto: _parcelasDetalhadasBoleto,
+        prazoFiadoDias: pagamentoAVista ? null : parcelasCalculadas * diasEntreParcelasTipo,
         mecanico: _mecanicoSelecionado,
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.trim().isNotEmpty ? _observacoesController.text.trim() : null,

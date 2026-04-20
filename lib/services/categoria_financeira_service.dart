@@ -9,6 +9,46 @@ import 'package:tecstock/services/auth_service.dart';
 class CategoriaFinanceiraService {
   static String get baseUrl => ApiConfig.categoriasFinanceirasUrl;
 
+  static Future<Map<String, dynamic>> buscarPaginado(String query, int page, {int size = 30}) async {
+    final url = '$baseUrl/buscarPaginado?query=$query&page=$page&size=$size';
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(utf8.decode(response.bodyBytes));
+        final List jsonList = jsonResponse['content'] as List;
+        final categorias = jsonList.map((e) => CategoriaFinanceira.fromJson(e)).toList();
+        return {
+          'success': true,
+          'content': categorias,
+          'totalElements': jsonResponse['totalElements'] ?? 0,
+          'totalPages': jsonResponse['totalPages'] ?? 0,
+          'currentPage': jsonResponse['number'] ?? 0,
+        };
+      }
+
+      return {
+        'success': false,
+        'content': <CategoriaFinanceira>[],
+        'totalElements': 0,
+        'totalPages': 0,
+        'currentPage': page,
+      };
+    } catch (e) {
+      if (kDebugMode) print('Erro ao buscar categorias financeiras paginado: $e');
+      return {
+        'success': false,
+        'content': <CategoriaFinanceira>[],
+        'totalElements': 0,
+        'totalPages': 0,
+        'currentPage': page,
+      };
+    }
+  }
+
   static Future<List<CategoriaFinanceira>> listar() async {
     try {
       final response = await http.get(

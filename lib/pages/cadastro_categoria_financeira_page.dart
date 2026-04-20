@@ -1,0 +1,947 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import '../model/categoria_financeira.dart';
+import '../services/categoria_financeira_service.dart';
+import '../utils/error_utils.dart';
+import '../widgets/pagination_controls.dart';
+
+class CadastroCategoriaFinanceiraPage extends StatefulWidget {
+  const CadastroCategoriaFinanceiraPage({super.key});
+
+  @override
+  State<CadastroCategoriaFinanceiraPage> createState() => _CadastroCategoriaFinanceiraPageState();
+}
+
+class _CadastroCategoriaFinanceiraPageState extends State<CadastroCategoriaFinanceiraPage> with TickerProviderStateMixin {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _descricaoController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<CategoriaFinanceira> _categoriasFiltradas = [];
+
+  CategoriaFinanceira? _categoriaEmEdicao;
+
+  bool _isLoading = false;
+  bool _isLoadingCategorias = true;
+
+  Timer? _debounceTimer;
+  int _currentPage = 0;
+  int _totalPages = 0;
+  int _totalElements = 0;
+  String _lastSearchQuery = '';
+  int _pageSize = 30;
+  final List<int> _pageSizeOptions = [30, 50, 100];
+
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  static const Color primaryColor = Color(0xFF1565C0);
+  static const Color errorColor = Color(0xFFDC2626);
+  static const Color successColor = Color(0xFF16A34A);
+  static const Color shadowColor = Color(0x1A000000);
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+    _carregarCategorias();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _nomeController.dispose();
+    _descricaoController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _carregarCategorias() async {
+    setState(() => _isLoadingCategorias = true);
+    try {
+      final resultado = await CategoriaFinanceiraService.buscarPaginado('', 0, size: _pageSize);
+      if (resultado['success'] == true) {
+        setState(() {
+          _categoriasFiltradas = resultado['content'] as List<CategoriaFinanceira>;
+          _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
+          _currentPage = 0;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao carregar categorias financeiras');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao carregar categorias financeiras');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCategorias = false);
+      }
+    }
+  }
+
+  void _onSearchChanged({bool force = false}) {
+    final query = _searchController.text.trim();
+    if (!force && query == _lastSearchQuery) return;
+    _lastSearchQuery = query;
+
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() => _currentPage = 0);
+      _filtrarCategorias();
+    });
+  }
+
+  Future<void> _filtrarCategorias() async {
+    final query = _searchController.text;
+    setState(() => _isLoadingCategorias = true);
+
+    try {
+      final resultado = await CategoriaFinanceiraService.buscarPaginado(query, _currentPage, size: _pageSize);
+      if (resultado['success'] == true) {
+        setState(() {
+          _categoriasFiltradas = resultado['content'] as List<CategoriaFinanceira>;
+          _totalPages = resultado['totalPages'] as int;
+          _totalElements = resultado['totalElements'] as int;
+        });
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, 'Erro ao buscar categorias financeiras');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao buscar categorias financeiras');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCategorias = false);
+      }
+    }
+  }
+
+  void _irParaPagina(int page) {
+    if (page < 0 || page >= _totalPages) return;
+    setState(() => _currentPage = page);
+    _filtrarCategorias();
+  }
+
+  void _alterarPageSize(int size) {
+    setState(() {
+      _pageSize = size;
+      _currentPage = 0;
+    });
+    _filtrarCategorias();
+  }
+
+  void _limparFormulario() {
+    _formKey.currentState?.reset();
+    _nomeController.clear();
+    _descricaoController.clear();
+    _categoriaEmEdicao = null;
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: successColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  Future<void> _salvarCategoria() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final nome = _nomeController.text.trim();
+    final descricao = _descricaoController.text.trim().isEmpty ? null : _descricaoController.text.trim();
+
+    setState(() => _isLoading = true);
+
+    try {
+      final resultado = _categoriaEmEdicao == null
+          ? await CategoriaFinanceiraService.criar(nome, descricao: descricao)
+          : await CategoriaFinanceiraService.atualizar(
+              _categoriaEmEdicao!.id!,
+              nome,
+              descricao: descricao,
+              ativo: _categoriaEmEdicao!.ativo,
+            );
+
+      if (!mounted) return;
+
+      if (resultado['sucesso'] == true) {
+        _showSuccessSnackBar(_categoriaEmEdicao == null ? 'Categoria cadastrada com sucesso' : 'Categoria atualizada com sucesso');
+        _limparFormulario();
+        await _carregarCategorias();
+        if (!mounted) return;
+        Navigator.of(context).pop();
+      } else {
+        ErrorUtils.showVisibleError(context, resultado['mensagem']?.toString() ?? 'Erro ao salvar categoria');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = 'Erro inesperado ao salvar categoria';
+      if (e.toString().toLowerCase().contains('já existe uma categoria com esse nome')) {
+        errorMessage = 'Categoria já cadastrada';
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _editarCategoria(CategoriaFinanceira categoria) {
+    setState(() {
+      _categoriaEmEdicao = categoria;
+      _nomeController.text = categoria.nome;
+      _descricaoController.text = categoria.descricao ?? '';
+    });
+    _showFormModal();
+  }
+
+  void _confirmarExclusao(CategoriaFinanceira categoria) {
+    showDialog(
+      context: context,
+      builder: (_) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogTheme: DialogThemeData(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 8,
+          ),
+        ),
+        child: AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: errorColor, size: 28),
+              const SizedBox(width: 12),
+              const Text('Confirmar Exclusão'),
+            ],
+          ),
+          content: Text('Deseja excluir a categoria ${categoria.nome}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _excluirCategoria(categoria);
+              },
+              child: const Text('Excluir'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _excluirCategoria(CategoriaFinanceira categoria) async {
+    setState(() => _isLoading = true);
+    try {
+      final resultado = await CategoriaFinanceiraService.deletar(categoria.id!);
+      if (!mounted) return;
+
+      if (resultado['sucesso'] == true) {
+        _showSuccessSnackBar('Categoria excluída com sucesso');
+        await _carregarCategorias();
+      } else {
+        ErrorUtils.showVisibleError(context, resultado['mensagem']?.toString() ?? 'Erro ao excluir categoria');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      String errorMessage = 'Erro inesperado ao excluir categoria';
+      if (e.toString().toLowerCase().contains('categoria vinculada')) {
+        errorMessage = 'Categoria em uso';
+      }
+      ErrorUtils.showVisibleError(context, errorMessage);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showFormModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: primaryColor,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _categoriaEmEdicao != null ? Icons.edit : Icons.add,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _categoriaEmEdicao != null ? 'Editar Categoria Financeira' : 'Nova Categoria Financeira',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _limparFormulario();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: _buildFormulario(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormulario() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: _nomeController,
+            label: 'Nome da Categoria',
+            icon: Icons.category_outlined,
+            validator: (v) {
+              final value = (v ?? '').trim();
+              if (value.isEmpty) return 'Informe o nome da categoria';
+              if (value.length < 2) return 'Nome muito curto';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: _descricaoController,
+            label: 'Descrição (opcional)',
+            icon: Icons.notes_outlined,
+            maxLines: 3,
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _salvarCategoria,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Text(
+                      _categoriaEmEdicao != null ? 'Atualizar Categoria' : 'Cadastrar Categoria',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      maxLines: maxLines,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: maxLines == 1 ? Icon(icon, color: primaryColor) : null,
+        alignLabelWithHint: maxLines > 1,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primaryColor, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: errorColor),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Pesquisar categorias...',
+          prefixIcon: const Icon(Icons.search, color: primaryColor),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged(force: true);
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryGrid({bool isMobile = false}) {
+    if (_isLoadingCategorias) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_categoriasFiltradas.isEmpty) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            children: [
+              Icon(
+                _searchController.text.isEmpty ? Icons.category_outlined : Icons.search_off,
+                size: 64,
+                color: Colors.grey[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchController.text.isEmpty ? 'Nenhuma categoria financeira cadastrada' : 'Nenhum resultado encontrado',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_searchController.text.isEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Comece adicionando sua primeira categoria',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isMobile) {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _categoriasFiltradas.length,
+        itemBuilder: (_, index) => _buildMobileCard(_categoriasFiltradas[index]),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 2;
+        if (constraints.maxWidth > 1200) {
+          crossAxisCount = 4;
+        } else if (constraints.maxWidth > 800) {
+          crossAxisCount = 3;
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisExtent: 170,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: _categoriasFiltradas.length,
+          itemBuilder: (_, index) => _buildCategoryCard(_categoriasFiltradas[index]),
+        );
+      },
+    );
+  }
+
+  Widget _buildMobileCard(CategoriaFinanceira categoria) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: shadowColor, blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarCategoria(categoria),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: primaryColor.withValues(alpha: 0.1),
+                      child: const Icon(Icons.category_outlined, color: primaryColor, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        categoria.nome,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarCategoria(categoria);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(categoria);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if ((categoria.descricao ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    categoria.descricao!.trim(),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(CategoriaFinanceira categoria) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editarCategoria(categoria),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.category_outlined, color: primaryColor, size: 22),
+                    ),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editarCategoria(categoria);
+                        } else if (value == 'delete') {
+                          _confirmarExclusao(categoria);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 18),
+                              SizedBox(width: 8),
+                              Text('Editar'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  categoria.nome,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!, width: 1),
+                  ),
+                  child: Text(
+                    (categoria.descricao ?? '').trim().isEmpty ? 'Sem descrição' : categoria.descricao!.trim(),
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationControls({bool compact = false}) {
+    return PaginationControls(
+      currentPage: _currentPage,
+      totalPages: _totalPages,
+      pageSize: _pageSize,
+      pageSizeOptions: _pageSizeOptions,
+      onPageChange: _irParaPagina,
+      onPageSizeChange: _alterarPageSize,
+      primaryColor: primaryColor,
+      compact: compact,
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: shadowColor, blurRadius: 8, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchBar(),
+              if (_searchController.text.isNotEmpty && !_isLoadingCategorias) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Resultados da Busca ($_totalElements)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (_searchController.text.isNotEmpty && _totalElements > _pageSize)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _buildPaginationControls(compact: true),
+          ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_searchController.text.isEmpty && !_isLoadingCategorias && _categoriasFiltradas.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Últimas Categorias Cadastradas',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                _buildCategoryGrid(isMobile: true),
+                if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                  const SizedBox(height: 16),
+                  _buildPaginationControls(),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text(
+          'Gestão de Categorias Financeiras',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      floatingActionButton: isMobile
+          ? FloatingActionButton(
+              onPressed: () {
+                _limparFormulario();
+                _showFormModal();
+              },
+              backgroundColor: primaryColor,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: isMobile
+            ? _buildMobileLayout()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildSearchBar()),
+                        const SizedBox(width: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryColor.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () {
+                              _limparFormulario();
+                              _showFormModal();
+                            },
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            iconSize: 28,
+                            padding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    if (_searchController.text.isEmpty && !_isLoadingCategorias && _categoriasFiltradas.isNotEmpty)
+                      Text(
+                        'Últimas Categorias Cadastradas',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    if (_searchController.text.isNotEmpty && !_isLoadingCategorias)
+                      Text(
+                        'Resultados da Busca ($_totalElements)',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      _buildPaginationControls(compact: true),
+                      const SizedBox(height: 10),
+                    ],
+                    _buildCategoryGrid(),
+                    if (_searchController.text.isNotEmpty && _totalElements > _pageSize) ...[
+                      const SizedBox(height: 16),
+                      _buildPaginationControls(),
+                    ],
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+}

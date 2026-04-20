@@ -1,42 +1,20 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../model/tipo_pagamento.dart';
 import '../services/movimentacao_estoque_service.dart';
+import '../services/tipo_pagamento_service.dart';
 
-enum _FormaPagamento {
-  dinheiro,
-  pix,
-  debito,
-  credito,
-  boleto30,
-  boleto30_60;
+class _ParcelaNotaDraft {
+  _ParcelaNotaDraft({
+    required this.numero,
+    required this.valor,
+    required this.vencimento,
+  });
 
-  String get label => switch (this) {
-        _FormaPagamento.dinheiro => 'Dinheiro',
-        _FormaPagamento.pix => 'Pix',
-        _FormaPagamento.debito => 'Débito',
-        _FormaPagamento.credito => 'Crédito',
-        _FormaPagamento.boleto30 => 'Boleto 30 dias',
-        _FormaPagamento.boleto30_60 => 'Boleto 30/60 dias',
-      };
-
-  IconData get icon => switch (this) {
-        _FormaPagamento.dinheiro => Icons.payments_outlined,
-        _FormaPagamento.pix => Icons.pix,
-        _FormaPagamento.debito => Icons.credit_card,
-        _FormaPagamento.credito => Icons.credit_score,
-        _FormaPagamento.boleto30 => Icons.receipt_long,
-        _FormaPagamento.boleto30_60 => Icons.receipt_long,
-      };
-
-  String get backendValue => switch (this) {
-        _FormaPagamento.dinheiro => 'AVISTA',
-        _FormaPagamento.pix => 'AVISTA',
-        _FormaPagamento.debito => 'AVISTA',
-        _FormaPagamento.credito => 'CREDITO',
-        _FormaPagamento.boleto30 => 'BOLETO30',
-        _FormaPagamento.boleto30_60 => 'BOLETO30_60',
-      };
+  int numero;
+  double valor;
+  DateTime vencimento;
 }
 
 class NotasEntradaPage extends StatefulWidget {
@@ -60,11 +38,94 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
   int? _fornecedorFiltroId;
   List<Map<String, dynamic>> _fornecedoresDisponiveis = [];
   Timer? _debounceTimer;
+  List<TipoPagamento> _tiposPagamento = [];
+  DateTime _mesAtual = DateTime(DateTime.now().year, DateTime.now().month, 1);
 
   int _currentPage = 0;
   static const int _pageSize = 20;
 
+  int _idFormaPagamento(TipoPagamento? tipo) => tipo?.idFormaPagamento ?? 1;
+
+  int _quantidadeParcelasTipo(TipoPagamento? tipo) {
+    final qtd = tipo?.quantidadeParcelas ?? 1;
+    return qtd < 1 ? 1 : qtd;
+  }
+
+  bool _isCredito(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 2;
+
+  bool _isBoleto(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 3;
+
+  bool _isBoletoUnico(TipoPagamento? tipo) => _isBoleto(tipo) && _quantidadeParcelasTipo(tipo) == 1;
+
+  bool _isBoletoParcelado(TipoPagamento? tipo) => _isBoleto(tipo) && _quantidadeParcelasTipo(tipo) > 1;
+
+  IconData _iconeTipoPagamento(TipoPagamento tipo) {
+    if (_isCredito(tipo)) return Icons.credit_score;
+    if (_isBoleto(tipo)) return Icons.receipt_long;
+    return Icons.payments_outlined;
+  }
+
+  String _backendFormaPagamento(TipoPagamento tipo) {
+    if (_isCredito(tipo)) return 'CREDITO';
+    if (_isBoleto(tipo)) return 'BOLETO';
+    return 'AVISTA';
+  }
+
+  List<_ParcelaNotaDraft> _gerarParcelasPadrao(double valorTotal, int quantidade) {
+    final parcelas = <_ParcelaNotaDraft>[];
+    if (quantidade < 1) return parcelas;
+
+    final valorBase = valorTotal / quantidade;
+    double acumulado = 0;
+    final hoje = DateTime.now();
+
+    for (int i = 0; i < quantidade; i++) {
+      final valorParcela =
+          i == quantidade - 1 ? ((valorTotal - acumulado) * 100).roundToDouble() / 100 : (valorBase * 100).roundToDouble() / 100;
+      acumulado += valorParcela;
+      parcelas.add(
+        _ParcelaNotaDraft(
+          numero: i + 1,
+          valor: valorParcela,
+          vencimento: DateTime(hoje.year, hoje.month + i + 1, hoje.day),
+        ),
+      );
+    }
+    return parcelas;
+  }
+
+  double _somaParcelasNota(List<_ParcelaNotaDraft> parcelas) {
+    return parcelas.fold<double>(0, (sum, p) => sum + p.valor);
+  }
+
+  TipoPagamento? _primeiroTipoPorForma(int idForma, {int? quantidadeParcelas}) {
+    for (final t in _tiposPagamento) {
+      if (_idFormaPagamento(t) != idForma) continue;
+      if (quantidadeParcelas == null || _quantidadeParcelasTipo(t) == quantidadeParcelas) {
+        return t;
+      }
+    }
+    return null;
+  }
+
   int get _totalPages => (_notasFiltradas.length / _pageSize).ceil().clamp(1, 999999);
+
+  static const List<String> _mesesPtBr = [
+    'Janeiro',
+    'Fevereiro',
+    'Marco',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+  ];
+
+  String get _labelMesAtual => '${_mesesPtBr[_mesAtual.month - 1]} de ${_mesAtual.year}';
 
   List<Map<String, dynamic>> get _notasPaginadas {
     final start = _currentPage * _pageSize;
@@ -91,9 +152,15 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
   Future<void> _carregarDados() async {
     setState(() => _isLoading = true);
     try {
-      final notas = await MovimentacaoEstoqueService.listarNotasEntrada();
+      final results = await Future.wait([
+        MovimentacaoEstoqueService.listarNotasEntrada(),
+        TipoPagamentoService.listarTiposPagamento(),
+      ]);
+      final notas = results[0] as List<Map<String, dynamic>>;
+      final tipos = results[1] as List<TipoPagamento>;
       setState(() {
         _notas = notas;
+        _tiposPagamento = tipos;
 
         final seen = <int>{};
         _fornecedoresDisponiveis = notas.map((n) => n['fornecedor'] as Map<String, dynamic>?).whereType<Map<String, dynamic>>().where((f) {
@@ -121,16 +188,38 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
 
   void _filtrar() {
     final q = _searchController.text.toLowerCase().trim();
+    final mesSelecionado = DateTime(_mesAtual.year, _mesAtual.month, 1);
+
     setState(() {
       _notasFiltradas = _notas.where((n) {
         final numero = (n['numeroNotaFiscal'] ?? '').toString().toLowerCase();
         final fId = (n['fornecedor'] as Map?)?['id'] as int?;
+        final dataNota = _extrairDataNota(n);
         final matchesNumero = q.isEmpty || numero.startsWith(q);
         final matchesFornecedor = _fornecedorFiltroId == null || fId == _fornecedorFiltroId;
-        return matchesNumero && matchesFornecedor;
-      }).toList();
+        final matchesMes = dataNota != null && dataNota.year == mesSelecionado.year && dataNota.month == mesSelecionado.month;
+        return matchesNumero && matchesFornecedor && matchesMes;
+      }).toList()
+        ..sort((a, b) {
+          final da = _extrairDataNota(a) ?? DateTime(1900);
+          final db = _extrairDataNota(b) ?? DateTime(1900);
+          return db.compareTo(da);
+        });
       _currentPage = 0;
     });
+  }
+
+  DateTime? _extrairDataNota(Map<String, dynamic> nota) {
+    final candidato = nota['dataEntrada'] ?? nota['dataEmissao'] ?? nota['createdAt'];
+    if (candidato == null) return null;
+    return DateTime.tryParse(candidato.toString());
+  }
+
+  void _mudarMes(int delta) {
+    setState(() {
+      _mesAtual = DateTime(_mesAtual.year, _mesAtual.month + delta, 1);
+    });
+    _filtrar();
   }
 
   void _paginaAnterior() {
@@ -175,7 +264,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
       return 'Crédito ($total parcela${total > 1 ? 's' : ''})';
     }
     if (origens.contains('COMPRA_BOLETO')) {
-      return contas.length == 1 ? 'Boleto 30 dias' : 'Boleto 30/60 dias';
+      return contas.length == 1 ? 'Boleto 30 dias' : 'Boleto (${contas.length} parcelas)';
     }
     return 'À Vista';
   }
@@ -193,45 +282,62 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
 
     final formKey = GlobalKey<FormState>();
     final numeroCtrl = TextEditingController(text: numeroAtual);
+    final tiposOrdenados = List<TipoPagamento>.from(_tiposPagamento)..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
     final contas = (nota['contas'] as List?) ?? [];
-    _FormaPagamento? formaPagamentoAtual;
+    TipoPagamento? formaPagamentoAtual;
     if (contas.isNotEmpty) {
       final origem = contas.first['origemTipo']?.toString() ?? '';
       if (origem == 'COMPRA_CREDITO') {
-        formaPagamentoAtual = _FormaPagamento.credito;
+        formaPagamentoAtual = _primeiroTipoPorForma(2);
       } else if (origem == 'COMPRA_BOLETO') {
-        formaPagamentoAtual = contas.length == 1 ? _FormaPagamento.boleto30 : _FormaPagamento.boleto30_60;
+        formaPagamentoAtual = _primeiroTipoPorForma(3, quantidadeParcelas: contas.length);
+        formaPagamentoAtual ??= _primeiroTipoPorForma(3);
       }
     }
+    formaPagamentoAtual ??= _primeiroTipoPorForma(1);
 
-    _FormaPagamento? novaForma = formaPagamentoAtual;
-    int numeroParcelas = 2;
-    DateTime? boleto30Vencimento;
-    DateTime? boleto60Venc1;
-    DateTime? boleto60Venc2;
-    final boleto60v1Ctrl =
-        TextEditingController(text: contas.isNotEmpty ? (contas[0]['valor'] as num?)?.toStringAsFixed(2).replaceAll('.', ',') ?? '' : '');
-    final boleto60v2Ctrl =
-        TextEditingController(text: contas.length >= 2 ? (contas[1]['valor'] as num?)?.toStringAsFixed(2).replaceAll('.', ',') ?? '' : '');
+    TipoPagamento? novaForma = formaPagamentoAtual;
+    int numeroParcelas = contas.isNotEmpty ? contas.length : 1;
+    DateTime? boletoVencimento;
+    List<_ParcelaNotaDraft> parcelasBoleto = [];
 
     if (contas.isNotEmpty && contas[0]['dataVencimento'] != null) {
       try {
-        boleto30Vencimento = DateTime.parse(contas[0]['dataVencimento']);
-        boleto60Venc1 = DateTime.parse(contas[0]['dataVencimento']);
+        boletoVencimento = DateTime.parse(contas[0]['dataVencimento']);
       } catch (_) {}
     }
-    if (contas.length >= 2 && contas[1]['dataVencimento'] != null) {
+
+    for (int i = 0; i < contas.length; i++) {
+      final item = contas[i];
+      if (item['dataVencimento'] == null) continue;
       try {
-        boleto60Venc2 = DateTime.parse(contas[1]['dataVencimento']);
+        parcelasBoleto.add(
+          _ParcelaNotaDraft(
+            numero: i + 1,
+            valor: (item['valor'] as num?)?.toDouble() ?? 0,
+            vencimento: DateTime.parse(item['dataVencimento']),
+          ),
+        );
       } catch (_) {}
+    }
+
+    if (_isCredito(novaForma)) {
+      final max = _quantidadeParcelasTipo(novaForma);
+      numeroParcelas = numeroParcelas.clamp(1, max > 0 ? max : 1);
+    }
+    if (_isBoletoParcelado(novaForma)) {
+      final quantidade = _quantidadeParcelasTipo(novaForma);
+      if (parcelasBoleto.length != quantidade) {
+        parcelasBoleto = _gerarParcelasPadrao(valorTotal, quantidade);
+      }
     }
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDlg) {
-          Future<void> pickDate(bool isBoleto30, int parteIdx) async {
+          Future<void> pickDateBoleto() async {
             final picked = await showDatePicker(
               context: ctx2,
               initialDate: DateTime.now().add(const Duration(days: 30)),
@@ -240,15 +346,49 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
               locale: const Locale('pt', 'BR'),
             );
             if (picked != null) {
-              setDlg(() {
-                if (isBoleto30) {
-                  boleto30Vencimento = picked;
-                } else if (parteIdx == 1) {
-                  boleto60Venc1 = picked;
-                } else {
-                  boleto60Venc2 = picked;
-                }
-              });
+              setDlg(() => boletoVencimento = picked);
+            }
+          }
+
+          Future<void> pickDateParcela(int idx) async {
+            final picked = await showDatePicker(
+              context: ctx2,
+              initialDate: parcelasBoleto[idx].vencimento,
+              firstDate: DateTime(2024),
+              lastDate: DateTime(2030),
+              locale: const Locale('pt', 'BR'),
+            );
+            if (picked != null) {
+              setDlg(() => parcelasBoleto[idx].vencimento = picked);
+            }
+          }
+
+          Future<void> editarValorParcela(int idx) async {
+            final ctrl = TextEditingController(text: parcelasBoleto[idx].valor.toStringAsFixed(2).replaceAll('.', ','));
+            final novo = await showDialog<double>(
+              context: ctx2,
+              builder: (dialogCtx) => AlertDialog(
+                title: Text('Parcela ${idx + 1}'),
+                content: TextField(
+                  controller: ctrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Valor (R\$)'),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+                  TextButton(
+                    onPressed: () {
+                      final parsed = double.tryParse(ctrl.text.replaceAll(',', '.'));
+                      if (parsed == null || parsed <= 0) return;
+                      Navigator.pop(dialogCtx, parsed);
+                    },
+                    child: const Text('Salvar'),
+                  ),
+                ],
+              ),
+            );
+            if (novo != null) {
+              setDlg(() => parcelasBoleto[idx].valor = novo);
             }
           }
 
@@ -293,10 +433,24 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _FormaPagamento.values.map((f) {
+                      children: tiposOrdenados.map((f) {
                         final sel = novaForma == f;
                         return GestureDetector(
-                          onTap: () => setDlg(() => novaForma = f),
+                          onTap: () => setDlg(() {
+                            novaForma = f;
+                            numeroParcelas = 1;
+                            if (_isCredito(novaForma)) {
+                              numeroParcelas = 1;
+                            }
+                            if (_isBoletoParcelado(novaForma)) {
+                              final quantidade = _quantidadeParcelasTipo(novaForma);
+                              if (parcelasBoleto.length != quantidade) {
+                                parcelasBoleto = _gerarParcelasPadrao(valorTotal, quantidade);
+                              }
+                            } else {
+                              parcelasBoleto = [];
+                            }
+                          }),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
@@ -307,9 +461,9 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(f.icon, size: 16, color: sel ? Colors.white : Colors.grey.shade700),
+                                Icon(_iconeTipoPagamento(f), size: 16, color: sel ? Colors.white : Colors.grey.shade700),
                                 const SizedBox(width: 6),
-                                Text(f.label,
+                                Text(f.nome,
                                     style: TextStyle(
                                         fontSize: 13,
                                         color: sel ? Colors.white : Colors.grey.shade800,
@@ -320,7 +474,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                         );
                       }).toList(),
                     ),
-                    if (novaForma == _FormaPagamento.credito) ...[
+                    if (_isCredito(novaForma)) ...[
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -328,8 +482,10 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                           const SizedBox(width: 8),
                           DropdownButton<int>(
                             value: numeroParcelas,
-                            items:
-                                [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => DropdownMenuItem(value: n, child: Text('${n}x'))).toList(),
+                            items: List.generate(
+                              _quantidadeParcelasTipo(novaForma) > 0 ? _quantidadeParcelasTipo(novaForma) : 1,
+                              (i) => i + 1,
+                            ).map((n) => DropdownMenuItem(value: n, child: Text('${n}x'))).toList(),
                             onChanged: (v) => setDlg(() => numeroParcelas = v!),
                             underline: Container(height: 1, color: Colors.grey),
                           ),
@@ -344,10 +500,10 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                         ),
                       ),
                     ],
-                    if (novaForma == _FormaPagamento.boleto30) ...[
+                    if (_isBoletoUnico(novaForma)) ...[
                       const SizedBox(height: 12),
                       InkWell(
-                        onTap: () => pickDate(true, 0),
+                        onTap: pickDateBoleto,
                         child: InputDecorator(
                           decoration: const InputDecoration(
                             labelText: 'Vencimento',
@@ -359,7 +515,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                               const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                               const SizedBox(width: 8),
                               Text(
-                                boleto30Vencimento != null ? DateFormat('dd/MM/yyyy').format(boleto30Vencimento!) : 'Selecionar data',
+                                boletoVencimento != null ? DateFormat('dd/MM/yyyy').format(boletoVencimento!) : 'Selecionar data',
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ],
@@ -367,31 +523,62 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                         ),
                       ),
                     ],
-                    if (novaForma == _FormaPagamento.boleto30_60) ...[
+                    if (_isBoletoParcelado(novaForma)) ...[
                       const SizedBox(height: 12),
-                      _buildBoletoParcelaRow(
-                        ctx2: ctx2,
-                        label: 'Parcela 1',
-                        valorCtrl: boleto60v1Ctrl,
-                        vencimento: boleto60Venc1,
-                        onPickDate: () => pickDate(false, 1),
+                      Text(
+                        'Boleto em ${_quantidadeParcelasTipo(novaForma)} parcelas',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
                       ),
-                      const SizedBox(height: 10),
-                      _buildBoletoParcelaRow(
-                        ctx2: ctx2,
-                        label: 'Parcela 2',
-                        valorCtrl: boleto60v2Ctrl,
-                        vencimento: boleto60Venc2,
-                        onPickDate: () => pickDate(false, 2),
-                      ),
+                      const SizedBox(height: 8),
+                      for (int i = 0; i < parcelasBoleto.length; i++) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${parcelasBoleto[i].numero}ª parcela',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  DateFormat('dd/MM/yyyy').format(parcelasBoleto[i].vencimento),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'R\$ ${parcelasBoleto[i].valor.toStringAsFixed(2).replaceAll('.', ',')}',
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, size: 18),
+                                onPressed: () => editarValorParcela(i),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.event, size: 18),
+                                onPressed: () => pickDateParcela(i),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 6),
                       Builder(builder: (_) {
-                        final v1 = double.tryParse(boleto60v1Ctrl.text.replaceAll(',', '.')) ?? 0;
-                        final v2 = double.tryParse(boleto60v2Ctrl.text.replaceAll(',', '.')) ?? 0;
-                        final diff = (v1 + v2 - valorTotal).abs();
+                        final soma = _somaParcelasNota(parcelasBoleto);
+                        final diff = (soma - valorTotal).abs();
                         final ok = diff < 0.02;
                         return Text(
-                          'Total: R\$ ${(v1 + v2).toStringAsFixed(2).replaceAll('.', ',')} '
+                          'Total: R\$ ${soma.toStringAsFixed(2).replaceAll('.', ',')} '
                           '(esperado: R\$ ${valorTotal.toStringAsFixed(2).replaceAll('.', ',')})',
                           style: TextStyle(fontSize: 12, color: ok ? _primaryColor : Colors.red, fontWeight: FontWeight.w500),
                         );
@@ -404,9 +591,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
             actions: [
               TextButton(
                 onPressed: () {
-                  boleto60v1Ctrl.dispose();
-                  boleto60v2Ctrl.dispose();
-                  numeroParcelas = 2;
+                  numeroParcelas = 1;
                   Navigator.pop(ctx);
                 },
                 child: const Text('Cancelar'),
@@ -423,36 +608,40 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                   if (!formKey.currentState!.validate()) return;
 
                   Map<String, dynamic>? pagamentoData;
-                  if (novaForma != null && novaForma != formaPagamentoAtual ||
-                      novaForma == _FormaPagamento.credito ||
-                      novaForma == _FormaPagamento.boleto30 ||
-                      novaForma == _FormaPagamento.boleto30_60) {
-                    if (novaForma == _FormaPagamento.boleto30 && boleto30Vencimento == null) {
+                  if (novaForma != null && (novaForma != formaPagamentoAtual || _isCredito(novaForma) || _isBoleto(novaForma))) {
+                    if (_isBoletoUnico(novaForma) && boletoVencimento == null) {
                       _mostrarErro('Selecione a data de vencimento do boleto');
                       return;
                     }
-                    if (novaForma == _FormaPagamento.boleto30_60) {
-                      final v1 = double.tryParse(boleto60v1Ctrl.text.replaceAll(',', '.')) ?? 0;
-                      final v2 = double.tryParse(boleto60v2Ctrl.text.replaceAll(',', '.')) ?? 0;
-                      if (boleto60Venc1 == null || boleto60Venc2 == null || v1 <= 0 || v2 <= 0) {
-                        _mostrarErro('Preencha os valores e vencimentos das parcelas do boleto');
+                    if (_isBoletoParcelado(novaForma)) {
+                      final quantidadeEsperada = _quantidadeParcelasTipo(novaForma);
+                      if (parcelasBoleto.length != quantidadeEsperada) {
+                        _mostrarErro('Quantidade de parcelas do boleto inválida');
                         return;
                       }
-                      if ((v1 + v2 - valorTotal).abs() > 0.02) {
+                      if (parcelasBoleto.any((p) => p.valor <= 0)) {
+                        _mostrarErro('Preencha os valores das parcelas do boleto');
+                        return;
+                      }
+                      if ((_somaParcelasNota(parcelasBoleto) - valorTotal).abs() > 0.02) {
                         _mostrarErro('A soma das parcelas deve ser igual ao valor total da nota');
                         return;
                       }
                     }
-                    pagamentoData = {'formaPagamento': novaForma!.backendValue};
-                    if (novaForma == _FormaPagamento.credito) {
+                    pagamentoData = {'formaPagamento': _backendFormaPagamento(novaForma!)};
+                    if (_isCredito(novaForma)) {
                       pagamentoData['numeroParcelas'] = numeroParcelas;
-                    } else if (novaForma == _FormaPagamento.boleto30) {
-                      pagamentoData['boleto30Vencimento'] = boleto30Vencimento!.toIso8601String().substring(0, 10);
-                    } else if (novaForma == _FormaPagamento.boleto30_60) {
-                      pagamentoData['boleto30_60Parcela1Valor'] = double.parse(boleto60v1Ctrl.text.replaceAll(',', '.'));
-                      pagamentoData['boleto30_60Parcela1Vencimento'] = boleto60Venc1!.toIso8601String().substring(0, 10);
-                      pagamentoData['boleto30_60Parcela2Valor'] = double.parse(boleto60v2Ctrl.text.replaceAll(',', '.'));
-                      pagamentoData['boleto30_60Parcela2Vencimento'] = boleto60Venc2!.toIso8601String().substring(0, 10);
+                    } else if (_isBoletoUnico(novaForma)) {
+                      pagamentoData['boletoVencimento'] = boletoVencimento!.toIso8601String().substring(0, 10);
+                    } else if (_isBoletoParcelado(novaForma)) {
+                      pagamentoData['parcelasDetalhadas'] = parcelasBoleto
+                          .map((p) => {
+                                'numero': p.numero,
+                                'valor': p.valor,
+                                'vencimento': p.vencimento.toIso8601String().substring(0, 10),
+                              })
+                          .toList();
+                      pagamentoData['numeroParcelas'] = parcelasBoleto.length;
                     }
                   }
 
@@ -465,8 +654,6 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                   }
 
                   Navigator.pop(ctx);
-                  boleto60v1Ctrl.dispose();
-                  boleto60v2Ctrl.dispose();
 
                   final result = await MovimentacaoEstoqueService.atualizarNota(
                     fornecedorId: fornecedorId!,
@@ -487,63 +674,6 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildBoletoParcelaRow({
-    required BuildContext ctx2,
-    required String label,
-    required TextEditingController valorCtrl,
-    required DateTime? vencimento,
-    required VoidCallback onPickDate,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: valorCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Valor (R\$)',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  isDense: true,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: InkWell(
-                onTap: onPickDate,
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Vencimento',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    isDense: true,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        vencimento != null ? DateFormat('dd/MM/yyyy').format(vencimento) : 'Selecionar',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -699,6 +829,45 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                   ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            color: _primaryColor,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => _mudarMes(-1),
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    tooltip: 'Mes anterior',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  Expanded(
+                    child: Text(
+                      _labelMesAtual,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _mudarMes(1),
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                    tooltip: 'Proximo mes',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
             ),
           ),
           Padding(
@@ -909,7 +1078,9 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
           Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            _searchController.text.isEmpty ? 'Nenhuma nota de entrada encontrada' : 'Nenhuma nota corresponde à busca',
+            _searchController.text.isEmpty
+                ? 'Nenhuma nota de entrada em $_labelMesAtual'
+                : 'Nenhuma nota corresponde aos filtros em $_labelMesAtual',
             style: TextStyle(fontSize: 16, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
           ),
         ],

@@ -58,6 +58,8 @@ class Conta {
   bool get isCredito => origemTipo == 'OS_CREDITO';
   bool get isAvista => origemTipo == 'OS_AVISTA';
   bool get isCompra => origemTipo?.startsWith('COMPRA') == true;
+  bool get isParcela => isAPagar && parcelaNumero != null && totalParcelas != null;
+  bool get isBoleto => origemTipo?.contains('BOLETO') == true;
 
   double get valorPendente => valor - valorPagoParcial;
 

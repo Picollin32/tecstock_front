@@ -13,7 +13,22 @@ class MarcaService {
       final response = await http.post(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders(), body: jsonEncode(marca.toJson()));
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return {'success': true, 'message': 'Marca salva com sucesso'};
+        Marca? marcaSalva;
+        try {
+          if (response.body.isNotEmpty) {
+            final data = jsonDecode(utf8.decode(response.bodyBytes));
+            if (data is Map<String, dynamic>) {
+              marcaSalva = Marca.fromJson(data);
+            }
+          }
+        } catch (_) {
+          // Ignora parse do payload e mantém sucesso sem objeto.
+        }
+        return {
+          'success': true,
+          'message': 'Marca salva com sucesso',
+          'marca': marcaSalva,
+        };
       } else {
         String errorMessage = 'Erro ao salvar marca';
         try {

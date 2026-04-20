@@ -1,46 +1,12 @@
 import 'package:flutter/material.dart';
 import '../model/fornecedor.dart';
 import '../model/peca.dart';
+import '../model/tipo_pagamento.dart';
 import '../services/fornecedor_service.dart';
+import '../services/tipo_pagamento_service.dart';
 import '../services/peca_service.dart';
 import '../services/movimentacao_estoque_service.dart';
 import '../services/ordem_servico_service.dart';
-
-enum FormaPagamentoCompra {
-  dinheiro,
-  pix,
-  debito,
-  credito,
-  boleto30,
-  boleto30_60;
-
-  String get label => switch (this) {
-        FormaPagamentoCompra.dinheiro => 'Dinheiro',
-        FormaPagamentoCompra.pix => 'Pix',
-        FormaPagamentoCompra.debito => 'Débito',
-        FormaPagamentoCompra.credito => 'Crédito',
-        FormaPagamentoCompra.boleto30 => 'Boleto 30 dias',
-        FormaPagamentoCompra.boleto30_60 => 'Boleto 30/60 dias',
-      };
-
-  IconData get icon => switch (this) {
-        FormaPagamentoCompra.dinheiro => Icons.payments_outlined,
-        FormaPagamentoCompra.pix => Icons.pix,
-        FormaPagamentoCompra.debito => Icons.credit_card,
-        FormaPagamentoCompra.credito => Icons.credit_score,
-        FormaPagamentoCompra.boleto30 => Icons.receipt_long,
-        FormaPagamentoCompra.boleto30_60 => Icons.receipt_long,
-      };
-
-  String get backendValue => switch (this) {
-        FormaPagamentoCompra.dinheiro => 'AVISTA',
-        FormaPagamentoCompra.pix => 'AVISTA',
-        FormaPagamentoCompra.debito => 'AVISTA',
-        FormaPagamentoCompra.credito => 'CREDITO',
-        FormaPagamentoCompra.boleto30 => 'BOLETO30',
-        FormaPagamentoCompra.boleto30_60 => 'BOLETO30_60',
-      };
-}
 
 class PecaEntrada {
   final Peca peca;
@@ -54,6 +20,18 @@ class PecaEntrada {
   });
 
   double get valorTotal => quantidade * precoUnitario;
+}
+
+class _ParcelaPagamentoDraft {
+  _ParcelaPagamentoDraft({
+    required this.numero,
+    required this.valor,
+    required this.vencimento,
+  });
+
+  int numero;
+  double valor;
+  DateTime vencimento;
 }
 
 class EntradaEstoquePage extends StatefulWidget {
@@ -163,19 +141,18 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   final _observacoesController = TextEditingController();
   final _searchController = TextEditingController();
 
-  FormaPagamentoCompra? _formaPagamento;
-  int _numeroParcelas = 2;
-  DateTime? _boleto30Vencimento;
-  DateTime? _boleto60Venc1;
-  DateTime? _boleto60Venc2;
-  final _boleto60Valor1Controller = TextEditingController();
-  final _boleto60Valor2Controller = TextEditingController();
+  TipoPagamento? _formaPagamento;
+  List<TipoPagamento> _tiposPagamento = [];
+  int _numeroParcelas = 1;
+  DateTime? _boletoVencimento;
+  List<_ParcelaPagamentoDraft> _boletoParcelasCompra = [];
 
   bool _freteAtivo = false;
   final _freteValorController = TextEditingController();
-  FormaPagamentoCompra? _fretePagamento;
-  int _freteNumeroParcelas = 2;
-  DateTime? _freteBoleto30Vencimento;
+  TipoPagamento? _fretePagamento;
+  int _freteNumeroParcelas = 1;
+  DateTime? _freteBoletoVencimento;
+  List<_ParcelaPagamentoDraft> _boletoParcelasFrete = [];
   Fornecedor? _fornecedorSelecionado;
   List<Fornecedor> _fornecedores = [];
   List<Peca> _pecasDisponiveis = [];
@@ -195,6 +172,117 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   static const Color errorColor = Color(0xFFEF4444);
   static const Color successColor = Color(0xFF059669);
   static const Color warningColor = Color(0xFFF59E0B);
+
+  int _idFormaPagamento(TipoPagamento? tipo) => tipo?.idFormaPagamento ?? 1;
+
+  int _quantidadeParcelasTipo(TipoPagamento? tipo) {
+    final qtd = tipo?.quantidadeParcelas ?? 1;
+    return qtd < 1 ? 1 : qtd;
+  }
+
+  bool _isCredito(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 2;
+
+  bool _isBoleto(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 3;
+
+  bool _isBoletoUnico(TipoPagamento? tipo) => _isBoleto(tipo) && _quantidadeParcelasTipo(tipo) == 1;
+
+  bool _isBoletoParcelado(TipoPagamento? tipo) => _isBoleto(tipo) && _quantidadeParcelasTipo(tipo) > 1;
+
+  IconData _iconeTipoPagamento(TipoPagamento tipo) {
+    if (_isCredito(tipo)) return Icons.credit_score;
+    if (_isBoleto(tipo)) return Icons.receipt_long;
+    return Icons.payments_outlined;
+  }
+
+  String _backendFormaPagamento(TipoPagamento tipo) {
+    if (_isCredito(tipo)) return 'CREDITO';
+    if (_isBoleto(tipo)) return 'BOLETO';
+    return 'AVISTA';
+  }
+
+  List<_ParcelaPagamentoDraft> _gerarParcelasPadrao({
+    required double valorTotal,
+    required int quantidade,
+    required DateTime base,
+  }) {
+    final parcelas = <_ParcelaPagamentoDraft>[];
+    if (quantidade < 1) return parcelas;
+
+    final valorBase = (valorTotal / quantidade);
+    double acumulado = 0;
+
+    for (int i = 0; i < quantidade; i++) {
+      final valorParcela =
+          i == quantidade - 1 ? ((valorTotal - acumulado) * 100).roundToDouble() / 100 : (valorBase * 100).roundToDouble() / 100;
+      acumulado += valorParcela;
+      parcelas.add(
+        _ParcelaPagamentoDraft(
+          numero: i + 1,
+          valor: valorParcela,
+          vencimento: DateTime(base.year, base.month + i + 1, base.day),
+        ),
+      );
+    }
+
+    return parcelas;
+  }
+
+  double _somaParcelas(List<_ParcelaPagamentoDraft> parcelas) {
+    return parcelas.fold<double>(0, (sum, p) => sum + p.valor);
+  }
+
+  bool _parcelasValidas({
+    required List<_ParcelaPagamentoDraft> parcelas,
+    required double valorTotal,
+    required int quantidadeEsperada,
+    required DateTime hojeSemHora,
+  }) {
+    if (quantidadeEsperada < 1 || parcelas.length != quantidadeEsperada) return false;
+    for (final p in parcelas) {
+      if (p.valor <= 0) return false;
+      final vencSemHora = DateTime(p.vencimento.year, p.vencimento.month, p.vencimento.day);
+      if (vencSemHora.isBefore(hojeSemHora)) return false;
+    }
+    return (_somaParcelas(parcelas) - valorTotal).abs() <= 0.02;
+  }
+
+  void _sincronizarParcelasCompra(double totalCompra) {
+    if (!_isBoletoParcelado(_formaPagamento)) {
+      _boletoParcelasCompra = [];
+      return;
+    }
+    final quantidade = _quantidadeParcelasTipo(_formaPagamento);
+    if (quantidade < 1 || totalCompra <= 0) {
+      _boletoParcelasCompra = [];
+      return;
+    }
+    if (_boletoParcelasCompra.length != quantidade) {
+      _boletoParcelasCompra = _gerarParcelasPadrao(
+        valorTotal: totalCompra,
+        quantidade: quantidade,
+        base: DateTime.now(),
+      );
+    }
+  }
+
+  void _sincronizarParcelasFrete(double valorFrete) {
+    if (!_isBoletoParcelado(_fretePagamento)) {
+      _boletoParcelasFrete = [];
+      return;
+    }
+    final quantidade = _quantidadeParcelasTipo(_fretePagamento);
+    if (quantidade < 1 || valorFrete <= 0) {
+      _boletoParcelasFrete = [];
+      return;
+    }
+    if (_boletoParcelasFrete.length != quantidade) {
+      _boletoParcelasFrete = _gerarParcelasPadrao(
+        valorTotal: valorFrete,
+        quantidade: quantidade,
+        base: DateTime.now(),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -222,8 +310,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _numeroNotaFiscalController.dispose();
     _observacoesController.dispose();
     _searchController.dispose();
-    _boleto60Valor1Controller.dispose();
-    _boleto60Valor2Controller.dispose();
     _freteValorController.dispose();
     for (var c in _quantidadeControllers.values) {
       c.dispose();
@@ -238,12 +324,17 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
         FornecedorService.listarFornecedores(),
         PecaService.listarPecas(),
         OrdemServicoService.buscarPecasEmOSAbertas(),
+        TipoPagamentoService.listarTiposPagamento(),
       ]);
+
+      final tiposPagamentoOrdenados = List<TipoPagamento>.from(results[3] as List<TipoPagamento>)
+        ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
       setState(() {
         _fornecedores = results[0] as List<Fornecedor>;
         _pecasDisponiveis = results[1] as List<Peca>;
         _pecasEmOS = results[2] as Map<String, Map<String, dynamic>>;
+        _tiposPagamento = tiposPagamentoOrdenados;
         _filtrarPecas();
       });
     } catch (e) {
@@ -280,26 +371,37 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   }
 
   void _updateSubmitState() {
+    final hoje = DateTime.now();
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final totalCompra = _pecasAdicionadas.fold(0.0, (s, p) => s + p.valorTotal);
+    _sincronizarParcelasCompra(totalCompra);
+
     bool pagamentoValido = _formaPagamento != null;
-    if (pagamentoValido && _formaPagamento == FormaPagamentoCompra.boleto30) {
-      pagamentoValido = _boleto30Vencimento != null;
-    } else if (pagamentoValido && _formaPagamento == FormaPagamentoCompra.boleto30_60) {
-      final v1 = double.tryParse(_boleto60Valor1Controller.text.replaceAll(',', '.')) ?? 0;
-      final v2 = double.tryParse(_boleto60Valor2Controller.text.replaceAll(',', '.')) ?? 0;
-      final totalBoleto = _pecasAdicionadas.fold(0.0, (s, p) => s + p.valorTotal);
-      pagamentoValido = _boleto60Venc1 != null &&
-          _boleto60Venc2 != null &&
-          v1 > 0 &&
-          v2 > 0 &&
-          (totalBoleto <= 0 || (v1 + v2 - totalBoleto).abs() < 0.02);
+    if (pagamentoValido && _isBoletoUnico(_formaPagamento)) {
+      pagamentoValido = _boletoVencimento != null;
+    } else if (pagamentoValido && _isBoletoParcelado(_formaPagamento)) {
+      pagamentoValido = _parcelasValidas(
+        parcelas: _boletoParcelasCompra,
+        valorTotal: totalCompra,
+        quantidadeEsperada: _quantidadeParcelasTipo(_formaPagamento),
+        hojeSemHora: hojeSemHora,
+      );
     }
 
     bool freteValido = true;
     if (_freteAtivo) {
       final freteValor = double.tryParse(_freteValorController.text.replaceAll(',', '.')) ?? 0;
+      _sincronizarParcelasFrete(freteValor);
       freteValido = freteValor > 0 && _fretePagamento != null;
-      if (freteValido && _fretePagamento == FormaPagamentoCompra.boleto30) {
-        freteValido = _freteBoleto30Vencimento != null;
+      if (freteValido && _isBoletoUnico(_fretePagamento)) {
+        freteValido = _freteBoletoVencimento != null;
+      } else if (freteValido && _isBoletoParcelado(_fretePagamento)) {
+        freteValido = _parcelasValidas(
+          parcelas: _boletoParcelasFrete,
+          valorTotal: freteValor,
+          quantidadeEsperada: _quantidadeParcelasTipo(_fretePagamento),
+          hojeSemHora: hojeSemHora,
+        );
       }
     }
 
@@ -412,28 +514,41 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
       Map<String, dynamic>? pagamentoData;
       if (_formaPagamento != null) {
-        pagamentoData = {'formaPagamento': _formaPagamento!.backendValue};
-        if (_formaPagamento == FormaPagamentoCompra.credito) {
+        pagamentoData = {'formaPagamento': _backendFormaPagamento(_formaPagamento!)};
+        if (_isCredito(_formaPagamento)) {
           pagamentoData['numeroParcelas'] = _numeroParcelas;
-        } else if (_formaPagamento == FormaPagamentoCompra.boleto30 && _boleto30Vencimento != null) {
-          pagamentoData['boleto30Vencimento'] = _boleto30Vencimento!.toIso8601String().substring(0, 10);
-        } else if (_formaPagamento == FormaPagamentoCompra.boleto30_60) {
-          pagamentoData['boleto30_60Parcela1Valor'] = double.tryParse(_boleto60Valor1Controller.text.replaceAll(',', '.')) ?? 0;
-          pagamentoData['boleto30_60Parcela1Vencimento'] = _boleto60Venc1!.toIso8601String().substring(0, 10);
-          pagamentoData['boleto30_60Parcela2Valor'] = double.tryParse(_boleto60Valor2Controller.text.replaceAll(',', '.')) ?? 0;
-          pagamentoData['boleto30_60Parcela2Vencimento'] = _boleto60Venc2!.toIso8601String().substring(0, 10);
+        } else if (_isBoletoUnico(_formaPagamento) && _boletoVencimento != null) {
+          pagamentoData['boletoVencimento'] = _boletoVencimento!.toIso8601String().substring(0, 10);
+        } else if (_isBoletoParcelado(_formaPagamento)) {
+          pagamentoData['parcelasDetalhadas'] = _boletoParcelasCompra
+              .map((p) => {
+                    'numero': p.numero,
+                    'valor': p.valor,
+                    'vencimento': p.vencimento.toIso8601String().substring(0, 10),
+                  })
+              .toList();
+          pagamentoData['numeroParcelas'] = _boletoParcelasCompra.length;
         }
       }
 
       Map<String, dynamic>? freteData;
       if (_freteAtivo && _fretePagamento != null && freteValor > 0) {
         final fretePagData = <String, dynamic>{
-          'formaPagamento': _fretePagamento!.backendValue,
+          'formaPagamento': _backendFormaPagamento(_fretePagamento!),
         };
-        if (_fretePagamento == FormaPagamentoCompra.credito) {
+        if (_isCredito(_fretePagamento)) {
           fretePagData['numeroParcelas'] = _freteNumeroParcelas;
-        } else if (_fretePagamento == FormaPagamentoCompra.boleto30 && _freteBoleto30Vencimento != null) {
-          fretePagData['boleto30Vencimento'] = _freteBoleto30Vencimento!.toIso8601String().substring(0, 10);
+        } else if (_isBoletoUnico(_fretePagamento) && _freteBoletoVencimento != null) {
+          fretePagData['boletoVencimento'] = _freteBoletoVencimento!.toIso8601String().substring(0, 10);
+        } else if (_isBoletoParcelado(_fretePagamento)) {
+          fretePagData['parcelasDetalhadas'] = _boletoParcelasFrete
+              .map((p) => {
+                    'numero': p.numero,
+                    'valor': p.valor,
+                    'vencimento': p.vencimento.toIso8601String().substring(0, 10),
+                  })
+              .toList();
+          fretePagData['numeroParcelas'] = _boletoParcelasFrete.length;
         }
         freteData = {'valor': freteValor, 'pagamento': fretePagData};
       }
@@ -480,8 +595,6 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     _formKey.currentState?.reset();
     _numeroNotaFiscalController.clear();
     _observacoesController.clear();
-    _boleto60Valor1Controller.clear();
-    _boleto60Valor2Controller.clear();
     _freteValorController.clear();
     final controllersToDispose = _quantidadeControllers.values.toList();
     setState(() {
@@ -489,14 +602,14 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       _pecasAdicionadas.clear();
       _quantidadeControllers.clear();
       _formaPagamento = null;
-      _numeroParcelas = 2;
-      _boleto30Vencimento = null;
-      _boleto60Venc1 = null;
-      _boleto60Venc2 = null;
+      _numeroParcelas = 1;
+      _boletoVencimento = null;
+      _boletoParcelasCompra = [];
       _freteAtivo = false;
       _fretePagamento = null;
-      _freteNumeroParcelas = 2;
-      _freteBoleto30Vencimento = null;
+      _freteNumeroParcelas = 1;
+      _freteBoletoVencimento = null;
+      _boletoParcelasFrete = [];
       _canSubmit = false;
     });
     if (controllersToDispose.isNotEmpty) {
@@ -851,6 +964,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               final peca = _pecasFiltradas[index];
               final jaAdicionada = _pecasAdicionadas.any((p) => p.peca.id == peca.id);
               final quantidadeEmOS = _pecasEmOS[peca.codigoFabricante]?['quantidade'] ?? 0;
+              final bool semEstoque = peca.quantidadeEstoque <= 0;
+              final bool estoqueCritico = !semEstoque && peca.quantidadeEstoque < peca.estoqueSeguranca;
 
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -865,9 +980,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                     width: 50,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: peca.quantidadeEstoque <= 5
+                      color: semEstoque
                           ? Colors.red[100]
-                          : peca.quantidadeEstoque <= 10
+                          : estoqueCritico
                               ? Colors.orange[100]
                               : Colors.green[100],
                       borderRadius: BorderRadius.circular(8),
@@ -878,9 +993,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: peca.quantidadeEstoque <= 5
+                          color: semEstoque
                               ? Colors.red[700]
-                              : peca.quantidadeEstoque <= 10
+                              : estoqueCritico
                                   ? Colors.orange[700]
                                   : Colors.green[700],
                         ),
@@ -1190,7 +1305,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               label: 'Fornecedor',
               icon: Icons.store,
               items: (() {
-                final lista = List<Fornecedor>.from(_fornecedores);
+                final lista = _fornecedores.where((f) => !f.servico).toList();
                 lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
                 return lista
                     .map<DropdownMenuItem<Fornecedor>>((fornecedor) => DropdownMenuItem<Fornecedor>(
@@ -1297,11 +1412,13 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
   Widget _buildFormaPagamento() {
     final totalCompra = _pecasAdicionadas.fold(0.0, (s, p) => s + p.valorTotal);
+    final tiposOrdenados = List<TipoPagamento>.from(_tiposPagamento)..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    final maxParcelasTipo = _quantidadeParcelasTipo(_formaPagamento);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<FormaPagamentoCompra>(
+        DropdownButtonFormField<TipoPagamento>(
           initialValue: _formaPagamento,
           decoration: InputDecoration(
             labelText: 'Forma de Pagamento',
@@ -1321,14 +1438,14 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             filled: true,
             fillColor: Colors.grey[50],
           ),
-          items: FormaPagamentoCompra.values.map((f) {
+          items: tiposOrdenados.map((f) {
             return DropdownMenuItem(
               value: f,
               child: Row(
                 children: [
-                  Icon(f.icon, size: 18, color: primaryColor),
+                  Icon(_iconeTipoPagamento(f), size: 18, color: primaryColor),
                   const SizedBox(width: 8),
-                  Text(f.label),
+                  Text(f.nome),
                 ],
               ),
             );
@@ -1336,20 +1453,24 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           onChanged: (value) {
             setState(() {
               _formaPagamento = value;
-              _numeroParcelas = 2;
-              _boleto30Vencimento = null;
-              _boleto60Venc1 = null;
-              _boleto60Venc2 = null;
-              _boleto60Valor1Controller.clear();
-              _boleto60Valor2Controller.clear();
+              _numeroParcelas = 1;
+              _boletoVencimento = null;
+              _boletoParcelasCompra = [];
+              if (_isBoletoParcelado(_formaPagamento) && totalCompra > 0) {
+                _boletoParcelasCompra = _gerarParcelasPadrao(
+                  valorTotal: totalCompra,
+                  quantidade: _quantidadeParcelasTipo(_formaPagamento),
+                  base: DateTime.now(),
+                );
+              }
             });
             _updateSubmitState();
           },
         ),
-        if (_formaPagamento == FormaPagamentoCompra.credito) ...[
+        if (_isCredito(_formaPagamento)) ...[
           const SizedBox(height: 12),
           DropdownButtonFormField<int>(
-            initialValue: _numeroParcelas,
+            initialValue: _numeroParcelas.clamp(1, maxParcelasTipo > 0 ? maxParcelasTipo : 1),
             decoration: InputDecoration(
               labelText: 'Número de Parcelas',
               prefixIcon: Icon(Icons.format_list_numbered, color: primaryColor),
@@ -1365,7 +1486,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               filled: true,
               fillColor: Colors.grey[50],
             ),
-            items: List.generate(12, (i) => i + 2).map((n) {
+            items: List.generate(maxParcelasTipo > 0 ? maxParcelasTipo : 1, (i) => i + 1).map((n) {
               final vp = totalCompra > 0 ? totalCompra / n : 0.0;
               return DropdownMenuItem(
                 value: n,
@@ -1378,7 +1499,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
             },
           ),
         ],
-        if (_formaPagamento == FormaPagamentoCompra.boleto30) ...[
+        if (_isBoletoUnico(_formaPagamento)) ...[
           const SizedBox(height: 12),
           InkWell(
             onTap: () async {
@@ -1390,7 +1511,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                 locale: const Locale('pt', 'BR'),
               );
               if (picked != null) {
-                setState(() => _boleto30Vencimento = picked);
+                setState(() => _boletoVencimento = picked);
                 _updateSubmitState();
               }
             },
@@ -1408,88 +1529,32 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                 fillColor: Colors.grey[50],
               ),
               child: Text(
-                _boleto30Vencimento != null
-                    ? '${_boleto30Vencimento!.day.toString().padLeft(2, '0')}/${_boleto30Vencimento!.month.toString().padLeft(2, '0')}/${_boleto30Vencimento!.year}'
+                _boletoVencimento != null
+                    ? '${_boletoVencimento!.day.toString().padLeft(2, '0')}/${_boletoVencimento!.month.toString().padLeft(2, '0')}/${_boletoVencimento!.year}'
                     : 'Selecionar data',
                 style: TextStyle(
-                  color: _boleto30Vencimento != null ? Colors.black87 : Colors.grey[500],
+                  color: _boletoVencimento != null ? Colors.black87 : Colors.grey[500],
                 ),
               ),
             ),
           ),
         ],
-        if (_formaPagamento == FormaPagamentoCompra.boleto30_60) ...[
+        if (_isBoletoParcelado(_formaPagamento)) ...[
           const SizedBox(height: 12),
-          _buildBoleto60Row(
-            label: '1ª Parcela',
-            valorController: _boleto60Valor1Controller,
-            vencimento: _boleto60Venc1,
-            totalCompra: totalCompra,
-            onPickDate: () async {
-              final hoje = DateTime.now();
-              final inicialP1 = DateTime(hoje.year, hoje.month, 1);
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: inicialP1,
-                firstDate: DateTime(hoje.year, hoje.month, 1),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-                locale: const Locale('pt', 'BR'),
-              );
-              if (picked != null) {
-                setState(() => _boleto60Venc1 = picked);
-                _updateSubmitState();
-              }
+          _buildParcelasEditor(
+            titulo: 'Parcelas do boleto (${_quantidadeParcelasTipo(_formaPagamento)}x)',
+            parcelas: _boletoParcelasCompra,
+            valorTotal: totalCompra,
+            accentColor: primaryColor,
+            onValorChanged: (idx, novoValor) {
+              setState(() => _boletoParcelasCompra[idx].valor = novoValor);
+              _updateSubmitState();
+            },
+            onVencimentoChanged: (idx, novaData) {
+              setState(() => _boletoParcelasCompra[idx].vencimento = novaData);
+              _updateSubmitState();
             },
           ),
-          const SizedBox(height: 10),
-          _buildBoleto60Row(
-            label: '2ª Parcela',
-            valorController: _boleto60Valor2Controller,
-            vencimento: _boleto60Venc2,
-            totalCompra: totalCompra,
-            onPickDate: () async {
-              final hoje = DateTime.now();
-              final proxMes = DateTime(hoje.year, hoje.month + 1, 1);
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: proxMes,
-                firstDate: DateTime(hoje.year, hoje.month, 1),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-                locale: const Locale('pt', 'BR'),
-              );
-              if (picked != null) {
-                setState(() => _boleto60Venc2 = picked);
-                _updateSubmitState();
-              }
-            },
-          ),
-          Builder(builder: (_) {
-            final v1 = double.tryParse(_boleto60Valor1Controller.text.replaceAll(',', '.')) ?? 0;
-            final v2 = double.tryParse(_boleto60Valor2Controller.text.replaceAll(',', '.')) ?? 0;
-            final soma = v1 + v2;
-            final diff = soma - totalCompra;
-            if (totalCompra <= 0 || soma <= 0) return const SizedBox.shrink();
-            final ok = diff.abs() < 0.02;
-            return Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Row(
-                children: [
-                  Icon(ok ? Icons.check_circle : Icons.warning_amber_rounded, size: 16, color: ok ? successColor : errorColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    ok
-                        ? 'Soma das parcelas bate com o total (R\$ ${totalCompra.toStringAsFixed(2)})'
-                        : 'Soma R\$ ${soma.toStringAsFixed(2)} ≠ total R\$ ${totalCompra.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: ok ? successColor : errorColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ],
     );
@@ -1510,8 +1575,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               if (!_freteAtivo) {
                 _freteValorController.clear();
                 _fretePagamento = null;
-                _freteNumeroParcelas = 2;
-                _freteBoleto30Vencimento = null;
+                _freteNumeroParcelas = 1;
+                _freteBoletoVencimento = null;
+                _boletoParcelasFrete = [];
               }
             });
             _updateSubmitState();
@@ -1534,8 +1600,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                       if (!_freteAtivo) {
                         _freteValorController.clear();
                         _fretePagamento = null;
-                        _freteNumeroParcelas = 2;
-                        _freteBoleto30Vencimento = null;
+                        _freteNumeroParcelas = 1;
+                        _freteBoletoVencimento = null;
+                        _boletoParcelasFrete = [];
                       }
                     });
                     _updateSubmitState();
@@ -1567,7 +1634,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           TextFormField(
             controller: _freteValorController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => _updateSubmitState(),
+            onChanged: (_) {
+              setState(() {});
+              _updateSubmitState();
+            },
             decoration: InputDecoration(
               labelText: 'Valor do Frete',
               prefixText: 'R\$ ',
@@ -1605,46 +1675,59 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               );
             }),
           const SizedBox(height: 12),
-          DropdownButtonFormField<FormaPagamentoCompra>(
-            initialValue: _fretePagamento,
-            decoration: InputDecoration(
-              labelText: 'Forma de Pagamento do Frete',
-              prefixIcon: Icon(Icons.payment, color: freteColor),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: freteBorder),
+          Builder(builder: (_) {
+            final tiposFreteOrdenados = List<TipoPagamento>.from(_tiposPagamento)
+              ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+
+            return DropdownButtonFormField<TipoPagamento>(
+              initialValue: _fretePagamento,
+              decoration: InputDecoration(
+                labelText: 'Forma de Pagamento do Frete',
+                prefixIcon: Icon(Icons.payment, color: freteColor),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: freteBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: freteColor, width: 2),
+                ),
+                filled: true,
+                fillColor: freteFill,
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: freteColor, width: 2),
-              ),
-              filled: true,
-              fillColor: freteFill,
-            ),
-            items: FormaPagamentoCompra.values
-                .where((f) => f != FormaPagamentoCompra.boleto30_60)
-                .map((f) => DropdownMenuItem(
-                      value: f,
-                      child: Row(
-                        children: [
-                          Icon(f.icon, size: 18, color: freteColor),
-                          const SizedBox(width: 8),
-                          Text(f.label),
-                        ],
-                      ),
-                    ))
-                .toList(),
-            onChanged: (v) {
-              setState(() {
-                _fretePagamento = v;
-                _freteBoleto30Vencimento = null;
-                _freteNumeroParcelas = 2;
-              });
-              _updateSubmitState();
-            },
-          ),
-          if (_fretePagamento == FormaPagamentoCompra.credito) ...[
+              items: tiposFreteOrdenados
+                  .map((f) => DropdownMenuItem(
+                        value: f,
+                        child: Row(
+                          children: [
+                            Icon(_iconeTipoPagamento(f), size: 18, color: freteColor),
+                            const SizedBox(width: 8),
+                            Text(f.nome),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+              onChanged: (v) {
+                final valorFrete = double.tryParse(_freteValorController.text.replaceAll(',', '.')) ?? 0;
+                setState(() {
+                  _fretePagamento = v;
+                  _freteBoletoVencimento = null;
+                  _freteNumeroParcelas = 1;
+                  _boletoParcelasFrete = [];
+                  if (_isBoletoParcelado(_fretePagamento) && valorFrete > 0) {
+                    _boletoParcelasFrete = _gerarParcelasPadrao(
+                      valorTotal: valorFrete,
+                      quantidade: _quantidadeParcelasTipo(_fretePagamento),
+                      base: DateTime.now(),
+                    );
+                  }
+                });
+                _updateSubmitState();
+              },
+            );
+          }),
+          if (_isCredito(_fretePagamento)) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               initialValue: _freteNumeroParcelas,
@@ -1663,7 +1746,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                 filled: true,
                 fillColor: freteFill,
               ),
-              items: List.generate(12, (i) => i + 2).map((n) {
+              items: List.generate(
+                _quantidadeParcelasTipo(_fretePagamento) > 0 ? _quantidadeParcelasTipo(_fretePagamento) : 1,
+                (i) => i + 1,
+              ).map((n) {
                 final vFrete = double.tryParse(_freteValorController.text.replaceAll(',', '.')) ?? 0;
                 final vp = vFrete > 0 ? vFrete / n : 0.0;
                 return DropdownMenuItem(
@@ -1677,7 +1763,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               },
             ),
           ],
-          if (_fretePagamento == FormaPagamentoCompra.boleto30) ...[
+          if (_isBoletoUnico(_fretePagamento)) ...[
             const SizedBox(height: 12),
             InkWell(
               onTap: () async {
@@ -1690,7 +1776,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                   locale: const Locale('pt', 'BR'),
                 );
                 if (picked != null) {
-                  setState(() => _freteBoleto30Vencimento = picked);
+                  setState(() => _freteBoletoVencimento = picked);
                   _updateSubmitState();
                 }
               },
@@ -1708,14 +1794,31 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
                   fillColor: freteFill,
                 ),
                 child: Text(
-                  _freteBoleto30Vencimento != null
-                      ? '${_freteBoleto30Vencimento!.day.toString().padLeft(2, '0')}/${_freteBoleto30Vencimento!.month.toString().padLeft(2, '0')}/${_freteBoleto30Vencimento!.year}'
+                  _freteBoletoVencimento != null
+                      ? '${_freteBoletoVencimento!.day.toString().padLeft(2, '0')}/${_freteBoletoVencimento!.month.toString().padLeft(2, '0')}/${_freteBoletoVencimento!.year}'
                       : 'Selecionar data',
                   style: TextStyle(
-                    color: _freteBoleto30Vencimento != null ? Colors.black87 : Colors.grey[500],
+                    color: _freteBoletoVencimento != null ? Colors.black87 : Colors.grey[500],
                   ),
                 ),
               ),
+            ),
+          ],
+          if (_isBoletoParcelado(_fretePagamento)) ...[
+            const SizedBox(height: 12),
+            _buildParcelasEditor(
+              titulo: 'Parcelas do frete (${_quantidadeParcelasTipo(_fretePagamento)}x)',
+              parcelas: _boletoParcelasFrete,
+              valorTotal: double.tryParse(_freteValorController.text.replaceAll(',', '.')) ?? 0,
+              accentColor: freteColor,
+              onValorChanged: (idx, novoValor) {
+                setState(() => _boletoParcelasFrete[idx].valor = novoValor);
+                _updateSubmitState();
+              },
+              onVencimentoChanged: (idx, novaData) {
+                setState(() => _boletoParcelasFrete[idx].vencimento = novaData);
+                _updateSubmitState();
+              },
             ),
           ],
         ],
@@ -1723,68 +1826,124 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     );
   }
 
-  Widget _buildBoleto60Row({
-    required String label,
-    required TextEditingController valorController,
-    required DateTime? vencimento,
-    required double totalCompra,
-    required VoidCallback onPickDate,
+  Widget _buildParcelasEditor({
+    required String titulo,
+    required List<_ParcelaPagamentoDraft> parcelas,
+    required double valorTotal,
+    required Color accentColor,
+    required void Function(int idx, double novoValor) onValorChanged,
+    required void Function(int idx, DateTime novaData) onVencimentoChanged,
   }) {
-    return Row(
+    final soma = _somaParcelas(parcelas);
+    final ok = valorTotal > 0 && parcelas.isNotEmpty && (soma - valorTotal).abs() <= 0.02;
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: TextFormField(
-            controller: valorController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => _updateSubmitState(),
-            decoration: InputDecoration(
-              labelText: '$label – Valor',
-              prefixText: 'R\$ ',
-              prefixIcon: Icon(Icons.attach_money, color: primaryColor),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: primaryColor, width: 2),
-              ),
-              filled: true,
-              fillColor: Colors.grey[50],
+        Text(
+          titulo,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: accentColor),
+        ),
+        const SizedBox(height: 8),
+        for (int i = 0; i < parcelas.length; i++) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${parcelas[i].numero}ª parcela',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)
+                            .isAfter(DateTime(parcelas[i].vencimento.year, parcelas[i].vencimento.month, parcelas[i].vencimento.day))
+                        ? 'Vencido'
+                        : '${parcelas[i].vencimento.day.toString().padLeft(2, '0')}/${parcelas[i].vencimento.month.toString().padLeft(2, '0')}/${parcelas[i].vencimento.year}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'R\$ ${parcelas[i].valor.toStringAsFixed(2)}',
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Editar valor',
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: () async {
+                    final ctrl = TextEditingController(text: parcelas[i].valor.toStringAsFixed(2).replaceAll('.', ','));
+                    final novoValor = await showDialog<double>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('${parcelas[i].numero}ª parcela'),
+                        content: TextField(
+                          controller: ctrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(labelText: 'Valor (R\$)'),
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                          TextButton(
+                            onPressed: () {
+                              final parsed = double.tryParse(ctrl.text.replaceAll(',', '.'));
+                              if (parsed == null || parsed <= 0) return;
+                              Navigator.pop(ctx, parsed);
+                            },
+                            child: const Text('Salvar'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (novoValor != null) {
+                      onValorChanged(i, novoValor);
+                    }
+                  },
+                ),
+                IconButton(
+                  tooltip: 'Editar vencimento',
+                  icon: const Icon(Icons.event, size: 18),
+                  onPressed: () async {
+                    final hoje = DateTime.now();
+                    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: parcelas[i].vencimento,
+                      firstDate: hojeSemHora,
+                      lastDate: DateTime.now().add(const Duration(days: 3650)),
+                      locale: const Locale('pt', 'BR'),
+                    );
+                    if (picked != null) {
+                      onVencimentoChanged(i, picked);
+                    }
+                  },
+                ),
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: InkWell(
-            onTap: onPickDate,
-            borderRadius: BorderRadius.circular(12),
-            child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: '$label – Vencimento',
-                prefixIcon: Icon(Icons.calendar_today, color: primaryColor),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              child: Text(
-                vencimento != null
-                    ? '${vencimento.day.toString().padLeft(2, '0')}/${vencimento.month.toString().padLeft(2, '0')}/${vencimento.year}'
-                    : 'Selecionar',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: vencimento != null ? Colors.black87 : Colors.grey[500],
-                ),
+        ],
+        if (parcelas.isNotEmpty)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Soma: R\$ ${soma.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: ok ? successColor : errorColor,
               ),
             ),
           ),
-        ),
       ],
     );
   }

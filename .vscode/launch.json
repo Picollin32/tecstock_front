@@ -18,7 +18,11 @@
             "cwd": "${workspaceFolder:tecstock_front}",
             "args": [
                 "-d",
-                "chrome"
+                "chrome",
+                "--web-hostname",
+                "localhost",
+                "--web-port",
+                "5173"
             ]
         },
         {

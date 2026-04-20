@@ -18,7 +18,7 @@
         {
             "label": "🎨 TecStock - Frontend (Flutter)",
             "type": "shell",
-            "command": "flutter run -d chrome",
+            "command": "flutter run -d chrome --web-hostname localhost --web-port 5173",
             "options": {
                 "cwd": "d:\\Projetos\\tecstock_front"
             },

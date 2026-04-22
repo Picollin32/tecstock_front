@@ -311,6 +311,16 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _precoFinalController.text = "R\$ ${precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
   }
 
+  double _margemLucroPercentual(double? margemLucro) {
+    final margem = margemLucro ?? 0.0;
+    return margem > 1 ? margem : margem * 100;
+  }
+
+  String _fornecedorComMargem(Fornecedor fornecedor) {
+    final percentual = _margemLucroPercentual(fornecedor.margemLucro);
+    return "${fornecedor.nome} (+${percentual.toStringAsFixed(2)}%)";
+  }
+
   void _salvar() async {
     if (_isSaving) {
       return;
@@ -798,6 +808,70 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       return ListTile(
                         title: Text(fabricante.nome),
                         onTap: () => Navigator.pop(sheetCtx, fabricante.id),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Fornecedor?> _abrirSeletorFornecedorAtualizado() async {
+    await _carregarFornecedoresEFabricantes();
+    if (!mounted) return null;
+
+    if (_fornecedores.isEmpty) {
+      _showVisibleError('Nenhum fornecedor cadastrado.');
+      return null;
+    }
+
+    return showModalBottomSheet<Fornecedor>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 10, bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Selecionar Fornecedor',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _fornecedores.length,
+                    separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
+                    itemBuilder: (_, index) {
+                      final fornecedor = _fornecedores[index];
+                      return ListTile(
+                        title: Text(_fornecedorComMargem(fornecedor)),
+                        onTap: () => Navigator.pop(sheetCtx, fornecedor),
                       );
                     },
                   ),
@@ -1538,7 +1612,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _buildInfoRow(
           Icons.store,
           peca.fornecedor != null
-              ? "${peca.fornecedor!.nome} (+${(peca.fornecedor!.margemLucro! > 1 ? peca.fornecedor!.margemLucro! : peca.fornecedor!.margemLucro! * 100).toStringAsFixed(2)}%)"
+              ? _fornecedorComMargem(peca.fornecedor!)
               : 'Não informado',
           maxLines: useFlexibleBody ? 1 : 2,
         ),
@@ -2233,14 +2307,14 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 controller: _nomeController,
                 label: 'Nome da Peça',
                 icon: Icons.inventory_2,
-                validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
+                validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome' : null,
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 controller: _codigoFabricanteController,
                 label: 'Código do Fabricante',
                 icon: Icons.qr_code,
-                validator: (v) => v!.isEmpty ? 'Informe o código' : null,
+                validator: (v) => (v == null || v.isEmpty) ? 'Informe o código' : null,
               ),
               const SizedBox(height: 16),
               Row(
@@ -2360,27 +2434,66 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _buildDropdownField(
-                      value: _fornecedorSelecionado,
-                      label: 'Fornecedor',
-                      icon: Icons.store,
-                      items: _fornecedores
-                          .map((fornecedor) => DropdownMenuItem<Fornecedor>(
-                                value: fornecedor,
-                                child: Text(
-                                  "${fornecedor.nome} (+${(fornecedor.margemLucro! > 1 ? fornecedor.margemLucro! : fornecedor.margemLucro! * 100).toStringAsFixed(2)}%)",
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _fornecedorSelecionado = value;
-                          _calcularPrecoFinal();
-                        });
-                      },
+                    FormField<Fornecedor>(
+                      initialValue: _fornecedorSelecionado,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) => value == null ? 'Selecione um fornecedor' : null,
+                      builder: (fieldState) {
+                        final textoFornecedor = _fornecedorSelecionado != null
+                            ? _fornecedorComMargem(_fornecedorSelecionado!)
+                            : 'Selecione um fornecedor';
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            final selecionado = await _abrirSeletorFornecedorAtualizado();
+                            if (selecionado == null) return;
+
+                            setState(() {
+                              _fornecedorSelecionado = selecionado;
+                              _calcularPrecoFinal();
+                            });
+                            fieldState.didChange(selecionado);
+                          },
+                          child: InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Fornecedor',
+                              prefixIcon: Icon(Icons.store, color: primaryColor),
+                              errorText: fieldState.errorText,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    textoFornecedor,
+                                    style: TextStyle(
+                                      color: _fornecedorSelecionado == null ? Colors.grey[600] : Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(

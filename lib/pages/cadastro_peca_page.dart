@@ -768,134 +768,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _showVisibleError(message);
   }
 
-  Future<Fabricante?> _abrirSeletorFabricanteAtualizado() async {
-    await _carregarFornecedoresEFabricantes();
-    if (!mounted) return null;
-
-    if (_fabricantes.isEmpty) {
-      _showVisibleError('Nenhum fabricante cadastrado.');
-      return null;
-    }
-
-    return showModalBottomSheet<Fabricante>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return SafeArea(
-          top: false,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Selecionar Fabricante',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _fabricantes.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
-                    itemBuilder: (_, index) {
-                      final fabricante = _fabricantes[index];
-                      return ListTile(
-                        title: Text(fabricante.nome),
-                        onTap: () => Navigator.pop(sheetCtx, fabricante),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<Fornecedor?> _abrirSeletorFornecedorAtualizado() async {
-    await _carregarFornecedoresEFabricantes();
-    if (!mounted) return null;
-
-    if (_fornecedores.isEmpty) {
-      _showVisibleError('Nenhum fornecedor cadastrado.');
-      return null;
-    }
-
-    return showModalBottomSheet<Fornecedor>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return SafeArea(
-          top: false,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Selecionar Fornecedor',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: _fornecedores.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
-                    itemBuilder: (_, index) {
-                      final fornecedor = _fornecedores[index];
-                      return ListTile(
-                        title: Text(_fornecedorComMargem(fornecedor)),
-                        onTap: () => Navigator.pop(sheetCtx, fornecedor),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   Future<Fabricante?> _abrirGerenciarFabricantes() async {
     Fabricante? fabricanteSelecionadoNoGerenciador;
     bool carregouNoDialog = false;
@@ -1392,7 +1264,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       initialValue: _fabricanteFiltroId,
       isExpanded: true,
       decoration: InputDecoration(
-        labelText: 'Fabricante',
+        labelText: 'Filtrar por fabricante',
+        prefixIcon: Icon(Icons.filter_list, color: primaryColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[300]!),
@@ -1417,7 +1290,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         ...fabricantesDropdown.map(
           (fabricante) => DropdownMenuItem<int?>(
             value: fabricante.id,
-            child: Text(fabricante.nome),
+            child: Text(fabricante.nome, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],
@@ -2422,7 +2295,12 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   Widget _buildFormulario() {
     final fabricantesOrdenados = List<Fabricante>.from(_fabricantes)..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-    final fabricanteSelecionadoAtual = fabricantesOrdenados.where((f) => f.id == _fabricanteSelecionado?.id).firstOrNull;
+    final fabricanteSelecionadoAtualId =
+        fabricantesOrdenados.any((f) => f.id == _fabricanteSelecionado?.id) ? _fabricanteSelecionado?.id : null;
+    final fornecedoresOrdenados = List<Fornecedor>.from(_fornecedores)
+      ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    final fornecedorSelecionadoAtualId =
+        fornecedoresOrdenados.any((f) => f.id == _fornecedorSelecionado?.id) ? _fornecedorSelecionado?.id : null;
 
     final precoUnitarioField = _buildTextField(
       controller: _precoUnitarioController,
@@ -2496,61 +2374,44 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: FormField<Fabricante>(
-                      initialValue: fabricanteSelecionadoAtual,
+                    child: DropdownButtonFormField<int?>(
+                      key: ValueKey('fabricante-${_fabricanteSelecionado?.id ?? 'none'}-${fabricantesOrdenados.length}'),
+                      initialValue: fabricanteSelecionadoAtualId,
+                      isExpanded: true,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
-                      validator: (value) => value == null ? 'Selecione um fabricante' : null,
-                      builder: (fieldState) {
-                        final textoFabricante = _fabricanteSelecionado?.nome ?? 'Selecione um fabricante';
-
-                        return InkWell(
+                      decoration: InputDecoration(
+                        labelText: 'Fabricante',
+                        prefixIcon: Icon(Icons.business, color: primaryColor),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: () async {
-                            final selecionado = await _abrirSeletorFabricanteAtualizado();
-                            if (selecionado == null) return;
-
-                            setState(() => _fabricanteSelecionado = selecionado);
-                            fieldState.didChange(selecionado);
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Fabricante',
-                              prefixIcon: Icon(Icons.business, color: primaryColor),
-                              errorText: fieldState.errorText,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primaryColor, width: 2),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: fabricantesOrdenados
+                          .map(
+                            (fabricante) => DropdownMenuItem<int?>(
+                              value: fabricante.id,
+                              child: Text(fabricante.nome),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    textoFabricante,
-                                    style: TextStyle(
-                                      color: _fabricanteSelecionado == null ? Colors.grey[600] : Colors.black87,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
-                              ],
-                            ),
-                          ),
-                        );
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        final selecionado = fabricantesOrdenados.where((f) => f.id == value).cast<Fabricante?>().firstOrNull;
+                        setState(() {
+                          _fabricanteSelecionado = selecionado;
+                        });
                       },
+                      validator: (value) => value == null ? 'Selecione um fabricante' : null,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -2622,65 +2483,48 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       ],
                     ),
                     const SizedBox(height: 16),
-                    FormField<Fornecedor>(
-                      initialValue: _fornecedorSelecionado,
+                    DropdownButtonFormField<int?>(
+                      key: ValueKey('fornecedor-${_fornecedorSelecionado?.id ?? 'none'}-${fornecedoresOrdenados.length}'),
+                      initialValue: fornecedorSelecionadoAtualId,
+                      isExpanded: true,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
-                      validator: (value) => value == null ? 'Selecione um fornecedor' : null,
-                      builder: (fieldState) {
-                        final textoFornecedor =
-                            _fornecedorSelecionado != null ? _fornecedorComMargem(_fornecedorSelecionado!) : 'Selecione um fornecedor';
-
-                        return InkWell(
+                      decoration: InputDecoration(
+                        labelText: 'Fornecedor',
+                        prefixIcon: Icon(Icons.store, color: primaryColor),
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: () async {
-                            final selecionado = await _abrirSeletorFornecedorAtualizado();
-                            if (selecionado == null) return;
-
-                            setState(() {
-                              _fornecedorSelecionado = selecionado;
-                              _calcularPrecoFinal();
-                            });
-                            fieldState.didChange(selecionado);
-                          },
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Fornecedor',
-                              prefixIcon: Icon(Icons.store, color: primaryColor),
-                              errorText: fieldState.errorText,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: fornecedoresOrdenados
+                          .map(
+                            (fornecedor) => DropdownMenuItem<int?>(
+                              value: fornecedor.id,
+                              child: Text(
+                                _fornecedorComMargem(fornecedor),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primaryColor, width: 2),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    textoFornecedor,
-                                    style: TextStyle(
-                                      color: _fornecedorSelecionado == null ? Colors.grey[600] : Colors.black87,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
-                              ],
-                            ),
-                          ),
-                        );
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        final selecionado = fornecedoresOrdenados.where((f) => f.id == value).cast<Fornecedor?>().firstOrNull;
+                        setState(() {
+                          _fornecedorSelecionado = selecionado;
+                          _calcularPrecoFinal();
+                        });
                       },
+                      validator: (value) => value == null ? 'Selecione um fornecedor' : null,
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(

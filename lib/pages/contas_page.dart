@@ -513,6 +513,334 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     );
   }
 
+  Future<Fornecedor?> _abrirCadastroRapidoFornecedorServico(BuildContext parentContext) async {
+    Fornecedor? fornecedorSelecionadoNoGerenciador;
+    bool carregouNoDialog = false;
+    const corFornecedor = Color(0xFF0F766E);
+
+    await showDialog<void>(
+      context: parentContext,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx2, setDialogState) {
+            Future<void> recarregarFornecedores() async {
+              final fornecedoresAtualizados = await FornecedorService.listarFornecedores();
+              if (!mounted) return;
+              setState(() {
+                _fornecedores = fornecedoresAtualizados;
+              });
+              setDialogState(() {});
+            }
+
+            Future<void> abrirFormulario({Fornecedor? fornecedor}) async {
+              final nomeCtrl = TextEditingController(text: fornecedor?.nome ?? '');
+              final formKey = GlobalKey<FormState>();
+              final isEdicao = fornecedor != null;
+
+              await showModalBottomSheet<void>(
+                context: ctx2,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (sheetCtx) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+                    child: SafeArea(
+                      top: false,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetCtx).size.height * 0.88),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                          ),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: const BoxDecoration(
+                                    color: corFornecedor,
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(isEdicao ? Icons.edit : Icons.add, color: Colors.white, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          isEdicao ? 'Editar Fornecedor de Serviço' : 'Novo Fornecedor de Serviço',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () => Navigator.pop(sheetCtx),
+                                        icon: const Icon(Icons.close, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Form(
+                                    key: formKey,
+                                    child: Column(
+                                      children: [
+                                        TextFormField(
+                                          controller: nomeCtrl,
+                                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                                          validator: (v) {
+                                            final value = (v ?? '').trim();
+                                            if (value.isEmpty) return 'Informe o nome do fornecedor';
+                                            if (value.length < 2) return 'Nome muito curto';
+                                            return null;
+                                          },
+                                          decoration: InputDecoration(
+                                            labelText: 'Nome do Fornecedor *',
+                                            prefixIcon: const Icon(Icons.store_outlined, color: corFornecedor),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.grey[300]!),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.grey[300]!),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: const BorderSide(color: corFornecedor, width: 2),
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.grey[50],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 48,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: corFornecedor,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            onPressed: () async {
+                                              if (!formKey.currentState!.validate()) return;
+
+                                              final nome = nomeCtrl.text.trim();
+
+                                              final resultado = isEdicao
+                                                  ? await FornecedorService.atualizarFornecedor(
+                                                      fornecedor.id!,
+                                                      Fornecedor(
+                                                        id: fornecedor.id,
+                                                        nome: nome,
+                                                        cnpj: fornecedor.cnpj,
+                                                        telefone: fornecedor.telefone,
+                                                        email: fornecedor.email,
+                                                        servico: true,
+                                                        margemLucro: fornecedor.margemLucro,
+                                                        cep: fornecedor.cep,
+                                                        rua: fornecedor.rua,
+                                                        numeroCasa: fornecedor.numeroCasa,
+                                                        complemento: fornecedor.complemento,
+                                                        bairro: fornecedor.bairro,
+                                                        cidade: fornecedor.cidade,
+                                                        uf: fornecedor.uf,
+                                                        codigoMunicipio: fornecedor.codigoMunicipio,
+                                                      ),
+                                                    )
+                                                  : await FornecedorService.salvarFornecedor(
+                                                      Fornecedor(
+                                                        nome: nome,
+                                                        cnpj: '',
+                                                        telefone: '',
+                                                        email: '',
+                                                        servico: true,
+                                                      ),
+                                                    );
+
+                                              if (resultado['success'] == true) {
+                                                if (!mounted) return;
+                                                if (!sheetCtx.mounted) return;
+
+                                                Navigator.pop(sheetCtx);
+                                                _mostrarSucesso(
+                                                  isEdicao
+                                                      ? 'Fornecedor de serviço atualizado com sucesso!'
+                                                      : 'Fornecedor de serviço cadastrado com sucesso!',
+                                                );
+
+                                                await recarregarFornecedores();
+
+                                                if (!isEdicao) {
+                                                  final fornecedorRetornado =
+                                                      resultado['fornecedor'] is Fornecedor ? resultado['fornecedor'] as Fornecedor : null;
+
+                                                  final selecionado = fornecedorRetornado?.id != null
+                                                      ? _fornecedores.where((f) => f.id == fornecedorRetornado!.id).firstOrNull
+                                                      : _fornecedores
+                                                          .where((f) => f.servico && f.nome.trim().toLowerCase() == nome.toLowerCase())
+                                                          .firstOrNull;
+
+                                                  if (selecionado != null) {
+                                                    fornecedorSelecionadoNoGerenciador = selecionado;
+                                                  }
+                                                } else {
+                                                  final atualizado = _fornecedores.where((f) => f.id == fornecedor.id).firstOrNull;
+                                                  if (atualizado != null) {
+                                                    fornecedorSelecionadoNoGerenciador = atualizado;
+                                                  }
+                                                }
+                                              } else {
+                                                _mostrarErro(resultado['message'] ?? 'Erro ao salvar fornecedor');
+                                              }
+                                            },
+                                            child: Text(
+                                              isEdicao ? 'Atualizar Fornecedor' : 'Cadastrar Fornecedor',
+                                              style: const TextStyle(fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+
+            Future<void> excluirFornecedorGerenciamento(Fornecedor fornecedor) async {
+              final confirmar = await showDialog<bool>(
+                context: ctx2,
+                builder: (dCtx) => AlertDialog(
+                  title: const Text('Excluir fornecedor'),
+                  content: Text('Deseja excluir o fornecedor "${fornecedor.nome}"?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancelar')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(dCtx, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Excluir'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmar != true) return;
+
+              final resultado = await FornecedorService.excluirFornecedor(fornecedor.id!);
+              if (resultado['success'] == true) {
+                _mostrarSucesso('Fornecedor de serviço excluído com sucesso!');
+                await recarregarFornecedores();
+              } else {
+                _mostrarErro(resultado['message'] ?? 'Erro ao excluir fornecedor');
+              }
+            }
+
+            if (!carregouNoDialog) {
+              carregouNoDialog = true;
+              Future.microtask(recarregarFornecedores);
+            }
+
+            final fornecedoresServico = _fornecedores.where((f) => f.servico).toList()
+              ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              title: const Row(
+                children: [
+                  Icon(Icons.store_outlined, color: corFornecedor),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Fornecedores de Serviço',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 540,
+                height: 420,
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: corFornecedor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => abrirFormulario(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Novo Fornecedor'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: fornecedoresServico.isEmpty
+                          ? const Center(child: Text('Nenhum fornecedor de serviço cadastrado.'))
+                          : ListView.separated(
+                              itemCount: fornecedoresServico.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final fornecedor = fornecedoresServico[i];
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(fornecedor.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Editar',
+                                        onPressed: () => abrirFormulario(fornecedor: fornecedor),
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Excluir',
+                                        onPressed: () => excluirFornecedorGerenciamento(fornecedor),
+                                        icon: const Icon(Icons.delete_outline),
+                                        color: Colors.red,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF475569)),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fechar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return fornecedorSelecionadoNoGerenciador;
+  }
+
   List<_ParcelaDraft> _gerarParcelasPadrao({
     required double valorTotal,
     required int quantidade,
@@ -1321,23 +1649,60 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  DropdownButtonFormField<int?>(
-                                    initialValue: fornecedorId,
-                                    decoration: InputDecoration(
-                                      labelText: 'Fornecedor (opcional)',
-                                      prefixIcon: const Icon(Icons.store_outlined),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<int?>(value: null, child: Text('Sem fornecedor')),
-                                      ...fornecedoresServico.map(
-                                        (f) => DropdownMenuItem<int?>(
-                                          value: f.id,
-                                          child: Text(f.nome),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: DropdownButtonFormField<int?>(
+                                          initialValue: fornecedorId,
+                                          decoration: InputDecoration(
+                                            labelText: 'Fornecedor (opcional)',
+                                            prefixIcon: const Icon(Icons.store_outlined),
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          items: [
+                                            const DropdownMenuItem<int?>(value: null, child: Text('Sem fornecedor')),
+                                            ...fornecedoresServico.map(
+                                              (f) => DropdownMenuItem<int?>(
+                                                value: f.id,
+                                                child: Text(f.nome),
+                                              ),
+                                            ),
+                                          ],
+                                          onChanged: (v) => setDialogState(() => fornecedorId = v),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      SizedBox(
+                                        height: 56,
+                                        child: Tooltip(
+                                          message: 'Gerenciar fornecedores de serviço',
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              final fornecedorSelecionado = await _abrirCadastroRapidoFornecedorServico(ctx2);
+                                              if (!ctx2.mounted) return;
+
+                                              setDialogState(() {
+                                                if (fornecedorSelecionado?.id != null) {
+                                                  fornecedorId = fornecedorSelecionado!.id;
+                                                } else if (fornecedorId != null &&
+                                                    !_fornecedores.any((f) => f.servico && f.id == fornecedorId)) {
+                                                  fornecedorId = null;
+                                                }
+                                              });
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: dialogPrimary,
+                                              foregroundColor: Colors.white,
+                                              elevation: 1,
+                                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            child: const Icon(Icons.add),
+                                          ),
                                         ),
                                       ),
                                     ],
-                                    onChanged: (v) => setDialogState(() => fornecedorId = v),
                                   ),
                                 ],
                                 const SizedBox(height: 12),

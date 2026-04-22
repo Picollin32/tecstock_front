@@ -50,6 +50,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   bool _isLoadingPecas = true;
   bool _isSaving = false;
   String _filtroEstoque = 'todos';
+  StateSetter? _formModalSetState;
 
   Timer? _debounceTimer;
   int _currentPage = 0;
@@ -89,6 +90,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
 
   @override
   void dispose() {
+    _formModalSetState = null;
     _fadeController.dispose();
     _debounceTimer?.cancel();
     _searchController.removeListener(_onSearchChanged);
@@ -100,6 +102,13 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _precoFinalController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _rebuildFormModal() {
+    final setter = _formModalSetState;
+    if (setter != null) {
+      setter(() {});
+    }
   }
 
   Future<void> _carregarDados() async {
@@ -166,16 +175,18 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   Future<void> _carregarFornecedoresEFabricantes() async {
     try {
       final listaFornecedores = await FornecedorService.listarFornecedores();
+      final listaFornecedoresPecas = listaFornecedores.where((f) => !f.servico).toList();
       final listaFabricantes = await FabricanteService.listarFabricantes();
+      listaFornecedoresPecas.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
       listaFabricantes.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
       setState(() {
-        listaFornecedores.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
-        _fornecedores = listaFornecedores;
+        _fornecedores = listaFornecedoresPecas;
         _fabricantes = listaFabricantes;
         _fornecedoresFiltroDisponiveis = _fornecedores.where((f) => _fornecedorIdsComPecas.contains(f.id)).toList();
         _fabricantesFiltroDisponiveis = _fabricantes.where((f) => _fabricanteIdsComPecas.contains(f.id)).toList();
       });
+      _rebuildFormModal();
     } catch (e) {
       _showError('Erro ao carregar fornecedores e fabricantes');
     }
@@ -381,7 +392,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       _precoFinalController.text = "R\$ ${peca.precoFinal.toStringAsFixed(2).replaceAll('.', ',')}";
       _estoqueSegurancaController.text = peca.estoqueSeguranca.toString();
       _fabricanteSelecionado = _fabricantes.firstWhere((f) => f.id == peca.fabricante.id, orElse: () => _fabricantes.first);
-      _fornecedorSelecionado = peca.fornecedor != null ? _fornecedores.firstWhere((fo) => fo.id == peca.fornecedor!.id) : null;
+      final fornecedorDaPeca = peca.fornecedor;
+      _fornecedorSelecionado = fornecedorDaPeca != null ? _fornecedores.where((fo) => fo.id == fornecedorDaPeca.id).firstOrNull : null;
       _pecaEmEdicao = peca;
     });
     _showFormModal();
@@ -756,7 +768,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     _showVisibleError(message);
   }
 
-  Future<int?> _abrirSeletorFabricanteAtualizado() async {
+  Future<Fabricante?> _abrirSeletorFabricanteAtualizado() async {
     await _carregarFornecedoresEFabricantes();
     if (!mounted) return null;
 
@@ -765,7 +777,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
       return null;
     }
 
-    return showModalBottomSheet<int>(
+    return showModalBottomSheet<Fabricante>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) {
@@ -807,7 +819,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       final fabricante = _fabricantes[index];
                       return ListTile(
                         title: Text(fabricante.nome),
-                        onTap: () => Navigator.pop(sheetCtx, fabricante.id),
+                        onTap: () => Navigator.pop(sheetCtx, fabricante),
                       );
                     },
                   ),
@@ -884,211 +896,373 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
     );
   }
 
-  Future<void> _abrirCadastroRapidoFabricante() async {
-    final formKey = GlobalKey<FormState>();
-    final nomeCtrl = TextEditingController();
-    bool isSavingFabricante = false;
+  Future<Fabricante?> _abrirGerenciarFabricantes() async {
+    Fabricante? fabricanteSelecionadoNoGerenciador;
+    bool carregouNoDialog = false;
 
-    await showModalBottomSheet<void>(
+    await showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
+      builder: (ctx) {
         return StatefulBuilder(
-          builder: (sheetCtx2, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx2).viewInsets.bottom),
-              child: SafeArea(
-                top: false,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.add_business, color: primaryColor),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Novo Fabricante',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => Navigator.pop(sheetCtx2),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: nomeCtrl,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                          decoration: InputDecoration(
-                            labelText: 'Nome do Fabricante',
-                            prefixIcon: Icon(Icons.business, color: primaryColor),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: primaryColor, width: 2),
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[50],
+          builder: (ctx2, setDialogState) {
+            Future<void> recarregarFabricantes() async {
+              await _carregarFornecedoresEFabricantes();
+              if (!mounted) return;
+
+              if (_fabricanteSelecionado != null && !_fabricantes.any((f) => f.id == _fabricanteSelecionado!.id)) {
+                setState(() => _fabricanteSelecionado = null);
+              }
+
+              setDialogState(() {});
+              _rebuildFormModal();
+            }
+
+            Future<void> abrirFormulario({Fabricante? fabricante}) async {
+              final nomeCtrl = TextEditingController(text: fabricante?.nome ?? '');
+              final formKey = GlobalKey<FormState>();
+              final isEdicao = fabricante != null;
+              const corFabricante = primaryColor;
+
+              await showModalBottomSheet<void>(
+                context: ctx2,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (sheetCtx) {
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+                    child: SafeArea(
+                      top: false,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetCtx).size.height * 0.88),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                           ),
-                          validator: (v) {
-                            final value = (v ?? '').trim();
-                            if (value.isEmpty) return 'Informe o nome do fabricante';
-                            if (value.length < 2) return 'Nome muito curto';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: ElevatedButton(
-                            onPressed: isSavingFabricante
-                                ? null
-                                : () async {
-                                    if (!formKey.currentState!.validate()) return;
-
-                                    final nome = nomeCtrl.text.trim();
-                                    setModalState(() => isSavingFabricante = true);
-
-                                    final result = await FabricanteService.salvarFabricante(Fabricante(nome: nome));
-
-                                    if (result['success'] == true) {
-                                      await _carregarFornecedoresEFabricantes();
-                                      if (!mounted) return;
-
-                                      final selecionado =
-                                          _fabricantes.where((f) => f.nome.trim().toLowerCase() == nome.toLowerCase()).firstOrNull;
-                                      if (selecionado != null) {
-                                        setState(() => _fabricanteSelecionado = selecionado);
-                                      }
-
-                                      if (sheetCtx2.mounted) {
-                                        Navigator.pop(sheetCtx2);
-                                      }
-                                      _showSuccessSnackBar('Fabricante cadastrado com sucesso');
-                                    } else {
-                                      if (mounted) {
-                                        _showVisibleError(result['message'] ?? 'Erro ao cadastrar fabricante');
-                                      }
-                                      setModalState(() => isSavingFabricante = false);
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: isSavingFabricante
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    ),
-                                  )
-                                : const Text(
-                                    'Cadastrar Fabricante',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: const BoxDecoration(
+                                    color: corFabricante,
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                                   ),
+                                  child: Row(
+                                    children: [
+                                      Icon(isEdicao ? Icons.edit : Icons.add, color: Colors.white, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          isEdicao ? 'Editar Fabricante' : 'Novo Fabricante',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () => Navigator.pop(sheetCtx),
+                                        icon: const Icon(Icons.close, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Form(
+                                    key: formKey,
+                                    child: Column(
+                                      children: [
+                                        TextFormField(
+                                          controller: nomeCtrl,
+                                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                                          validator: (v) {
+                                            final value = (v ?? '').trim();
+                                            if (value.isEmpty) return 'Informe o nome do fabricante';
+                                            if (value.length < 2) return 'Nome muito curto';
+                                            return null;
+                                          },
+                                          decoration: InputDecoration(
+                                            labelText: 'Nome do Fabricante',
+                                            prefixIcon: const Icon(Icons.business, color: corFabricante),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.grey[300]!),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.grey[300]!),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: const BorderSide(color: corFabricante, width: 2),
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.grey[50],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 48,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: corFabricante,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            onPressed: () async {
+                                              if (!formKey.currentState!.validate()) return;
+
+                                              final nome = nomeCtrl.text.trim();
+                                              final result = isEdicao
+                                                  ? await FabricanteService.atualizarFabricante(
+                                                      fabricante.id!,
+                                                      Fabricante(id: fabricante.id, nome: nome),
+                                                    )
+                                                  : await FabricanteService.salvarFabricante(Fabricante(nome: nome));
+
+                                              if (result['success'] == true) {
+                                                if (!mounted) return;
+                                                if (!sheetCtx.mounted) return;
+                                                Navigator.pop(sheetCtx);
+                                                _showSuccessSnackBar(
+                                                  isEdicao ? 'Fabricante atualizado com sucesso' : 'Fabricante cadastrado com sucesso',
+                                                );
+                                                await recarregarFabricantes();
+
+                                                if (!isEdicao) {
+                                                  final selecionado = _fabricantes
+                                                      .where((f) => f.nome.trim().toLowerCase() == nome.toLowerCase())
+                                                      .firstOrNull;
+                                                  if (selecionado != null) {
+                                                    setState(() => _fabricanteSelecionado = selecionado);
+                                                    fabricanteSelecionadoNoGerenciador = selecionado;
+                                                  }
+                                                } else {
+                                                  final atualizado = _fabricantes.where((f) => f.id == fabricante.id).firstOrNull;
+                                                  if (atualizado != null) {
+                                                    fabricanteSelecionadoNoGerenciador = atualizado;
+                                                  }
+                                                }
+                                              } else {
+                                                _showVisibleError(result['message'] ?? 'Erro ao salvar fabricante');
+                                              }
+                                            },
+                                            child: Text(
+                                              isEdicao ? 'Atualizar Fabricante' : 'Cadastrar Fabricante',
+                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+
+            Future<void> excluirFabricanteGerenciamento(Fabricante fabricante) async {
+              final confirmar = await showDialog<bool>(
+                context: ctx2,
+                builder: (dCtx) => AlertDialog(
+                  title: const Text('Excluir fabricante'),
+                  content: Text('Deseja excluir o fabricante "${fabricante.nome}"?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancelar')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(dCtx, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Excluir'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmar != true) return;
+
+              final result = await FabricanteService.excluirFabricante(fabricante.id!);
+              if (result['success'] == true) {
+                _showSuccessSnackBar('Fabricante excluído com sucesso');
+                await recarregarFabricantes();
+              } else {
+                _showVisibleError(result['message'] ?? 'Erro ao excluir fabricante');
+              }
+            }
+
+            if (!carregouNoDialog) {
+              carregouNoDialog = true;
+              Future.microtask(recarregarFabricantes);
+            }
+
+            final fabricantesOrdenados = List<Fabricante>.from(_fabricantes)
+              ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+              title: const Row(
+                children: [
+                  Icon(Icons.business, color: primaryColor),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Gerenciar Fabricantes',
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
+                ],
+              ),
+              content: SizedBox(
+                width: 540,
+                height: 420,
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () => abrirFormulario(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Novo Fabricante'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: fabricantesOrdenados.isEmpty
+                          ? const Center(child: Text('Nenhum fabricante cadastrado.'))
+                          : ListView.separated(
+                              itemCount: fabricantesOrdenados.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final fabricante = fabricantesOrdenados[i];
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(fabricante.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Editar',
+                                        onPressed: () => abrirFormulario(fabricante: fabricante),
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Excluir',
+                                        onPressed: () => excluirFabricanteGerenciamento(fabricante),
+                                        icon: const Icon(Icons.delete_outline),
+                                        color: Colors.red,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: const Color(0xFF475569)),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Fechar'),
+                ),
+              ],
             );
           },
         );
       },
     );
 
-    nomeCtrl.dispose();
+    return fabricanteSelecionadoNoGerenciador;
   }
 
   void _showFormModal() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _pecaEmEdicao != null ? Icons.edit : Icons.add,
-                      color: Colors.white,
-                      size: 24,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          _formModalSetState = setModalState;
+          return DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) => Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _pecaEmEdicao != null ? 'Editar Peça' : 'Nova Peça',
-                        style: const TextStyle(
+                    child: Row(
+                      children: [
+                        Icon(
+                          _pecaEmEdicao != null ? Icons.edit : Icons.add,
                           color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                          size: 24,
                         ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _pecaEmEdicao != null ? 'Editar Peça' : 'Nova Peça',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            _limparFormulario();
+                            _formModalSetState = null;
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () {
-                        _limparFormulario();
-                        Navigator.pop(context);
-                      },
-                      icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(24),
+                      child: _buildFormulario(),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(24),
-                  child: _buildFormulario(),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
-    );
+    ).whenComplete(() {
+      _formModalSetState = null;
+    });
   }
 
   Widget _buildSearchBar() {
@@ -1611,9 +1785,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         _buildInfoRow(Icons.business, peca.fabricante.nome, maxLines: useFlexibleBody ? 1 : 2),
         _buildInfoRow(
           Icons.store,
-          peca.fornecedor != null
-              ? _fornecedorComMargem(peca.fornecedor!)
-              : 'Não informado',
+          peca.fornecedor != null ? _fornecedorComMargem(peca.fornecedor!) : 'Não informado',
           maxLines: useFlexibleBody ? 1 : 2,
         ),
         _buildInfoRow(Icons.attach_money, 'Custo: R\$ ${peca.precoUnitario.toStringAsFixed(2)}', isPrice: true, maxLines: 1),
@@ -2249,6 +2421,9 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
   }
 
   Widget _buildFormulario() {
+    final fabricantesOrdenados = List<Fabricante>.from(_fabricantes)..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    final fabricanteSelecionadoAtual = fabricantesOrdenados.where((f) => f.id == _fabricanteSelecionado?.id).firstOrNull;
+
     final precoUnitarioField = _buildTextField(
       controller: _precoUnitarioController,
       label: 'Preço Unitário (Custo)',
@@ -2322,18 +2497,18 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                 children: [
                   Expanded(
                     child: FormField<Fabricante>(
-                      initialValue: _fabricanteSelecionado,
+                      initialValue: fabricanteSelecionadoAtual,
                       autovalidateMode: AutovalidateMode.onUserInteraction,
-                      validator: (value) => _fabricanteSelecionado == null ? 'Selecione um fabricante' : null,
+                      validator: (value) => value == null ? 'Selecione um fabricante' : null,
                       builder: (fieldState) {
                         final textoFabricante = _fabricanteSelecionado?.nome ?? 'Selecione um fabricante';
+
                         return InkWell(
                           borderRadius: BorderRadius.circular(12),
                           onTap: () async {
-                            final idSelecionado = await _abrirSeletorFabricanteAtualizado();
-                            if (idSelecionado == null) return;
-                            final selecionado = _fabricantes.where((f) => f.id == idSelecionado).firstOrNull;
+                            final selecionado = await _abrirSeletorFabricanteAtualizado();
                             if (selecionado == null) return;
+
                             setState(() => _fabricanteSelecionado = selecionado);
                             fieldState.didChange(selecionado);
                           },
@@ -2366,6 +2541,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                                       color: _fabricanteSelecionado == null ? Colors.grey[600] : Colors.black87,
                                       fontSize: 16,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
@@ -2380,9 +2557,20 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                   SizedBox(
                     height: 56,
                     child: Tooltip(
-                      message: 'Cadastrar novo fabricante',
+                      message: 'Gerenciar fabricantes',
                       child: ElevatedButton(
-                        onPressed: _abrirCadastroRapidoFabricante,
+                        onPressed: () async {
+                          final selecionado = await _abrirGerenciarFabricantes();
+                          if (!mounted) return;
+                          setState(() {
+                            if (selecionado != null) {
+                              _fabricanteSelecionado = selecionado;
+                            } else if (_fabricanteSelecionado != null && !_fabricantes.any((f) => f.id == _fabricanteSelecionado!.id)) {
+                              _fabricanteSelecionado = null;
+                            }
+                          });
+                          _rebuildFormModal();
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
@@ -2439,9 +2627,8 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) => value == null ? 'Selecione um fornecedor' : null,
                       builder: (fieldState) {
-                        final textoFornecedor = _fornecedorSelecionado != null
-                            ? _fornecedorComMargem(_fornecedorSelecionado!)
-                            : 'Selecione um fornecedor';
+                        final textoFornecedor =
+                            _fornecedorSelecionado != null ? _fornecedorComMargem(_fornecedorSelecionado!) : 'Selecione um fornecedor';
 
                         return InkWell(
                           borderRadius: BorderRadius.circular(12),
@@ -2594,41 +2781,6 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         filled: true,
         fillColor: enabled ? Colors.grey[50] : Colors.grey[100],
       ),
-    );
-  }
-
-  Widget _buildDropdownField<T>({
-    required T? value,
-    required String label,
-    required IconData icon,
-    required List<DropdownMenuItem<T>> items,
-    required void Function(T?) onChanged,
-    String? Function(T?)? validator,
-  }) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      isExpanded: true,
-      onChanged: onChanged,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: primaryColor),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primaryColor, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.grey[50],
-      ),
-      items: items,
     );
   }
 

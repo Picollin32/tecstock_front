@@ -6,6 +6,23 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class MarcaService {
+  static Uri _buildNoCacheUri(String baseUrl) {
+    final uri = Uri.parse(baseUrl);
+    final query = Map<String, String>.from(uri.queryParameters);
+    query['_ts'] = DateTime.now().millisecondsSinceEpoch.toString();
+    return uri.replace(queryParameters: query);
+  }
+
+  static Future<Map<String, String>> _authNoCacheHeaders() async {
+    final headers = await AuthService.getAuthHeaders();
+    return {
+      ...headers,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    };
+  }
+
   static Future<Map<String, dynamic>> salvarMarca(Marca marca) async {
     String baseUrl = '${ApiConfig.marcasUrl}/salvar';
 
@@ -56,7 +73,7 @@ class MarcaService {
   static Future<List<Marca>> listarMarcas() async {
     String baseUrl = '${ApiConfig.marcasUrl}/listarTodos';
     try {
-      final response = await http.get(Uri.parse(baseUrl), headers: await AuthService.getAuthHeaders());
+      final response = await http.get(_buildNoCacheUri(baseUrl), headers: await _authNoCacheHeaders());
       if (response.statusCode == 200) {
         final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
         return jsonList.map((e) => Marca.fromJson(e)).toList();

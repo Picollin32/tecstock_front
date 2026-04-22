@@ -17,6 +17,20 @@ class FornecedorService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        try {
+          if (response.bodyBytes.isNotEmpty) {
+            final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+            if (responseData is Map<String, dynamic>) {
+              return {
+                'success': true,
+                'message': 'Fornecedor salvo com sucesso',
+                'fornecedor': Fornecedor.fromJson(responseData),
+              };
+            }
+          }
+        } catch (_) {
+          // Ignora parse do payload e mantém sucesso sem objeto.
+        }
         return {'success': true, 'message': 'Fornecedor salvo com sucesso'};
       } else {
         String errorMessage = 'Erro ao salvar fornecedor';

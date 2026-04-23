@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../model/tipo_pagamento.dart';
 import '../services/movimentacao_estoque_service.dart';
@@ -419,6 +420,8 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                   children: [
                     TextFormField(
                       controller: numeroCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9./-]'))],
                       decoration: const InputDecoration(
                         labelText: 'Número da Nota Fiscal',
                         prefixIcon: Icon(Icons.receipt_long, size: 20),
@@ -628,7 +631,10 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                         return;
                       }
                     }
-                    pagamentoData = {'formaPagamento': _backendFormaPagamento(novaForma!)};
+                    pagamentoData = {
+                      'formaPagamento': _backendFormaPagamento(novaForma!),
+                      'diasEntreParcelas': novaForma?.diasEntreParcelas ?? 30,
+                    };
                     if (_isCredito(novaForma)) {
                       pagamentoData['numeroParcelas'] = numeroParcelas;
                     } else if (_isBoletoUnico(novaForma)) {

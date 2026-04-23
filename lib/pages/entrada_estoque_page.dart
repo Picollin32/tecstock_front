@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../model/fornecedor.dart';
 import '../model/peca.dart';
 import '../model/tipo_pagamento.dart';
@@ -514,7 +515,12 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
 
       Map<String, dynamic>? pagamentoData;
       if (_formaPagamento != null) {
-        pagamentoData = {'formaPagamento': _backendFormaPagamento(_formaPagamento!)};
+        pagamentoData = {
+          'formaPagamento': _backendFormaPagamento(_formaPagamento!),
+          'diasEntreParcelas': _formaPagamento?.diasEntreParcelas ?? 30,
+          'origemTipoBase': 'COMPRA',
+          'fornecedorId': _fornecedorSelecionado!.id,
+        };
         if (_isCredito(_formaPagamento)) {
           pagamentoData['numeroParcelas'] = _numeroParcelas;
         } else if (_isBoletoUnico(_formaPagamento) && _boletoVencimento != null) {
@@ -535,6 +541,9 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       if (_freteAtivo && _fretePagamento != null && freteValor > 0) {
         final fretePagData = <String, dynamic>{
           'formaPagamento': _backendFormaPagamento(_fretePagamento!),
+          'diasEntreParcelas': _fretePagamento?.diasEntreParcelas ?? 30,
+          'origemTipoBase': 'FRETE',
+          'fornecedorId': _fornecedorSelecionado!.id,
         };
         if (_isCredito(_fretePagamento)) {
           fretePagData['numeroParcelas'] = _freteNumeroParcelas;
@@ -774,6 +783,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
     bool enabled = true,
@@ -783,6 +793,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       onChanged: onChanged,
       enabled: enabled,
@@ -1359,6 +1370,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               controller: _numeroNotaFiscalController,
               label: 'Número da Nota Fiscal',
               icon: Icons.receipt,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9./-]'))],
               validator: (v) => v!.isEmpty ? 'Informe o número da nota fiscal' : null,
             ),
             const SizedBox(height: 16),

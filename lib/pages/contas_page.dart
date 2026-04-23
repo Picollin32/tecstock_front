@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../model/categoria_financeira.dart';
 import '../model/conta.dart';
@@ -44,6 +45,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   String _ordenacaoAReceber = 'VENCIMENTO';
   String _filtroStatusAReceber = 'TODOS';
   int? _filtroFornecedorId;
+  int? _ultimaCategoriaFinanceiraIdSelecionada;
   final Set<String> _categoriasExpandidas = <String>{};
   bool _filtrosAPagarExpandidos = false;
   bool _filtrosAReceberExpandidos = false;
@@ -51,6 +53,16 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   static const Color _corPagar = Color(0xFFDC2626);
   static const Color _corReceber = Color(0xFF16A34A);
   static const Color _corAtrasada = Color(0xFFB45309);
+
+  List<CategoriaFinanceira> _normalizarCategoriasFinanceiras(List<CategoriaFinanceira> categorias) {
+    final porId = <int, CategoriaFinanceira>{};
+    for (final categoria in categorias) {
+      final id = categoria.id;
+      if (id == null) continue;
+      porId[id] = categoria;
+    }
+    return porId.values.toList();
+  }
 
   @override
   void initState() {
@@ -101,7 +113,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         _contasAReceber = results[1] as List<Conta>;
         _resumo = results[2] as Map<String, double>;
         _contasAtrasadas = results[3] as List<Conta>;
-        _categoriasFinanceiras = results[4] as List<CategoriaFinanceira>;
+        _categoriasFinanceiras = _normalizarCategoriasFinanceiras(results[4] as List<CategoriaFinanceira>);
         _fornecedores = results[5] as List<Fornecedor>;
         _tiposPagamento = results[6] as List<TipoPagamento>;
         _isLoading = false;
@@ -208,7 +220,8 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     return mapa;
   }
 
-  Future<void> _abrirGerenciarCategorias() async {
+  Future<int?> _abrirGerenciarCategorias() async {
+    int? categoriaSelecionada;
     await showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -217,7 +230,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             Future<void> recarregarCategorias() async {
               final categorias = await CategoriaFinanceiraService.listar();
               if (!mounted) return;
-              setState(() => _categoriasFinanceiras = categorias);
+              setState(() => _categoriasFinanceiras = _normalizarCategoriasFinanceiras(categorias));
               setDialogState(() {});
             }
 
@@ -369,6 +382,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                               }
 
                                               if (result['sucesso'] == true) {
+                                                final categoriaSalva = result['categoria'];
+                                                if (categoriaSalva is CategoriaFinanceira) {
+                                                  categoriaSelecionada = categoriaSalva.id;
+                                                }
                                                 if (!mounted) return;
                                                 if (!sheetCtx.mounted) return;
                                                 Navigator.pop(sheetCtx);
@@ -511,6 +528,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         );
       },
     );
+    return categoriaSelecionada;
   }
 
   Future<Fornecedor?> _abrirCadastroRapidoFornecedorServico(BuildContext parentContext) async {
@@ -1138,6 +1156,42 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     }
   }
 
+  String _descricaoLimpaParaCard(Conta conta) {
+    final descricao = conta.descricao.trim();
+    final regexDoc = RegExp(r'\s*\[Doc\.?\s*[^\]]+\]\s*$', caseSensitive: false);
+    final semDoc = descricao.replaceAll(regexDoc, '').trim();
+
+    final regexPagamento = RegExp(r'\s*\((Crédito|Boleto|AVISTA|A_VISTA|À vista|AVista|PIX|Dinheiro|Débito).+\)\s*$', caseSensitive: false);
+    return semDoc.replaceAll(regexPagamento, '').trim();
+  }
+
+  String? _labelPagamentoConta(Conta conta) {
+    final origem = (conta.origemTipo ?? '').toUpperCase();
+    final total = conta.totalParcelas;
+    final docMatch = RegExp(r'\[Doc\.?\s*([^\]]+)\]', caseSensitive: false).firstMatch(conta.descricao);
+    final doc = docMatch?.group(1)?.trim();
+
+    String? base;
+    if (origem.contains('BOLETO')) {
+      base = total != null && total > 1 ? 'Boleto (${total}x)' : 'Boleto';
+    } else if (origem.contains('CREDITO') || origem.contains('PARCELADO')) {
+      base = total != null && total > 1 ? 'Crédito (${total}x)' : 'Crédito';
+    } else if (origem.contains('AVISTA')) {
+      base = 'À vista';
+    }
+
+    if (base == null) return null;
+    if (doc != null && doc.isNotEmpty) {
+      return '$base | Doc: $doc';
+    }
+    return base;
+  }
+
+  String? _extrairNumeroDocBoleto(String texto) {
+    final docMatch = RegExp(r'\[Doc\.?\s*([^\]]+)\]', caseSensitive: false).firstMatch(texto);
+    return docMatch?.group(1)?.trim();
+  }
+
   void _editarContaPagar(Conta conta) {
     if (conta.id == null) return;
     final isParcela = conta.isParcela;
@@ -1147,153 +1201,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       _mostrarErro('Parcelas de boleto não podem ser editadas. Exclua e lance novamente.');
       return;
     }
-
-    final formKey = GlobalKey<FormState>();
-    final descricaoCtrl = TextEditingController(text: conta.descricao);
-    final valorCtrl = TextEditingController(text: conta.valor.toStringAsFixed(2).replaceAll('.', ','));
-    DateTime vencimento = conta.dataVencimento ?? DateTime(_mesAtual.year, _mesAtual.month, 1);
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.edit, color: Colors.orange, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                isParcela ? 'Editar Parcela' : 'Editar Conta a Pagar',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: descricaoCtrl,
-                  readOnly: conta.isCompra || isParcela,
-                  decoration: InputDecoration(
-                    labelText: 'Descrição',
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    filled: conta.isCompra || isParcela,
-                    fillColor: (conta.isCompra || isParcela) ? Colors.grey.shade100 : null,
-                    helperText: conta.isCompra
-                        ? 'Altere o número pelo gerenciador de Notas de Entrada'
-                        : isParcela
-                            ? 'Para parcelas, altere somente valor e vencimento'
-                            : null,
-                    helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-                    suffixIcon: (conta.isCompra || isParcela) ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey) : null,
-                  ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Informe a descrição' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: valorCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Valor (R\$)',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Informe o valor';
-                    final parsed = double.tryParse(v.replaceAll(',', '.'));
-                    if (parsed == null || parsed <= 0) {
-                      return 'Valor inválido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () async {
-                    final hoje = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-                    final picked = await showDatePicker(
-                      context: ctx2,
-                      initialDate: vencimento.isBefore(hoje) ? hoje : vencimento,
-                      firstDate: hoje,
-                      lastDate: DateTime(2100),
-                      locale: const Locale('pt', 'BR'),
-                    );
-                    if (picked != null) {
-                      setDialogState(() => vencimento = picked);
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Vencimento',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            DateFormat('dd/MM/yyyy').format(vencimento),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              icon: const Icon(Icons.save, size: 18),
-              label: const Text('Salvar'),
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.pop(ctx);
-                final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
-                final result = await ContaService.editarConta(
-                  conta.id!,
-                  descricaoCtrl.text.trim(),
-                  valor,
-                  vencimento,
-                  isParcela: conta.isParcela,
-                );
-                if (result['sucesso'] == true) {
-                  _mostrarSucesso('Conta atualizada!');
-                  _carregarDados();
-                } else {
-                  _mostrarErro(result['mensagem'] ?? 'Erro ao editar conta');
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+    _abrirDialogAdicionarConta(conta: conta);
   }
 
-  void _abrirDialogAdicionarConta() {
+  void _abrirDialogAdicionarConta({Conta? conta}) {
     final hoje = DateTime.now();
     final mesAtualInicio = DateTime(hoje.year, hoje.month, 1);
     if (_mesAtual.isBefore(mesAtualInicio)) {
@@ -1307,17 +1218,45 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     }
 
     final formKey = GlobalKey<FormState>();
-    final descricaoCtrl = TextEditingController();
-    final valorCtrl = TextEditingController();
-    DateTime vencimento = DateTime(_mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
+    final isEditing = conta != null;
+    final contaInicial = conta;
+    final descricaoCtrl = TextEditingController(text: contaInicial?.descricao ?? '');
+    final valorCtrl = TextEditingController(text: contaInicial?.valor.toStringAsFixed(2).replaceAll('.', ',') ?? '');
+    final boletoDocCtrl = TextEditingController(text: contaInicial != null ? _extrairNumeroDocBoleto(contaInicial.descricao) ?? '' : '');
+    final fornecedoresServico = _fornecedores.where((f) => f.servico).toList();
+    final tiposPagamentoOrdenados = List<TipoPagamento>.from(_tiposPagamento)
+      ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
-    bool isFrete = false;
+    bool isFrete = contaInicial?.origemTipo?.contains('FRETE') == true;
     int? tipoPagamentoId;
-    int? categoriaFinanceiraId;
-    int? fornecedorId;
+    final contaOrigem = (contaInicial?.origemTipo ?? '').toUpperCase();
+    if (contaInicial != null) {
+      if (contaOrigem.contains('BOLETO')) {
+        tipoPagamentoId = tiposPagamentoOrdenados
+            .where((t) => t.idFormaPagamento == 3)
+            .map((t) => t.id)
+            .cast<int?>()
+            .firstWhere((id) => id != null, orElse: () => null);
+      } else if (contaOrigem.contains('CREDITO') || contaOrigem.contains('PARCELADO')) {
+        tipoPagamentoId = tiposPagamentoOrdenados
+            .where((t) => t.idFormaPagamento == 2)
+            .map((t) => t.id)
+            .cast<int?>()
+            .firstWhere((id) => id != null, orElse: () => null);
+      } else if (contaOrigem.contains('AVISTA')) {
+        tipoPagamentoId = tiposPagamentoOrdenados
+            .where((t) => (t.idFormaPagamento ?? 1) == 1)
+            .map((t) => t.id)
+            .cast<int?>()
+            .firstWhere((id) => id != null, orElse: () => null);
+      }
+    }
+
+    int? categoriaFinanceiraId = contaInicial?.categoriaId;
+    int? fornecedorId = contaInicial?.fornecedorId;
     int numeroParcelas = 1;
     List<_ParcelaDraft> parcelas = [];
-    DateTime? boletoVencimento;
+    DateTime vencimento = contaInicial?.dataVencimento ?? DateTime(hoje.year, hoje.month, hoje.day);
 
     showModalBottomSheet<void>(
       context: context,
@@ -1325,10 +1264,11 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx2, setDialogState) {
+          final categoriaFinanceiraIdValido =
+              categoriaFinanceiraId != null && _categoriasFinanceiras.any((c) => c.id == categoriaFinanceiraId);
+          final categoriaFinanceiraIdDropdown = categoriaFinanceiraIdValido ? categoriaFinanceiraId : null;
           final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
-          final fornecedoresServico = _fornecedores.where((f) => f.servico).toList();
-          final tiposPagamentoOrdenados = List<TipoPagamento>.from(_tiposPagamento)
-            ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+          final podeAlterarOrigem = !isEditing;
 
           TipoPagamento? tipoSelecionado() {
             if (tipoPagamentoId == null) return null;
@@ -1354,9 +1294,9 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
           bool isCredito() => idFormaPagamentoSelecionada() == 2;
 
-          bool isBoletoUnico() => idFormaPagamentoSelecionada() == 3 && totalParcelasTipo() == 1;
-
           bool isBoletoParcelado() => idFormaPagamentoSelecionada() == 3 && totalParcelasTipo() > 1;
+
+          bool isBoleto() => idFormaPagamentoSelecionada() == 3;
 
           bool usaTabelaParcelas() => isCredito() || isBoletoParcelado();
 
@@ -1387,16 +1327,15 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           bool formularioValido() {
             final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
             if (descricaoCtrl.text.trim().isEmpty || valor <= 0 || tipoPagamentoId == null) return false;
-            if (!isFrete && categoriaFinanceiraId == null) return false;
+            if (isBoleto()) {
+              final doc = boletoDocCtrl.text.trim();
+              if (doc.isEmpty) return false;
+              if (vencimento.isBefore(hojeSemHora)) return false;
+            }
             if (usaTabelaParcelas()) {
               if (parcelas.isEmpty) return false;
               final soma = somaParcelas();
               return (soma - valor).abs() <= 0.02;
-            }
-
-            if (isBoletoUnico()) {
-              if (boletoVencimento == null) return false;
-              return !boletoVencimento!.isBefore(hojeSemHora);
             }
 
             return true;
@@ -1476,11 +1415,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.add, color: Colors.white, size: 24),
+                              Icon(isEditing ? Icons.edit : Icons.add, color: Colors.white, size: 24),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  isFrete ? 'Novo Frete a Pagar' : 'Nova Conta a Pagar',
+                                  isEditing
+                                      ? (isFrete ? 'Editar Frete a Pagar' : 'Editar Conta a Pagar')
+                                      : (isFrete ? 'Novo Frete a Pagar' : 'Nova Conta a Pagar'),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
@@ -1506,20 +1447,20 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                   children: [
                                     Expanded(
                                       child: GestureDetector(
-                                        onTap: () => setDialogState(() {
-                                          if (!isFrete) return;
-                                          isFrete = false;
-                                          descricaoCtrl.clear();
-                                          valorCtrl.clear();
-                                          tipoPagamentoId = null;
-                                          categoriaFinanceiraId = null;
-                                          fornecedorId = null;
-                                          numeroParcelas = 1;
-                                          parcelas = [];
-                                          boletoVencimento = null;
-                                          vencimento = DateTime(
-                                              _mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
-                                        }),
+                                        onTap: podeAlterarOrigem
+                                            ? () => setDialogState(() {
+                                                  if (!isFrete) return;
+                                                  isFrete = false;
+                                                  descricaoCtrl.clear();
+                                                  valorCtrl.clear();
+                                                  tipoPagamentoId = null;
+                                                  fornecedorId = null;
+                                                  numeroParcelas = 1;
+                                                  parcelas = [];
+                                                  boletoDocCtrl.clear();
+                                                  vencimento = DateTime(hoje.year, hoje.month, hoje.day);
+                                                })
+                                            : null,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                           decoration: BoxDecoration(
@@ -1544,20 +1485,20 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     ),
                                     Expanded(
                                       child: GestureDetector(
-                                        onTap: () => setDialogState(() {
-                                          if (isFrete) return;
-                                          isFrete = true;
-                                          descricaoCtrl.clear();
-                                          valorCtrl.clear();
-                                          tipoPagamentoId = null;
-                                          categoriaFinanceiraId = null;
-                                          fornecedorId = null;
-                                          numeroParcelas = 1;
-                                          parcelas = [];
-                                          boletoVencimento = null;
-                                          vencimento = DateTime(
-                                              _mesAtual.year, _mesAtual.month, DateTime(_mesAtual.year, _mesAtual.month + 1, 0).day);
-                                        }),
+                                        onTap: podeAlterarOrigem
+                                            ? () => setDialogState(() {
+                                                  if (isFrete) return;
+                                                  isFrete = true;
+                                                  descricaoCtrl.clear();
+                                                  valorCtrl.clear();
+                                                  tipoPagamentoId = null;
+                                                  fornecedorId = null;
+                                                  numeroParcelas = 1;
+                                                  parcelas = [];
+                                                  boletoDocCtrl.clear();
+                                                  vencimento = DateTime(hoje.year, hoje.month, hoje.day);
+                                                })
+                                            : null,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                           decoration: BoxDecoration(
@@ -1600,13 +1541,14 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     children: [
                                       Expanded(
                                         child: DropdownButtonFormField<int>(
-                                          initialValue: categoriaFinanceiraId,
+                                          initialValue: categoriaFinanceiraIdDropdown,
                                           decoration: InputDecoration(
-                                            labelText: 'Categoria financeira *',
+                                            labelText: 'Categoria financeira',
                                             prefixIcon: const Icon(Icons.category_outlined),
                                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
                                           items: _categoriasFinanceiras
+                                              .where((c) => c.id != null)
                                               .map(
                                                 (c) => DropdownMenuItem<int>(
                                                   value: c.id,
@@ -1614,8 +1556,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                                 ),
                                               )
                                               .toList(),
-                                          onChanged: (v) => setDialogState(() => categoriaFinanceiraId = v),
-                                          validator: (v) => v == null ? 'Selecione uma categoria' : null,
+                                          onChanged: (v) => setDialogState(() {
+                                            categoriaFinanceiraId = v;
+                                            _ultimaCategoriaFinanceiraIdSelecionada = v;
+                                          }),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -1625,13 +1569,21 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                           message: 'Gerenciar categorias financeiras',
                                           child: ElevatedButton(
                                             onPressed: () async {
-                                              await _abrirGerenciarCategorias();
+                                              final categoriaSelecionada = await _abrirGerenciarCategorias();
                                               if (!ctx2.mounted) return;
                                               setDialogState(() {
-                                                final categoriaAindaExiste =
-                                                    _categoriasFinanceiras.any((c) => c.id == categoriaFinanceiraId);
-                                                if (!categoriaAindaExiste) {
-                                                  categoriaFinanceiraId = null;
+                                                if (categoriaSelecionada != null) {
+                                                  categoriaFinanceiraId = categoriaSelecionada;
+                                                  _ultimaCategoriaFinanceiraIdSelecionada = categoriaSelecionada;
+                                                } else {
+                                                  final categoriaAtualExiste = categoriaFinanceiraId != null &&
+                                                      _categoriasFinanceiras.any((c) => c.id == categoriaFinanceiraId);
+                                                  if (!categoriaAtualExiste) {
+                                                    final ultimaCategoriaExiste = _ultimaCategoriaFinanceiraIdSelecionada != null &&
+                                                        _categoriasFinanceiras.any((c) => c.id == _ultimaCategoriaFinanceiraIdSelecionada);
+                                                    categoriaFinanceiraId =
+                                                        ultimaCategoriaExiste ? _ultimaCategoriaFinanceiraIdSelecionada : null;
+                                                  }
                                                 }
                                               });
                                             },
@@ -1722,49 +1674,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: 12),
-                                InkWell(
-                                  borderRadius: BorderRadius.circular(8),
-                                  onTap: () async {
-                                    final picked = await showDatePicker(
-                                      context: ctx2,
-                                      initialDate: vencimento,
-                                      firstDate: DateTime(2020),
-                                      lastDate: DateTime(2035),
-                                      locale: const Locale('pt', 'BR'),
-                                    );
-                                    if (picked != null) {
-                                      setDialogState(() {
-                                        vencimento = picked;
-                                        recalcularParcelas();
-                                      });
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey.shade400),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.event, color: Colors.grey),
-                                        const SizedBox(width: 10),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const Text('Vencimento base', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                                            Text(
-                                              DateFormat('dd/MM/yyyy').format(vencimento),
-                                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
                                 DropdownButtonFormField<int>(
                                   initialValue: tipoPagamentoId,
                                   decoration: InputDecoration(
@@ -1787,7 +1697,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                   onChanged: (v) => setDialogState(() {
                                     tipoPagamentoId = v;
                                     numeroParcelas = 1;
-                                    boletoVencimento = null;
+                                    boletoDocCtrl.clear();
                                     if (isBoletoParcelado()) {
                                       numeroParcelas = totalParcelasTipo();
                                     }
@@ -1795,39 +1705,71 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                   }),
                                   validator: (v) => v == null ? 'Selecione a forma de pagamento' : null,
                                 ),
-                                if (isBoletoUnico()) ...[
-                                  const SizedBox(height: 12),
+                                const SizedBox(height: 14),
+                                if (isBoleto()) ...[
                                   InkWell(
+                                    borderRadius: BorderRadius.circular(8),
                                     onTap: () async {
+                                      final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
                                       final picked = await showDatePicker(
                                         context: ctx2,
-                                        initialDate: vencimento,
+                                        initialDate: vencimento.isBefore(hojeSemHora) ? hojeSemHora : vencimento,
                                         firstDate: hojeSemHora,
                                         lastDate: DateTime(2035),
                                         locale: const Locale('pt', 'BR'),
                                       );
                                       if (picked != null) {
-                                        setDialogState(() => boletoVencimento = picked);
+                                        setDialogState(() {
+                                          vencimento = picked;
+                                          recalcularParcelas();
+                                        });
                                       }
                                     },
-                                    child: InputDecorator(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Vencimento do Boleto *',
-                                        border: OutlineInputBorder(),
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey.shade400),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Text(
-                                        boletoVencimento != null ? DateFormat('dd/MM/yyyy').format(boletoVencimento!) : 'Selecionar data',
-                                        style: TextStyle(
-                                          color: boletoVencimento != null ? Colors.black87 : Colors.grey.shade500,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.event, color: Colors.grey),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Vencimento base', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                              Text(
+                                                DateFormat('dd/MM/yyyy').format(vencimento),
+                                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ],
+                                if (isBoleto()) ...[
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: boletoDocCtrl,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    decoration: const InputDecoration(
+                                      labelText: 'Número do Doc. do Boleto *',
+                                      prefixIcon: Icon(Icons.description_outlined),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    validator: (_) {
+                                      final doc = boletoDocCtrl.text.trim();
+                                      if (doc.isEmpty) return 'Informe o número do documento do boleto';
+                                      return null;
+                                    },
+                                  ),
+                                ],
                                 if (usaTabelaParcelas()) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                                   if (isCredito())
                                     DropdownButtonFormField<int>(
                                       initialValue: numeroParcelas,
@@ -1938,8 +1880,8 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                                icon: const Icon(Icons.check, size: 18),
-                                label: const Text('Adicionar', style: TextStyle(fontWeight: FontWeight.w700)),
+                                icon: Icon(isEditing ? Icons.save : Icons.check, size: 18),
+                                label: Text(isEditing ? 'Editar' : 'Adicionar', style: const TextStyle(fontWeight: FontWeight.w700)),
                                 onPressed: () async {
                                   if (!formKey.currentState!.validate()) return;
                                   if (!formularioValido()) {
@@ -1955,8 +1897,11 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       : forma == 3
                                           ? 'BOLETO'
                                           : 'AVISTA';
+                                  final baseOrigem =
+                                      contaOrigem.isNotEmpty ? contaOrigem.split('_').first : (isFrete ? 'FRETE' : 'DESPESA');
                                   final pagamentoData = <String, dynamic>{
                                     'formaPagamento': backend,
+                                    'diasEntreParcelas': tipoSelecionado()?.diasEntreParcelas ?? 30,
                                   };
 
                                   if (isCredito() || isBoletoParcelado()) {
@@ -1968,24 +1913,49 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                             })
                                         .toList();
                                     pagamentoData['numeroParcelas'] = parcelas.length;
-                                  } else if (isBoletoUnico()) {
-                                    pagamentoData['boletoVencimento'] = boletoVencimento!.toIso8601String().substring(0, 10);
+                                  }
+                                  if (isBoleto()) {
+                                    pagamentoData['boletoVencimento'] = vencimento.toIso8601String().substring(0, 10);
+                                    pagamentoData['boletoNumeroDocumento'] = boletoDocCtrl.text.trim();
                                   }
 
-                                  final result = await ContaService.adicionarLancamentoAPagar(
-                                    descricao: descricaoCtrl.text.trim(),
-                                    valor: valor,
-                                    origem: isFrete ? 'FRETE' : 'DESPESA',
-                                    pagamento: pagamentoData,
-                                    categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
-                                    fornecedorId: isFrete ? null : fornecedorId,
-                                  );
+                                  if (isEditing && contaInicial != null) {
+                                    final result = await ContaService.editarConta(
+                                      contaInicial.id!,
+                                      descricaoCtrl.text.trim(),
+                                      valor,
+                                      vencimento,
+                                      categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
+                                      fornecedorId: isFrete ? null : fornecedorId,
+                                      origemTipo: contaInicial.isParcela ? null : '${baseOrigem}_$backend',
+                                      isParcela: contaInicial.isParcela,
+                                    );
 
-                                  if (result['sucesso'] == true) {
-                                    _mostrarSucesso(isFrete ? 'Frete adicionado com sucesso!' : 'Despesa adicionada com sucesso!');
-                                    _carregarDados();
+                                    if (result['sucesso'] == true) {
+                                      _mostrarSucesso('Conta atualizada!');
+                                      _carregarDados();
+                                    } else {
+                                      _mostrarErro(result['mensagem'] ?? 'Erro ao editar conta');
+                                    }
                                   } else {
-                                    _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar lançamento');
+                                    final result = await ContaService.adicionarLancamentoAPagar(
+                                      descricao: descricaoCtrl.text.trim(),
+                                      valor: valor,
+                                      origem: isFrete ? 'FRETE' : 'DESPESA',
+                                      pagamento: pagamentoData,
+                                      categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
+                                      fornecedorId: isFrete ? null : fornecedorId,
+                                    );
+
+                                    if (result['sucesso'] == true) {
+                                      if (!isFrete && categoriaFinanceiraId != null) {
+                                        _ultimaCategoriaFinanceiraIdSelecionada = categoriaFinanceiraId;
+                                      }
+                                      _mostrarSucesso(isFrete ? 'Frete adicionado com sucesso!' : 'Despesa adicionada com sucesso!');
+                                      _carregarDados();
+                                    } else {
+                                      _mostrarErro(result['mensagem'] ?? 'Erro ao adicionar lançamento');
+                                    }
                                   }
                                 },
                               ),
@@ -2196,50 +2166,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     }
   }
 
-  Future<void> _abrirAcoesRapidasMobile() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.add_circle_outline, color: _corPagar),
-                title: const Text('Nova Conta', style: TextStyle(fontWeight: FontWeight.w700)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _abrirDialogAdicionarConta();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildFabAcoes() {
     if (_isTelaCompacta()) {
       return FloatingActionButton(
         heroTag: 'fab_acoes_mobile',
         backgroundColor: _corPagar,
         foregroundColor: Colors.white,
-        onPressed: _abrirAcoesRapidasMobile,
+        onPressed: _abrirDialogAdicionarConta,
         child: const Icon(Icons.add),
       );
     }
@@ -3362,7 +3295,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                         children: [
                           Expanded(
                             child: Text(
-                              conta.descricao,
+                              _descricaoLimpaParaCard(conta),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -3371,7 +3304,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                               ),
                             ),
                           ),
-                          _buildOrigemBadge(conta),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -3416,6 +3348,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                         const SizedBox(height: 2),
                         Text(
                           'Fornecedor: ${conta.fornecedorNome}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                      if (_labelPagamentoConta(conta) != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Pagamento: ${_labelPagamentoConta(conta)!}',
                           style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
                         ),
                       ],
@@ -3573,33 +3512,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildOrigemBadge(Conta conta) {
-    String? label;
-    Color? cor;
-    if (conta.isFiado) {
-      label = 'FIADO';
-      cor = const Color(0xFF7C3AED);
-    } else if (conta.isCredito) {
-      label = 'CRÉDITO';
-      cor = const Color(0xFF1565C0);
-    } else if (conta.isAvista) {
-      label = 'À VISTA';
-      cor = Colors.teal.shade700;
-    }
-
-    if (label == null) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(left: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-          color: cor!.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: cor.withValues(alpha: 0.3))),
-      child: Text(label, style: TextStyle(color: cor, fontSize: 9, fontWeight: FontWeight.w700)),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -94,6 +95,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   int? _numeroParcelas;
   String? _parcelasDetalhadasBoleto;
   final List<TextEditingController> _boletoParcelasControllers = [];
+  final List<DateTime> _boletoParcelasVencimentos = [];
   Funcionario? _mecanicoSelecionado;
   Funcionario? _consultorSelecionado;
   String? _categoriaSelecionada;
@@ -2479,9 +2481,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       if (_tipoPagamentoSelecionado?.idFormaPagamento == 3) {
         final qtd = _maxParcelasTipo(_tipoPagamentoSelecionado);
         final valores = _parseParcelasBoleto(_parcelasDetalhadasBoleto);
+        final vencimentos = _parseVencimentosParcelasBoleto(_parcelasDetalhadasBoleto, qtd);
         _syncBoletoParcelasControllers(
           qtd,
           valores: valores.length == qtd ? valores : _gerarParcelasPadraoBoleto(_precoTotal, qtd),
+          vencimentos: vencimentos,
         );
       } else {
         _syncBoletoParcelasControllers(0);
@@ -4415,6 +4419,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       _syncBoletoParcelasControllers(
                         _numeroParcelas!,
                         valores: _gerarParcelasPadraoBoleto(_precoTotal, _numeroParcelas!),
+                        vencimentos: _gerarVencimentosPadraoBoleto(_numeroParcelas!, _tipoPagamentoSelecionado),
                       );
                     } else {
                       final max = _maxParcelasTipo(_tipoPagamentoSelecionado);
@@ -4510,6 +4515,66 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
             ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: _isViewMode
+                  ? null
+                  : () async {
+                      final atual = _boletoParcelasVencimentos.length > i
+                          ? _boletoParcelasVencimentos[i]
+                          : _gerarVencimentosPadraoBoleto(i + 1, _tipoPagamentoSelecionado).last;
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: atual,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                        locale: const Locale('pt', 'BR'),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          while (_boletoParcelasVencimentos.length <= i) {
+                            _boletoParcelasVencimentos
+                                .add(_gerarVencimentosPadraoBoleto(_boletoParcelasVencimentos.length + 1, _tipoPagamentoSelecionado).last);
+                          }
+                          _boletoParcelasVencimentos[i] = picked;
+                        });
+                      }
+                    },
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'Vencimento Parcela ${i + 1}',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: _isViewMode ? Colors.grey[100] : Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.event, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('dd/MM/yyyy').format(
+                        _boletoParcelasVencimentos.length > i
+                            ? _boletoParcelasVencimentos[i]
+                            : _gerarVencimentosPadraoBoleto(i + 1, _tipoPagamentoSelecionado).last,
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             if (i < _boletoParcelasControllers.length - 1) const SizedBox(height: 8),
           ],
           const SizedBox(height: 6),
@@ -4555,19 +4620,86 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   List<double> _parseParcelasBoleto(String? valor) {
     if (valor == null || valor.trim().isEmpty) return [];
-    return valor.split(';').map((e) => double.tryParse(e.trim().replaceAll(',', '.')) ?? 0).where((e) => e > 0).toList();
+    final texto = valor.trim();
+    if (texto.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(texto);
+        if (decoded is List) {
+          return decoded
+              .map((e) => e is Map ? ((e['valor'] as num?)?.toDouble() ?? 0.0) : 0.0)
+              .whereType<double>()
+              .where((e) => e > 0)
+              .toList();
+        }
+      } catch (_) {}
+    }
+    return texto
+        .split(';')
+        .map((e) => e.trim().split('@').first)
+        .map((e) => double.tryParse(e.replaceAll(',', '.')) ?? 0)
+        .where((e) => e > 0)
+        .toList();
   }
 
-  void _syncBoletoParcelasControllers(int quantidade, {List<double>? valores}) {
+  List<DateTime> _gerarVencimentosPadraoBoleto(int quantidade, TipoPagamento? tipo) {
+    final dias = ((tipo?.diasEntreParcelas ?? 30) <= 0) ? 30 : (tipo?.diasEntreParcelas ?? 30);
+    final base = DateTime.now();
+    return List.generate(
+      quantidade,
+      (i) => DateTime(base.year, base.month, base.day).add(Duration(days: dias * (i + 1))),
+    );
+  }
+
+  List<DateTime> _parseVencimentosParcelasBoleto(String? valor, int quantidade) {
+    final padrao = _gerarVencimentosPadraoBoleto(quantidade, _tipoPagamentoSelecionado);
+    if (valor == null || valor.trim().isEmpty) return padrao;
+    final texto = valor.trim();
+    if (texto.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(texto);
+        if (decoded is List) {
+          for (int i = 0; i < decoded.length && i < quantidade; i++) {
+            final item = decoded[i];
+            if (item is Map<String, dynamic>) {
+              final venc = item['vencimento']?.toString();
+              if (venc != null && venc.isNotEmpty) {
+                final dt = DateTime.tryParse(venc);
+                if (dt != null) padrao[i] = dt;
+              }
+            }
+          }
+        }
+      } catch (_) {}
+      return padrao;
+    }
+
+    final partes = texto.split(';');
+    for (int i = 0; i < partes.length && i < quantidade; i++) {
+      final part = partes[i].trim();
+      final idx = part.indexOf('@');
+      if (idx > 0 && idx < part.length - 1) {
+        final dt = DateTime.tryParse(part.substring(idx + 1));
+        if (dt != null) padrao[i] = dt;
+      }
+    }
+    return padrao;
+  }
+
+  void _syncBoletoParcelasControllers(int quantidade, {List<double>? valores, List<DateTime>? vencimentos}) {
     for (final c in _boletoParcelasControllers) {
       c.dispose();
     }
     _boletoParcelasControllers.clear();
+    _boletoParcelasVencimentos.clear();
     if (quantidade <= 0) return;
 
     for (int i = 0; i < quantidade; i++) {
       final valor = (valores != null && i < valores.length) ? valores[i] : 0.0;
       _boletoParcelasControllers.add(TextEditingController(text: valor > 0 ? valor.toStringAsFixed(2) : ''));
+      final vencimento = (vencimentos != null && i < vencimentos.length)
+          ? vencimentos[i]
+          : _gerarVencimentosPadraoBoleto(quantidade, _tipoPagamentoSelecionado)[i];
+      _boletoParcelasVencimentos.add(vencimento);
     }
   }
 
@@ -4580,6 +4712,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   bool _boletoParcelasValidas(double total) {
     if (_boletoParcelasControllers.isEmpty) return false;
+    if (_boletoParcelasVencimentos.length != _boletoParcelasControllers.length) return false;
     for (final c in _boletoParcelasControllers) {
       final valor = double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0;
       if (valor <= 0) return false;
@@ -4588,7 +4721,12 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   }
 
   String _serializarParcelasBoleto() {
-    return _boletoParcelasControllers.map((c) => (double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0).toStringAsFixed(2)).join(';');
+    return List.generate(_boletoParcelasControllers.length, (i) {
+      final valor = (double.tryParse(_boletoParcelasControllers[i].text.trim().replaceAll(',', '.')) ?? 0).toStringAsFixed(2);
+      final venc =
+          (_boletoParcelasVencimentos.length > i ? _boletoParcelasVencimentos[i] : DateTime.now()).toIso8601String().substring(0, 10);
+      return '$valor@$venc';
+    }).join(';');
   }
 
   String _cronogramaParcelas(TipoPagamento? tipo, int? numeroParcelas) {

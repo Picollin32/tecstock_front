@@ -382,6 +382,9 @@ class ContaService {
     String descricao,
     double valor,
     DateTime dataVencimento, {
+    int? categoriaFinanceiraId,
+    int? fornecedorId,
+    String? origemTipo,
     bool isParcela = false,
   }) async {
     try {
@@ -390,6 +393,16 @@ class ContaService {
         'valor': valor,
         'dataVencimento': dataVencimento.toIso8601String().substring(0, 10),
       };
+
+      if (categoriaFinanceiraId != null) {
+        body['categoriaFinanceiraId'] = categoriaFinanceiraId;
+      }
+      if (fornecedorId != null) {
+        body['fornecedorId'] = fornecedorId;
+      }
+      if (origemTipo != null && origemTipo.trim().isNotEmpty) {
+        body['origemTipo'] = origemTipo.trim();
+      }
 
       final String endpoint = isParcela ? '$parcelasUrl/$id' : '$baseUrl/$id';
 

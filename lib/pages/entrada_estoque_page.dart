@@ -329,6 +329,8 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       ]);
 
       final tiposPagamentoOrdenados = List<TipoPagamento>.from(results[3] as List<TipoPagamento>)
+          .where((t) => t.idFormaPagamento != 4)
+          .toList()
         ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
       setState(() {

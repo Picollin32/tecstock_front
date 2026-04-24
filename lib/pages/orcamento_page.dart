@@ -2069,7 +2069,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         formaPagamento == 1 ? 1 : (formaPagamento == 3 ? _maxParcelasTipo(tipoPagamento) : (numeroParcelas ?? 1));
     final bool mostrarParcelamento = formaPagamento != 1 && parcelasParaExibir > 0;
     final String cronogramaParcelas = _cronogramaParcelas(tipoPagamento, parcelasParaExibir);
-    final String rotuloParcelamento = formaPagamento == 3 ? 'BOLETO:' : 'PARCELAMENTO:';
+    final String rotuloParcelamento = formaPagamento == 3 ? 'BOLETO:' : (formaPagamento == 4 ? 'FIADO:' : 'PARCELAMENTO:');
     final String resumoValoresBoleto = parcelasDetalhadasBoleto.isEmpty
         ? ''
         : parcelasDetalhadasBoleto.asMap().entries.map((e) => '${e.key + 1}a: R\$ ${e.value.toStringAsFixed(2)}').join(' | ');
@@ -2080,6 +2080,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       final rounded = double.parse(raw.toStringAsFixed(2));
       valorParcelaCalculado = rounded;
     }
+
+    final String descricaoParcelamento = formaPagamento == 4
+        ? '$parcelasParaExibir ${parcelasParaExibir == 1 ? 'mês' : 'meses'} de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}'
+        : '$parcelasParaExibir' 'x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}';
 
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -2202,8 +2206,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(rotuloParcelamento, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                  pw.Text(
-                      '${parcelasParaExibir}x de R\$ ${valorParcelaCalculado.toStringAsFixed(2)} = R\$ ${totalGeral.toStringAsFixed(2)}',
+                  pw.Text(descricaoParcelamento,
                       style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue700)),
                 ],
               ),
@@ -4433,11 +4436,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 },
         ),
         if (_tipoPagamentoSelecionado != null &&
-            _tipoPagamentoSelecionado?.idFormaPagamento == 2 &&
+            (_tipoPagamentoSelecionado?.idFormaPagamento == 2 || _tipoPagamentoSelecionado?.idFormaPagamento == 4) &&
             _maxParcelasTipo(_tipoPagamentoSelecionado) > 1) ...[
           const SizedBox(height: 12),
           Text(
-            'Número de Parcelas',
+            _tipoPagamentoSelecionado?.idFormaPagamento == 4 ? 'Número de Meses' : 'Número de Parcelas',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: Colors.grey[700],
                   fontWeight: FontWeight.w500,
@@ -4466,7 +4469,9 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             items: List.generate(_maxParcelasTipo(_tipoPagamentoSelecionado), (i) => i + 1).map((parcelas) {
               return DropdownMenuItem<int>(
                 value: parcelas,
-                child: Text('${parcelas}x'),
+                child: Text(
+                  _tipoPagamentoSelecionado?.idFormaPagamento == 4 ? '$parcelas ${parcelas == 1 ? 'mês' : 'meses'}' : '${parcelas}x',
+                ),
               );
             }).toList(),
             onChanged: _isViewMode
@@ -5210,7 +5215,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         tipoPagamento: _tipoPagamentoSelecionado,
         numeroParcelas: parcelasCalculadas,
         parcelasDetalhadasBoleto: _parcelasDetalhadasBoleto,
-        prazoFiadoDias: pagamentoAVista ? null : parcelasCalculadas * diasEntreParcelasTipo,
+        prazoFiadoDias: formaPagamento == 4 ? parcelasCalculadas * diasEntreParcelasTipo : null,
         mecanico: _mecanicoSelecionado,
         consultor: _consultorSelecionado,
         observacoes: _observacoesController.text.trim().isNotEmpty ? _observacoesController.text.trim() : null,

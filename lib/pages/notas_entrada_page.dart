@@ -54,6 +54,8 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
 
   bool _isCredito(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 2;
 
+  bool _isFiado(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 4;
+
   bool _isBoleto(TipoPagamento? tipo) => _idFormaPagamento(tipo) == 3;
 
   bool _isBoletoUnico(TipoPagamento? tipo) => _isBoleto(tipo) && _quantidadeParcelasTipo(tipo) == 1;
@@ -62,12 +64,14 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
 
   IconData _iconeTipoPagamento(TipoPagamento tipo) {
     if (_isCredito(tipo)) return Icons.credit_score;
+    if (_isFiado(tipo)) return Icons.handshake_outlined;
     if (_isBoleto(tipo)) return Icons.receipt_long;
     return Icons.payments_outlined;
   }
 
   String _backendFormaPagamento(TipoPagamento tipo) {
     if (_isCredito(tipo)) return 'CREDITO';
+    if (_isFiado(tipo)) return 'FIADO';
     if (_isBoleto(tipo)) return 'BOLETO';
     return 'AVISTA';
   }
@@ -264,6 +268,10 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
       final total = contas.length;
       return 'Crédito ($total parcela${total > 1 ? 's' : ''})';
     }
+    if (origens.contains('COMPRA_FIADO')) {
+      final total = contas.length;
+      return 'Fiado ($total parcela${total > 1 ? 's' : ''})';
+    }
     if (origens.contains('COMPRA_BOLETO')) {
       return contas.length == 1 ? 'Boleto 30 dias' : 'Boleto (${contas.length} parcelas)';
     }
@@ -291,6 +299,8 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
       final origem = contas.first['origemTipo']?.toString() ?? '';
       if (origem == 'COMPRA_CREDITO') {
         formaPagamentoAtual = _primeiroTipoPorForma(2);
+      } else if (origem == 'COMPRA_FIADO') {
+        formaPagamentoAtual = _primeiroTipoPorForma(4);
       } else if (origem == 'COMPRA_BOLETO') {
         formaPagamentoAtual = _primeiroTipoPorForma(3, quantidadeParcelas: contas.length);
         formaPagamentoAtual ??= _primeiroTipoPorForma(3);
@@ -323,7 +333,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
       } catch (_) {}
     }
 
-    if (_isCredito(novaForma)) {
+    if (_isCredito(novaForma) || _isFiado(novaForma)) {
       final max = _quantidadeParcelasTipo(novaForma);
       numeroParcelas = numeroParcelas.clamp(1, max > 0 ? max : 1);
     }
@@ -442,7 +452,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                           onTap: () => setDlg(() {
                             novaForma = f;
                             numeroParcelas = 1;
-                            if (_isCredito(novaForma)) {
+                            if (_isCredito(novaForma) || _isFiado(novaForma)) {
                               numeroParcelas = 1;
                             }
                             if (_isBoletoParcelado(novaForma)) {
@@ -477,7 +487,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                         );
                       }).toList(),
                     ),
-                    if (_isCredito(novaForma)) ...[
+                    if (_isCredito(novaForma) || _isFiado(novaForma)) ...[
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -611,7 +621,8 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                   if (!formKey.currentState!.validate()) return;
 
                   Map<String, dynamic>? pagamentoData;
-                  if (novaForma != null && (novaForma != formaPagamentoAtual || _isCredito(novaForma) || _isBoleto(novaForma))) {
+                  if (novaForma != null &&
+                      (novaForma != formaPagamentoAtual || _isCredito(novaForma) || _isFiado(novaForma) || _isBoleto(novaForma))) {
                     if (_isBoletoUnico(novaForma) && boletoVencimento == null) {
                       _mostrarErro('Selecione a data de vencimento do boleto');
                       return;
@@ -635,7 +646,7 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
                       'formaPagamento': _backendFormaPagamento(novaForma!),
                       'diasEntreParcelas': novaForma?.diasEntreParcelas ?? 30,
                     };
-                    if (_isCredito(novaForma)) {
+                    if (_isCredito(novaForma) || _isFiado(novaForma)) {
                       pagamentoData['numeroParcelas'] = numeroParcelas;
                     } else if (_isBoletoUnico(novaForma)) {
                       pagamentoData['boletoVencimento'] = boletoVencimento!.toIso8601String().substring(0, 10);

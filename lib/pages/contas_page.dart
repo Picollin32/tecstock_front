@@ -183,7 +183,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
   String _nomeCategoriaConta(Conta conta) {
     final nome = conta.categoriaNome?.trim();
-    if (nome == null || nome.isEmpty) return 'Sem categoria';
+    if (nome == null || nome.isEmpty) {
+      final origem = (conta.origemTipo ?? '').toUpperCase();
+      if (origem.startsWith('OS_')) {
+        return 'OS';
+      }
+      return 'Sem categoria';
+    }
     return nome;
   }
 
@@ -886,7 +892,21 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     return parcelas;
   }
 
-  Future<Map<String, dynamic>?> _mostrarDialogBaixaConta(Conta conta) async {
+  int _formaPorOrigemTipo(String? origemTipo) {
+    final origem = (origemTipo ?? '').toUpperCase();
+    if (origem.contains('FIADO')) return 4;
+    if (origem.contains('BOLETO')) return 3;
+    if (origem.contains('CREDITO') || origem.contains('PARCELADO')) return 2;
+    if (origem.contains('AVISTA')) return 1;
+    return 1;
+  }
+
+  bool _permiteJurosDescontoNaBaixa(Conta conta) {
+    final forma = _formaPorOrigemTipo(conta.origemTipo);
+    return forma == 3 || forma == 4;
+  }
+
+  Future<Map<String, dynamic>?> _mostrarDialogBaixaConta(Conta conta, {required bool permitirJurosDesconto}) async {
     DateTime dataPagamento = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final acrescimoCtrl = TextEditingController();
     final descontoCtrl = TextEditingController();
@@ -935,38 +955,40 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: acrescimoCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Acréscimo (R\$) - opcional',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                if (permitirJurosDesconto) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: acrescimoCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Acréscimo (R\$) - opcional',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final n = double.tryParse(v.replaceAll(',', '.'));
+                      if (n == null || n < 0) return 'Valor inválido';
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return null;
-                    final n = double.tryParse(v.replaceAll(',', '.'));
-                    if (n == null || n < 0) return 'Valor inválido';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: descontoCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Desconto (R\$) - opcional',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: descontoCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Desconto (R\$) - opcional',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final n = double.tryParse(v.replaceAll(',', '.'));
+                      if (n == null || n < 0) return 'Valor inválido';
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return null;
-                    final n = double.tryParse(v.replaceAll(',', '.'));
-                    if (n == null || n < 0) return 'Valor inválido';
-                    return null;
-                  },
-                ),
+                ],
               ],
             ),
           ),
@@ -975,8 +997,12 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
-                final acrescimo = acrescimoCtrl.text.trim().isEmpty ? null : double.parse(acrescimoCtrl.text.replaceAll(',', '.'));
-                final desconto = descontoCtrl.text.trim().isEmpty ? null : double.parse(descontoCtrl.text.replaceAll(',', '.'));
+                final acrescimo = permitirJurosDesconto && acrescimoCtrl.text.trim().isNotEmpty
+                    ? double.parse(acrescimoCtrl.text.replaceAll(',', '.'))
+                    : null;
+                final desconto = permitirJurosDesconto && descontoCtrl.text.trim().isNotEmpty
+                    ? double.parse(descontoCtrl.text.replaceAll(',', '.'))
+                    : null;
                 Navigator.pop(ctx, {
                   'dataPagamento': dataPagamento,
                   'acrescimo': acrescimo,
@@ -1128,7 +1154,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       double? desconto;
 
       if (conta.isAPagar) {
-        final baixa = await _mostrarDialogBaixaConta(conta);
+        final baixa = await _mostrarDialogBaixaConta(
+          conta,
+          permitirJurosDesconto: _permiteJurosDescontoNaBaixa(conta),
+        );
         if (baixa == null) return;
         dataPagamento = baixa['dataPagamento'] as DateTime;
         acrescimo = baixa['acrescimo'] as double?;
@@ -1161,7 +1190,8 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final regexDoc = RegExp(r'\s*\[Doc\.?\s*[^\]]+\]\s*$', caseSensitive: false);
     final semDoc = descricao.replaceAll(regexDoc, '').trim();
 
-    final regexPagamento = RegExp(r'\s*\((Crédito|Boleto|AVISTA|A_VISTA|À vista|AVista|PIX|Dinheiro|Débito).+\)\s*$', caseSensitive: false);
+    final regexPagamento =
+        RegExp(r'\s*\((Crédito|Boleto|Fiado|AVISTA|A_VISTA|À vista|AVista|PIX|Dinheiro|Débito).+\)\s*$', caseSensitive: false);
     return semDoc.replaceAll(regexPagamento, '').trim();
   }
 
@@ -1174,6 +1204,8 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     String? base;
     if (origem.contains('BOLETO')) {
       base = total != null && total > 1 ? 'Boleto (${total}x)' : 'Boleto';
+    } else if (origem.contains('FIADO')) {
+      base = total != null && total > 1 ? 'Fiado ($total meses)' : 'Fiado';
     } else if (origem.contains('CREDITO') || origem.contains('PARCELADO')) {
       base = total != null && total > 1 ? 'Crédito (${total}x)' : 'Crédito';
     } else if (origem.contains('AVISTA')) {
@@ -1225,6 +1257,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final boletoDocCtrl = TextEditingController(text: contaInicial != null ? _extrairNumeroDocBoleto(contaInicial.descricao) ?? '' : '');
     final fornecedoresServico = _fornecedores.where((f) => f.servico).toList();
     final tiposPagamentoOrdenados = List<TipoPagamento>.from(_tiposPagamento)
+      .where((t) => t.idFormaPagamento != 4).toList()
       ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
 
     bool isFrete = contaInicial?.origemTipo?.contains('FRETE') == true;
@@ -1234,6 +1267,12 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       if (contaOrigem.contains('BOLETO')) {
         tipoPagamentoId = tiposPagamentoOrdenados
             .where((t) => t.idFormaPagamento == 3)
+            .map((t) => t.id)
+            .cast<int?>()
+            .firstWhere((id) => id != null, orElse: () => null);
+      } else if (contaOrigem.contains('FIADO')) {
+        tipoPagamentoId = tiposPagamentoOrdenados
+            .where((t) => t.idFormaPagamento == 4)
             .map((t) => t.id)
             .cast<int?>()
             .firstWhere((id) => id != null, orElse: () => null);
@@ -1289,16 +1328,19 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             final forma = tipo.idFormaPagamento ?? 1;
             if (forma == 2) return Icons.credit_score;
             if (forma == 3) return Icons.receipt_long;
+            if (forma == 4) return Icons.handshake_outlined;
             return Icons.payments_outlined;
           }
 
           bool isCredito() => idFormaPagamentoSelecionada() == 2;
 
+          bool isFiado() => idFormaPagamentoSelecionada() == 4;
+
           bool isBoletoParcelado() => idFormaPagamentoSelecionada() == 3 && totalParcelasTipo() > 1;
 
           bool isBoleto() => idFormaPagamentoSelecionada() == 3;
 
-          bool usaTabelaParcelas() => isCredito() || isBoletoParcelado();
+          bool usaTabelaParcelas() => isCredito() || isFiado() || isBoletoParcelado();
 
           int quantidadeParcelasTabela() => isBoletoParcelado() ? totalParcelasTipo() : numeroParcelas;
 
@@ -1770,7 +1812,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                 ],
                                 if (usaTabelaParcelas()) ...[
                                   const SizedBox(height: 14),
-                                  if (isCredito())
+                                  if (isCredito() || isFiado())
                                     DropdownButtonFormField<int>(
                                       initialValue: numeroParcelas,
                                       decoration: const InputDecoration(
@@ -1896,7 +1938,9 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       ? 'CREDITO'
                                       : forma == 3
                                           ? 'BOLETO'
-                                          : 'AVISTA';
+                                          : forma == 4
+                                              ? 'FIADO'
+                                              : 'AVISTA';
                                   final baseOrigem =
                                       contaOrigem.isNotEmpty ? contaOrigem.split('_').first : (isFrete ? 'FRETE' : 'DESPESA');
                                   final pagamentoData = <String, dynamic>{
@@ -1904,7 +1948,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     'diasEntreParcelas': tipoSelecionado()?.diasEntreParcelas ?? 30,
                                   };
 
-                                  if (isCredito() || isBoletoParcelado()) {
+                                  if (isCredito() || isFiado() || isBoletoParcelado()) {
                                     pagamentoData['parcelasDetalhadas'] = parcelas
                                         .map((p) => {
                                               'numero': p.numero,
@@ -3365,10 +3409,14 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                           style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                         ),
                       ],
-                      if (conta.isCredito && conta.parcelaNumero != null && conta.totalParcelas != null) ...[
+                      if ((conta.isCredito || (conta.origemTipo ?? '').contains('FIADO')) &&
+                          conta.parcelaNumero != null &&
+                          conta.totalParcelas != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          'Parcela ${conta.parcelaNumero}/${conta.totalParcelas}',
+                          (conta.origemTipo ?? '').contains('FIADO')
+                              ? 'Mês ${conta.parcelaNumero}/${conta.totalParcelas}'
+                              : 'Parcela ${conta.parcelaNumero}/${conta.totalParcelas}',
                           style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                         ),
                       ],

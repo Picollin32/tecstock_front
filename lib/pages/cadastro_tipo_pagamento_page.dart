@@ -20,7 +20,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
   final TextEditingController _mesesBoletoController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   bool _pagamentoAVista = true;
-  bool _ehBoleto = false;
+  int _formaNaoVista = 2;
 
   List<TipoPagamento> _tiposPagamento = [];
   List<TipoPagamento> _tiposPagamentoFiltrados = [];
@@ -157,15 +157,17 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     try {
       final mesesBoleto = (int.tryParse(_mesesBoletoController.text.trim()) ?? 1).clamp(1, 12);
       final nomeBase = _nomeController.text.trim();
-      final nomeFinal = (!_pagamentoAVista && _ehBoleto) ? _nomeComPrazoBoleto(nomeBase, mesesBoleto) : nomeBase;
+      final formaSelecionada = _pagamentoAVista ? 1 : _formaNaoVista;
+      final bool ehBoleto = formaSelecionada == 3;
+      final nomeFinal = (!_pagamentoAVista && ehBoleto) ? _nomeComPrazoBoleto(nomeBase, mesesBoleto) : nomeBase;
 
       final tipoPagamento = TipoPagamento(
         id: _tipoPagamentoEmEdicao?.id,
         nome: nomeFinal,
-        idFormaPagamento: _pagamentoAVista ? 1 : (_ehBoleto ? 3 : 2),
+        idFormaPagamento: formaSelecionada,
         quantidadeParcelas:
-            _pagamentoAVista ? 1 : (_ehBoleto ? mesesBoleto : (int.tryParse(_quantidadeParcelasController.text.trim()) ?? 1)),
-        diasEntreParcelas: _pagamentoAVista ? 0 : (_ehBoleto ? 30 : (int.tryParse(_diasEntreParcelasController.text.trim()) ?? 0)),
+            _pagamentoAVista ? 1 : (ehBoleto ? mesesBoleto : (int.tryParse(_quantidadeParcelasController.text.trim()) ?? 1)),
+        diasEntreParcelas: _pagamentoAVista ? 0 : (ehBoleto ? 30 : (int.tryParse(_diasEntreParcelasController.text.trim()) ?? 0)),
       );
 
       Map<String, dynamic> resultado;
@@ -202,7 +204,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
       _quantidadeParcelasController.text = quantidade.toString();
       _diasEntreParcelasController.text = dias.toString();
       _pagamentoAVista = forma == 1;
-      _ehBoleto = forma == 3;
+      _formaNaoVista = (forma == 2 || forma == 3 || forma == 4) ? forma : 2;
       _mesesBoletoController.text = quantidade.clamp(1, 12).toString();
     });
     _showFormModal();
@@ -267,7 +269,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     _diasEntreParcelasController.text = '0';
     _mesesBoletoController.text = '1';
     _pagamentoAVista = true;
-    _ehBoleto = false;
+    _formaNaoVista = 2;
     _tipoPagamentoEmEdicao = null;
   }
 
@@ -321,6 +323,55 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpcaoFormaNaoVista({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? primaryColor.withValues(alpha: 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? primaryColor : Colors.grey.shade300,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? primaryColor : Colors.grey.shade600, size: 20),
+              const SizedBox(width: 8),
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                color: selected ? primaryColor : Colors.grey.shade600,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? primaryColor : Colors.grey.shade800,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -410,7 +461,8 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     final int forma = tipoPagamento.idFormaPagamento ?? 1;
     final bool parcelado = forma == 2;
     final bool boleto = forma == 3;
-    final String formaLabel = boleto ? 'Boleto' : (parcelado ? 'Parcelado' : 'À vista');
+    final bool fiado = forma == 4;
+    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Fiado' : (parcelado ? 'Parcelado' : 'À vista'));
     final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
     final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
 
@@ -611,7 +663,8 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     final int forma = tipoPagamento.idFormaPagamento ?? 1;
     final bool parcelado = forma == 2;
     final bool boleto = forma == 3;
-    final String formaLabel = boleto ? 'Boleto' : (parcelado ? 'Parcelado' : 'À vista');
+    final bool fiado = forma == 4;
+    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Fiado' : (parcelado ? 'Parcelado' : 'À vista'));
     final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
     final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
 
@@ -715,9 +768,13 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                       Row(
                         children: [
                           Icon(
-                            boleto ? Icons.receipt_long : (parcelado ? Icons.credit_card : Icons.payments_outlined),
+                            boleto
+                                ? Icons.receipt_long
+                                : (fiado ? Icons.handshake_outlined : (parcelado ? Icons.credit_card : Icons.payments_outlined)),
                             size: 12,
-                            color: boleto ? Colors.blue[700] : (parcelado ? Colors.orange[700] : Colors.green[700]),
+                            color: boleto
+                                ? Colors.blue[700]
+                                : (fiado ? Colors.teal[700] : (parcelado ? Colors.orange[700] : Colors.green[700])),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
@@ -899,7 +956,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                       onTap: () {
                                         setModalState(() {
                                           _pagamentoAVista = true;
-                                          _ehBoleto = false;
+                                          _formaNaoVista = 2;
                                           _quantidadeParcelasController.text = '1';
                                           _diasEntreParcelasController.text = '0';
                                           _mesesBoletoController.text = '1';
@@ -933,35 +990,69 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    'É boleto?',
+                                    'Qual outra forma?',
                                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                   ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Escolha como o pagamento será parcelado.',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  ),
                                   const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      _buildOpcaoBooleana(
-                                        label: 'Sim',
-                                        selected: _ehBoleto,
-                                        onTap: () {
-                                          setModalState(() {
-                                            _ehBoleto = true;
-                                            _diasEntreParcelasController.text = '30';
-                                            _mesesBoletoController.text =
-                                                (_tipoPagamentoEmEdicao?.quantidadeParcelas ?? 1).clamp(1, 12).toString();
-                                          });
-                                        },
-                                      ),
-                                      const SizedBox(width: 10),
-                                      _buildOpcaoBooleana(
-                                        label: 'Não',
-                                        selected: !_ehBoleto,
-                                        onTap: () {
-                                          setModalState(() {
-                                            _ehBoleto = false;
-                                          });
-                                        },
-                                      ),
-                                    ],
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final bool unicaColuna = constraints.maxWidth < 700;
+                                      final larguraItem = unicaColuna ? constraints.maxWidth : (constraints.maxWidth - 20) / 3;
+
+                                      return Wrap(
+                                        spacing: 10,
+                                        runSpacing: 10,
+                                        children: [
+                                          SizedBox(
+                                            width: larguraItem,
+                                            child: _buildOpcaoFormaNaoVista(
+                                              label: 'Cartão Parcelado',
+                                              icon: Icons.credit_card,
+                                              selected: _formaNaoVista == 2,
+                                              onTap: () {
+                                                setModalState(() {
+                                                  _formaNaoVista = 2;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            width: larguraItem,
+                                            child: _buildOpcaoFormaNaoVista(
+                                              label: 'Boleto',
+                                              icon: Icons.receipt_long,
+                                              selected: _formaNaoVista == 3,
+                                              onTap: () {
+                                                setModalState(() {
+                                                  _formaNaoVista = 3;
+                                                  _diasEntreParcelasController.text = '30';
+                                                  _mesesBoletoController.text =
+                                                      (_tipoPagamentoEmEdicao?.quantidadeParcelas ?? 1).clamp(1, 12).toString();
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            width: larguraItem,
+                                            child: _buildOpcaoFormaNaoVista(
+                                              label: 'Fiado',
+                                              icon: Icons.handshake_outlined,
+                                              selected: _formaNaoVista == 4,
+                                              onTap: () {
+                                                setModalState(() {
+                                                  _formaNaoVista = 4;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -969,11 +1060,11 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                           ],
                           if (!_pagamentoAVista) ...[
                             const SizedBox(height: 16),
-                            if (_ehBoleto)
+                            if (_formaNaoVista == 3)
                               TextFormField(
                                 controller: _mesesBoletoController,
                                 decoration: InputDecoration(
-                                  labelText: 'Meses de Boleto (máx. 12)',
+                                  labelText: 'Meses do Boleto (máx. 12)',
                                   hintText: 'Ex: 1, 2, 3... até 12',
                                   helperText: (() {
                                     final meses = int.tryParse(_mesesBoletoController.text.trim()) ?? 1;
@@ -992,7 +1083,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                 keyboardType: TextInputType.number,
                                 onChanged: (_) => setModalState(() {}),
                                 validator: (value) {
-                                  if (_pagamentoAVista || !_ehBoleto) return null;
+                                  if (_pagamentoAVista || _formaNaoVista != 3) return null;
                                   if (value == null || value.trim().isEmpty) {
                                     return 'Meses de boleto é obrigatório';
                                   }
@@ -1007,8 +1098,8 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                               TextFormField(
                                 controller: _quantidadeParcelasController,
                                 decoration: InputDecoration(
-                                  labelText: 'Quantidade de Parcelas',
-                                  hintText: 'Ex: 2, 3, 4... ',
+                                  labelText: _formaNaoVista == 4 ? 'Meses de Fiado' : 'Quantidade de Parcelas',
+                                  hintText: _formaNaoVista == 4 ? 'Ex: 1, 2, 3... ' : 'Ex: 2, 3, 4... ',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -1020,12 +1111,16 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                 ),
                                 keyboardType: TextInputType.number,
                                 validator: (value) {
-                                  if (_pagamentoAVista || _ehBoleto) return null;
+                                  if (_pagamentoAVista || _formaNaoVista == 3) return null;
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'Quantidade de parcelas é obrigatória';
+                                    return _formaNaoVista == 4 ? 'Meses de fiado é obrigatório' : 'Quantidade de parcelas é obrigatória';
                                   }
                                   final parsed = int.tryParse(value.trim());
-                                  if (parsed == null || parsed < 2) {
+                                  if (_formaNaoVista == 4) {
+                                    if (parsed == null || parsed < 1) {
+                                      return 'Informe um número inteiro maior ou igual a 1';
+                                    }
+                                  } else if (parsed == null || parsed < 2) {
                                     return 'Informe um número inteiro maior ou igual a 2';
                                   }
                                   return null;
@@ -1035,7 +1130,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                               TextFormField(
                                 controller: _diasEntreParcelasController,
                                 decoration: InputDecoration(
-                                  labelText: 'Dias entre Parcelas',
+                                  labelText: _formaNaoVista == 4 ? 'Prazo entre Meses de Fiado (dias)' : 'Dias entre Parcelas',
                                   hintText: 'Ex: 15, 30',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -1048,7 +1143,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                 ),
                                 keyboardType: TextInputType.number,
                                 validator: (value) {
-                                  if (_pagamentoAVista || _ehBoleto) return null;
+                                  if (_pagamentoAVista || _formaNaoVista == 3) return null;
                                   if (value == null || value.trim().isEmpty) {
                                     return 'Dias entre parcelas é obrigatório';
                                   }

@@ -156,10 +156,15 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     setState(() => _isLoading = true);
     try {
       final mesesBoleto = (int.tryParse(_mesesBoletoController.text.trim()) ?? 1).clamp(1, 12);
+      final textoDiasBoleto = _diasEntreParcelasController.text.trim();
+      final diasBoletoInformado = int.tryParse(textoDiasBoleto);
+      final diasBoleto =
+          textoDiasBoleto.isEmpty ? 30 : ((diasBoletoInformado == null || diasBoletoInformado < 1) ? 1 : diasBoletoInformado);
       final nomeBase = _nomeController.text.trim();
       final formaSelecionada = _pagamentoAVista ? 1 : _formaNaoVista;
       final bool ehBoleto = formaSelecionada == 3;
-      final nomeFinal = (!_pagamentoAVista && ehBoleto) ? _nomeComPrazoBoleto(nomeBase, mesesBoleto) : nomeBase;
+      final bool ehCartaoParcelado = formaSelecionada == 2;
+      final nomeFinal = (!_pagamentoAVista && ehBoleto) ? _nomeComPrazoBoleto(nomeBase, mesesBoleto, diasBoleto) : nomeBase;
 
       final tipoPagamento = TipoPagamento(
         id: _tipoPagamentoEmEdicao?.id,
@@ -167,7 +172,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
         idFormaPagamento: formaSelecionada,
         quantidadeParcelas:
             _pagamentoAVista ? 1 : (ehBoleto ? mesesBoleto : (int.tryParse(_quantidadeParcelasController.text.trim()) ?? 1)),
-        diasEntreParcelas: _pagamentoAVista ? 0 : (ehBoleto ? 30 : (int.tryParse(_diasEntreParcelasController.text.trim()) ?? 0)),
+        diasEntreParcelas: _pagamentoAVista
+            ? 0
+            : (ehCartaoParcelado ? 30 : (ehBoleto ? diasBoleto : (int.tryParse(_diasEntreParcelasController.text.trim()) ?? 0))),
       );
 
       Map<String, dynamic> resultado;
@@ -273,14 +280,15 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     _tipoPagamentoEmEdicao = null;
   }
 
-  String _resumoPrazosBoleto(int meses) {
-    final valores = List.generate(meses, (i) => '${(i + 1) * 30}');
+  String _resumoPrazosBoleto(int meses, int diasEntreParcelas) {
+    final intervalo = diasEntreParcelas < 1 ? 30 : diasEntreParcelas;
+    final valores = List.generate(meses, (i) => '${(i + 1) * intervalo}');
     return valores.join('/');
   }
 
-  String _nomeComPrazoBoleto(String nomeBase, int meses) {
+  String _nomeComPrazoBoleto(String nomeBase, int meses, int diasEntreParcelas) {
     final semSufixo = nomeBase.trim().replaceFirst(RegExp(r'\s*\((\d{1,3}(?:/\d{1,3})*)\)\s*$'), '');
-    return '$semSufixo (${_resumoPrazosBoleto(meses)})';
+    return '$semSufixo (${_resumoPrazosBoleto(meses, diasEntreParcelas)})';
   }
 
   Widget _buildOpcaoBooleana({
@@ -462,7 +470,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     final bool parcelado = forma == 2;
     final bool boleto = forma == 3;
     final bool fiado = forma == 4;
-    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Fiado' : (parcelado ? 'Parcelado' : 'À vista'));
+    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Crediário Próprio' : (parcelado ? 'Parcelado' : 'À vista'));
     final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
     final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
 
@@ -571,7 +579,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12))}' : 'Intervalo: $intervalo dias',
+                        boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12), intervalo)}' : 'Intervalo: $intervalo dias',
                         style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ],
@@ -664,7 +672,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
     final bool parcelado = forma == 2;
     final bool boleto = forma == 3;
     final bool fiado = forma == 4;
-    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Fiado' : (parcelado ? 'Parcelado' : 'À vista'));
+    final String formaLabel = boleto ? 'Boleto' : (fiado ? 'Crediário Próprio' : (parcelado ? 'Parcelado' : 'À vista'));
     final int parcelas = tipoPagamento.quantidadeParcelas ?? 1;
     final int intervalo = tipoPagamento.diasEntreParcelas ?? 0;
 
@@ -810,11 +818,11 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey[700]),
+                          Icon(Icons.numbers, size: 12, color: Colors.grey[700]),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12))}' : 'Intervalo: $intervalo dias',
+                              boleto ? 'Prazos: ${_resumoPrazosBoleto(parcelas.clamp(1, 12), intervalo)}' : 'Intervalo: $intervalo dias',
                               style: TextStyle(
                                 color: Colors.grey[700],
                                 fontSize: 10,
@@ -1017,6 +1025,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                               onTap: () {
                                                 setModalState(() {
                                                   _formaNaoVista = 2;
+                                                  _diasEntreParcelasController.text = '30';
                                                 });
                                               },
                                             ),
@@ -1030,7 +1039,9 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                               onTap: () {
                                                 setModalState(() {
                                                   _formaNaoVista = 3;
-                                                  _diasEntreParcelasController.text = '30';
+                                                  final diasEdit = _tipoPagamentoEmEdicao?.diasEntreParcelas;
+                                                  _diasEntreParcelasController.text =
+                                                      (diasEdit == null ? 30 : (diasEdit < 1 ? 1 : diasEdit)).toString();
                                                   _mesesBoletoController.text =
                                                       (_tipoPagamentoEmEdicao?.quantidadeParcelas ?? 1).clamp(1, 12).toString();
                                                 });
@@ -1040,7 +1051,7 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                           SizedBox(
                                             width: larguraItem,
                                             child: _buildOpcaoFormaNaoVista(
-                                              label: 'Fiado',
+                                              label: 'Crediário Próprio',
                                               icon: Icons.handshake_outlined,
                                               selected: _formaNaoVista == 4,
                                               onTap: () {
@@ -1064,13 +1075,8 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                               TextFormField(
                                 controller: _mesesBoletoController,
                                 decoration: InputDecoration(
-                                  labelText: 'Meses do Boleto (máx. 12)',
+                                  labelText: 'Quantidade de Parcelas',
                                   hintText: 'Ex: 1, 2, 3... até 12',
-                                  helperText: (() {
-                                    final meses = int.tryParse(_mesesBoletoController.text.trim()) ?? 1;
-                                    final normalizado = meses.clamp(1, 12);
-                                    return 'Prazos: ${_resumoPrazosBoleto(normalizado)} dias';
-                                  })(),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -1081,11 +1087,10 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                   prefixIcon: const Icon(Icons.receipt_long),
                                 ),
                                 keyboardType: TextInputType.number,
-                                onChanged: (_) => setModalState(() {}),
                                 validator: (value) {
                                   if (_pagamentoAVista || _formaNaoVista != 3) return null;
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'Meses de boleto é obrigatório';
+                                    return 'Quantidade de parcelas é obrigatória';
                                   }
                                   final parsed = int.tryParse(value.trim());
                                   if (parsed == null || parsed < 1 || parsed > 12) {
@@ -1094,12 +1099,12 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                   return null;
                                 },
                               )
-                            else ...[
+                            else
                               TextFormField(
                                 controller: _quantidadeParcelasController,
                                 decoration: InputDecoration(
-                                  labelText: _formaNaoVista == 4 ? 'Meses de Fiado' : 'Quantidade de Parcelas',
-                                  hintText: _formaNaoVista == 4 ? 'Ex: 1, 2, 3... ' : 'Ex: 2, 3, 4... ',
+                                  labelText: 'Quantidade de Parcelas',
+                                  hintText: _formaNaoVista == 2 ? 'Ex: 2, 3, 4... ' : 'Ex: 1, 2, 3... ',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -1113,24 +1118,25 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                 validator: (value) {
                                   if (_pagamentoAVista || _formaNaoVista == 3) return null;
                                   if (value == null || value.trim().isEmpty) {
-                                    return _formaNaoVista == 4 ? 'Meses de fiado é obrigatório' : 'Quantidade de parcelas é obrigatória';
+                                    return 'Quantidade de parcelas é obrigatória';
                                   }
                                   final parsed = int.tryParse(value.trim());
-                                  if (_formaNaoVista == 4) {
-                                    if (parsed == null || parsed < 1) {
-                                      return 'Informe um número inteiro maior ou igual a 1';
+                                  if (_formaNaoVista == 2) {
+                                    if (parsed == null || parsed < 2) {
+                                      return 'Informe um número inteiro maior ou igual a 2';
                                     }
-                                  } else if (parsed == null || parsed < 2) {
-                                    return 'Informe um número inteiro maior ou igual a 2';
+                                  } else if (parsed == null || parsed < 1) {
+                                    return 'Informe um número inteiro maior ou igual a 1';
                                   }
                                   return null;
                                 },
                               ),
+                            if (_formaNaoVista == 3) ...[
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _diasEntreParcelasController,
                                 decoration: InputDecoration(
-                                  labelText: _formaNaoVista == 4 ? 'Prazo entre Meses de Fiado (dias)' : 'Dias entre Parcelas',
+                                  labelText: 'Intervalo de dias entre parcelas',
                                   hintText: 'Ex: 15, 30',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -1139,13 +1145,13 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: const BorderSide(color: primaryColor, width: 2),
                                   ),
-                                  prefixIcon: const Icon(Icons.calendar_today_outlined),
+                                  prefixIcon: const Icon(Icons.numbers_outlined),
                                 ),
                                 keyboardType: TextInputType.number,
                                 validator: (value) {
-                                  if (_pagamentoAVista || _formaNaoVista == 3) return null;
+                                  if (_pagamentoAVista || _formaNaoVista != 3) return null;
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'Dias entre parcelas é obrigatório';
+                                    return 'Intervalo de dias entre parcelas é obrigatório';
                                   }
                                   final parsed = int.tryParse(value.trim());
                                   if (parsed == null || parsed < 1) {
@@ -1154,6 +1160,37 @@ class _CadastroTipoPagamentoPageState extends State<CadastroTipoPagamentoPage> w
                                   return null;
                                 },
                               ),
+                            ] else ...[
+                              if (_formaNaoVista != 2) ...[
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _diasEntreParcelasController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Intervalo de dias entre parcelas',
+                                    hintText: 'Ex: 15, 30',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(color: primaryColor, width: 2),
+                                    ),
+                                    prefixIcon: const Icon(Icons.numbers_outlined),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (_pagamentoAVista || _formaNaoVista == 3 || _formaNaoVista == 2) return null;
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Intervalo de dias entre parcelas é obrigatório';
+                                    }
+                                    final parsed = int.tryParse(value.trim());
+                                    if (parsed == null || parsed < 1) {
+                                      return 'Informe um número inteiro maior ou igual a 1';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
                             ],
                           ],
                           const SizedBox(height: 24),

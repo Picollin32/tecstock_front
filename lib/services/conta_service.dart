@@ -377,6 +377,42 @@ class ContaService {
     }
   }
 
+  static Future<Map<String, dynamic>> deletarParcelaERestantes(int idParcela) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$parcelasUrl/$idParcela/restantes'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        return {'sucesso': true};
+      }
+
+      return _erroComMensagemPadrao(response, 'Erro ao remover parcelas restantes');
+    } catch (e) {
+      if (kDebugMode) print('Erro ao remover parcelas restantes: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deletarSerieAssinatura(int idConta) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/$idConta/serie'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        return {'sucesso': true};
+      }
+
+      return _erroComMensagemPadrao(response, 'Erro ao remover série da assinatura');
+    } catch (e) {
+      if (kDebugMode) print('Erro ao remover série da assinatura: $e');
+      return {'sucesso': false, 'mensagem': 'Erro de conexão: $e'};
+    }
+  }
+
   static Future<Map<String, dynamic>> editarConta(
     int id,
     String descricao,
@@ -385,10 +421,14 @@ class ContaService {
     int? categoriaFinanceiraId,
     int? fornecedorId,
     String? origemTipo,
+    bool? assinatura,
+    String? assinaturaFrequencia,
+    DateTime? assinaturaDataInicio,
+    DateTime? assinaturaDataFim,
     bool isParcela = false,
   }) async {
     try {
-      final body = {
+      final body = <String, dynamic>{
         'descricao': descricao,
         'valor': valor,
         'dataVencimento': dataVencimento.toIso8601String().substring(0, 10),
@@ -402,6 +442,21 @@ class ContaService {
       }
       if (origemTipo != null && origemTipo.trim().isNotEmpty) {
         body['origemTipo'] = origemTipo.trim();
+      }
+      if (assinatura != null) {
+        body['assinatura'] = assinatura;
+      }
+      if (assinaturaFrequencia != null && assinaturaFrequencia.trim().isNotEmpty) {
+        body['assinaturaFrequencia'] = assinaturaFrequencia.trim();
+      }
+      if (assinaturaDataInicio != null) {
+        body['assinaturaDataInicio'] = assinaturaDataInicio.toIso8601String().substring(0, 10);
+      }
+      if (assinaturaDataFim != null) {
+        body['assinaturaDataFim'] = assinaturaDataFim.toIso8601String().substring(0, 10);
+      }
+      if (assinatura == false) {
+        body['assinaturaDataFim'] = null;
       }
 
       final String endpoint = isParcela ? '$parcelasUrl/$id' : '$baseUrl/$id';

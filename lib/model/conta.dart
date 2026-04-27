@@ -21,6 +21,10 @@ class Conta {
   final String? categoriaNome;
   final int? fornecedorId;
   final String? fornecedorNome;
+  final bool assinatura;
+  final String? assinaturaFrequencia;
+  final DateTime? assinaturaDataInicio;
+  final DateTime? assinaturaDataFim;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -47,6 +51,10 @@ class Conta {
     this.categoriaNome,
     this.fornecedorId,
     this.fornecedorNome,
+    this.assinatura = false,
+    this.assinaturaFrequencia,
+    this.assinaturaDataInicio,
+    this.assinaturaDataFim,
     this.createdAt,
     this.updatedAt,
   });
@@ -55,7 +63,7 @@ class Conta {
   bool get isAReceber => tipo == 'A_RECEBER';
   bool get isManual => origemTipo == 'MANUAL';
   bool get isFiado => origemTipo == 'OS_FIADO';
-  bool get isCredito => (origemTipo ?? '').contains('CREDITO') || (origemTipo ?? '').contains('PARCELADO');
+  bool get isCredito => assinatura || (origemTipo ?? '').contains('CREDITO') || (origemTipo ?? '').contains('PARCELADO');
   bool get isAvista => origemTipo == 'OS_AVISTA';
   bool get isCompra => origemTipo?.startsWith('COMPRA') == true;
   bool get isParcela => isAPagar && parcelaNumero != null && totalParcelas != null;
@@ -97,6 +105,10 @@ class Conta {
       categoriaNome: json['categoriaNome'],
       fornecedorId: json['fornecedorId'],
       fornecedorNome: json['fornecedorNome'],
+      assinatura: json['assinatura'] ?? false,
+      assinaturaFrequencia: json['assinaturaFrequencia'],
+      assinaturaDataInicio: json['assinaturaDataInicio'] != null ? DateTime.tryParse(json['assinaturaDataInicio']) : null,
+      assinaturaDataFim: json['assinaturaDataFim'] != null ? DateTime.tryParse(json['assinaturaDataFim']) : null,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
     );
@@ -126,6 +138,10 @@ class Conta {
       if (categoriaNome != null) 'categoriaNome': categoriaNome,
       if (fornecedorId != null) 'fornecedorId': fornecedorId,
       if (fornecedorNome != null) 'fornecedorNome': fornecedorNome,
+      'assinatura': assinatura,
+      if (assinaturaFrequencia != null) 'assinaturaFrequencia': assinaturaFrequencia,
+      if (assinaturaDataInicio != null) 'assinaturaDataInicio': assinaturaDataInicio!.toIso8601String().substring(0, 10),
+      if (assinaturaDataFim != null) 'assinaturaDataFim': assinaturaDataFim!.toIso8601String().substring(0, 10),
     };
   }
 
@@ -152,6 +168,10 @@ class Conta {
     String? categoriaNome,
     int? fornecedorId,
     String? fornecedorNome,
+    bool? assinatura,
+    String? assinaturaFrequencia,
+    DateTime? assinaturaDataInicio,
+    DateTime? assinaturaDataFim,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -178,6 +198,10 @@ class Conta {
       categoriaNome: categoriaNome ?? this.categoriaNome,
       fornecedorId: fornecedorId ?? this.fornecedorId,
       fornecedorNome: fornecedorNome ?? this.fornecedorNome,
+      assinatura: assinatura ?? this.assinatura,
+      assinaturaFrequencia: assinaturaFrequencia ?? this.assinaturaFrequencia,
+      assinaturaDataInicio: assinaturaDataInicio ?? this.assinaturaDataInicio,
+      assinaturaDataFim: assinaturaDataFim ?? this.assinaturaDataFim,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

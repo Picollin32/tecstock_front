@@ -70,18 +70,10 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (!mounted) return;
+      if (_tabController.indexIsChanging) return;
       if (_abaAtual != _tabController.index) {
         setState(() {
           _abaAtual = _tabController.index;
-        });
-      }
-    });
-    _tabController.animation?.addListener(() {
-      if (!mounted) return;
-      final indiceAnimado = _tabController.animation!.value.round().clamp(0, 1);
-      if (_abaAtual != indiceAnimado) {
-        setState(() {
-          _abaAtual = indiceAnimado;
         });
       }
     });
@@ -139,10 +131,23 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   }
 
   void _mudarMes(int delta) {
+    final indiceVisual = _indiceAbaAtual();
+    if (_tabController.index != indiceVisual) {
+      _tabController.animateTo(indiceVisual, duration: Duration.zero);
+    }
     setState(() {
+      _abaAtual = indiceVisual;
       _mesAtual = DateTime(_mesAtual.year, _mesAtual.month + delta, 1);
     });
     _carregarDados();
+  }
+
+  int _indiceAbaAtual() {
+    final anim = _tabController.animation;
+    if (anim != null) {
+      return anim.value.round().clamp(0, 1);
+    }
+    return _tabController.index.clamp(0, 1);
   }
 
   String get _labelMes {
@@ -869,6 +874,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     required double valorTotal,
     required int quantidade,
     required DateTime base,
+    required int diasEntreParcelas,
   }) {
     final parcelas = <_ParcelaDraft>[];
     if (quantidade < 1) return parcelas;
@@ -884,7 +890,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         _ParcelaDraft(
           numero: i + 1,
           valor: valorParcela,
-          vencimento: DateTime(base.year, base.month + i, base.day),
+          vencimento: DateTime(base.year, base.month, base.day).add(Duration(days: diasEntreParcelas * i)),
         ),
       );
     }
@@ -896,6 +902,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final origem = (origemTipo ?? '').toUpperCase();
     if (origem.contains('FIADO')) return 4;
     if (origem.contains('BOLETO')) return 3;
+    if (origem.contains('ASSINATURA')) return 2;
     if (origem.contains('CREDITO') || origem.contains('PARCELADO')) return 2;
     if (origem.contains('AVISTA')) return 1;
     return 1;
@@ -1200,9 +1207,19 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final total = conta.totalParcelas;
     final docMatch = RegExp(r'\[Doc\.?\s*([^\]]+)\]', caseSensitive: false).firstMatch(conta.descricao);
     final doc = docMatch?.group(1)?.trim();
+    final assinaturaFreq = (conta.assinaturaFrequencia ?? '').trim().toUpperCase();
 
     String? base;
-    if (origem.contains('BOLETO')) {
+    if (conta.assinatura || origem.contains('ASSINATURA')) {
+      final freqLabel = switch (assinaturaFreq) {
+        'DIARIA' => 'Diária',
+        'SEMANAL' => 'Semanal',
+        'MENSAL' => 'Mensal',
+        'ANUAL' => 'Anual',
+        _ => null,
+      };
+      base = freqLabel != null ? 'Assinatura ($freqLabel)' : 'Assinatura';
+    } else if (origem.contains('BOLETO')) {
       base = total != null && total > 1 ? 'Boleto (${total}x)' : 'Boleto';
     } else if (origem.contains('FIADO')) {
       base = total != null && total > 1 ? 'Fiado ($total meses)' : 'Fiado';
@@ -1296,6 +1313,22 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     int numeroParcelas = 1;
     List<_ParcelaDraft> parcelas = [];
     DateTime vencimento = contaInicial?.dataVencimento ?? DateTime(hoje.year, hoje.month, hoje.day);
+    bool isAssinatura = contaInicial?.assinatura ?? contaOrigem.contains('ASSINATURA');
+    String? assinaturaFrequencia = contaInicial?.assinaturaFrequencia ?? (isAssinatura ? 'MENSAL' : null);
+    DateTime assinaturaDataInicio = contaInicial?.assinaturaDataInicio ?? DateTime(hoje.year, hoje.month, hoje.day);
+    DateTime? assinaturaDataFim = contaInicial?.assinaturaDataFim;
+    final opcoesFrequenciaAssinatura = <String, String>{
+      'DIARIA': 'Diária',
+      'SEMANAL': 'Semanal',
+      'MENSAL': 'Mensal',
+      'ANUAL': 'Anual',
+    };
+    if (isAssinatura && tipoPagamentoId == null) {
+      tipoPagamentoId = tiposPagamentoOrdenados.where((t) => t.idFormaPagamento == 2).map((t) => t.id).cast<int?>().firstWhere(
+            (id) => id != null,
+            orElse: () => null,
+          );
+    }
 
     showModalBottomSheet<void>(
       context: context,
@@ -1308,6 +1341,15 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           final categoriaFinanceiraIdDropdown = categoriaFinanceiraIdValido ? categoriaFinanceiraId : null;
           final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
           final podeAlterarOrigem = !isEditing;
+
+          TipoPagamento? tipoCredito() {
+            for (final tipo in tiposPagamentoOrdenados) {
+              if (tipo.idFormaPagamento == 2) {
+                return tipo;
+              }
+            }
+            return null;
+          }
 
           TipoPagamento? tipoSelecionado() {
             if (tipoPagamentoId == null) return null;
@@ -1363,12 +1405,25 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               parcelas = [];
               return;
             }
-            parcelas = _gerarParcelasPadrao(valorTotal: total, quantidade: quantidade, base: vencimento);
+            final diasTipo = tipoSelecionado()?.diasEntreParcelas ?? 30;
+            final diasEntreParcelas = diasTipo >= 0 ? diasTipo : 30;
+            parcelas = _gerarParcelasPadrao(
+              valorTotal: total,
+              quantidade: quantidade,
+              base: vencimento,
+              diasEntreParcelas: diasEntreParcelas,
+            );
           }
 
           bool formularioValido() {
             final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
             if (descricaoCtrl.text.trim().isEmpty || valor <= 0 || tipoPagamentoId == null) return false;
+            if (isAssinatura) {
+              if (idFormaPagamentoSelecionada() != 2) return false;
+              if (assinaturaFrequencia == null || assinaturaFrequencia!.isEmpty) return false;
+              if (assinaturaDataFim != null && assinaturaDataFim!.isBefore(assinaturaDataInicio)) return false;
+              return true;
+            }
             if (isBoleto()) {
               final doc = boletoDocCtrl.text.trim();
               if (doc.isEmpty) return false;
@@ -1497,6 +1552,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                                   valorCtrl.clear();
                                                   tipoPagamentoId = null;
                                                   fornecedorId = null;
+                                                  isAssinatura = false;
                                                   numeroParcelas = 1;
                                                   parcelas = [];
                                                   boletoDocCtrl.clear();
@@ -1535,6 +1591,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                                   valorCtrl.clear();
                                                   tipoPagamentoId = null;
                                                   fornecedorId = null;
+                                                  isAssinatura = false;
                                                   numeroParcelas = 1;
                                                   parcelas = [];
                                                   boletoDocCtrl.clear();
@@ -1698,6 +1755,33 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 10),
+                                  CheckboxListTile(
+                                    value: isAssinatura,
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    title: const Text('É assinatura?'),
+                                    onChanged: (value) => setDialogState(() {
+                                      final novoValor = value ?? false;
+                                      if (novoValor) {
+                                        final credito = tipoCredito();
+                                        if (credito?.id == null) {
+                                          _mostrarErro('Cadastre uma forma de pagamento de Cartão de Crédito antes de usar assinatura.');
+                                          return;
+                                        }
+                                        tipoPagamentoId = credito!.id;
+                                        assinaturaFrequencia ??= 'MENSAL';
+                                        assinaturaDataInicio =
+                                            assinaturaDataInicio.isBefore(hojeSemHora) ? hojeSemHora : assinaturaDataInicio;
+                                        assinaturaDataFim = null;
+                                        numeroParcelas = 1;
+                                        parcelas = [];
+                                        boletoDocCtrl.clear();
+                                      }
+                                      isAssinatura = novoValor;
+                                    }),
+                                  ),
                                 ],
                                 const SizedBox(height: 12),
                                 TextFormField(
@@ -1718,11 +1802,14 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                 ),
                                 const SizedBox(height: 14),
                                 DropdownButtonFormField<int>(
+                                  key: ValueKey('formaPagamento_${tipoPagamentoId}_$isAssinatura'),
                                   initialValue: tipoPagamentoId,
                                   decoration: InputDecoration(
                                     labelText: 'Forma de Pagamento *',
                                     prefixIcon: Icon(Icons.payment, color: isFrete ? Colors.orange.shade700 : _corPagar),
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    filled: true,
+                                    fillColor: isAssinatura ? Colors.grey.shade100 : null,
                                   ),
                                   items: tiposPagamentoOrdenados.map((tipo) {
                                     return DropdownMenuItem<int>(
@@ -1736,19 +1823,138 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       ),
                                     );
                                   }).toList(),
-                                  onChanged: (v) => setDialogState(() {
-                                    tipoPagamentoId = v;
-                                    numeroParcelas = 1;
-                                    boletoDocCtrl.clear();
-                                    if (isBoletoParcelado()) {
-                                      numeroParcelas = totalParcelasTipo();
-                                    }
-                                    recalcularParcelas();
-                                  }),
+                                  onChanged: isAssinatura
+                                      ? null
+                                      : (v) => setDialogState(() {
+                                            tipoPagamentoId = v;
+                                            numeroParcelas = 1;
+                                            boletoDocCtrl.clear();
+                                            if (isBoletoParcelado()) {
+                                              numeroParcelas = totalParcelasTipo();
+                                            }
+                                            recalcularParcelas();
+                                          }),
                                   validator: (v) => v == null ? 'Selecione a forma de pagamento' : null,
                                 ),
+                                if (isAssinatura) ...[
+                                  const SizedBox(height: 14),
+                                  DropdownButtonFormField<String>(
+                                    key: ValueKey('assinaturaFrequencia_$assinaturaFrequencia'),
+                                    initialValue: assinaturaFrequencia,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Frequência *',
+                                      prefixIcon: Icon(Icons.repeat),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: opcoesFrequenciaAssinatura.entries
+                                        .map((entry) => DropdownMenuItem<String>(
+                                              value: entry.key,
+                                              child: Text(entry.value),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) => setDialogState(() => assinaturaFrequencia = value),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () async {
+                                      final picked = await showDatePicker(
+                                        context: ctx2,
+                                        initialDate: assinaturaDataInicio,
+                                        firstDate: DateTime(2000),
+                                        lastDate: DateTime(2035),
+                                        locale: const Locale('pt', 'BR'),
+                                      );
+                                      if (picked != null) {
+                                        setDialogState(() {
+                                          assinaturaDataInicio = picked;
+                                          if (assinaturaDataFim != null && assinaturaDataFim!.isBefore(assinaturaDataInicio)) {
+                                            assinaturaDataFim = null;
+                                          }
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey.shade400),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.play_circle_outline, color: Colors.grey),
+                                          const SizedBox(width: 10),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Data de Início *', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                              Text(
+                                                DateFormat('dd/MM/yyyy').format(assinaturaDataInicio),
+                                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () async {
+                                      final inicial = assinaturaDataFim ?? assinaturaDataInicio;
+                                      final picked = await showDatePicker(
+                                        context: ctx2,
+                                        initialDate: inicial,
+                                        firstDate: assinaturaDataInicio,
+                                        lastDate: DateTime(2035),
+                                        locale: const Locale('pt', 'BR'),
+                                      );
+                                      if (picked != null) {
+                                        setDialogState(() => assinaturaDataFim = picked);
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.grey.shade400),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.event_busy_outlined, color: Colors.grey),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('Data de Fim (Opcional)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                                Text(
+                                                  assinaturaDataFim != null
+                                                      ? DateFormat('dd/MM/yyyy').format(assinaturaDataFim!)
+                                                      : 'Selecionar data',
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: assinaturaDataFim != null ? Colors.black87 : Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (assinaturaDataFim != null)
+                                            IconButton(
+                                              icon: const Icon(Icons.close, size: 18),
+                                              tooltip: 'Limpar data final',
+                                              onPressed: () => setDialogState(() => assinaturaDataFim = null),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 14),
-                                if (isBoleto()) ...[
+                                if (!isAssinatura && isBoleto()) ...[
                                   InkWell(
                                     borderRadius: BorderRadius.circular(8),
                                     onTap: () async {
@@ -1792,7 +1998,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     ),
                                   ),
                                 ],
-                                if (isBoleto()) ...[
+                                if (!isAssinatura && isBoleto()) ...[
                                   const SizedBox(height: 14),
                                   TextFormField(
                                     controller: boletoDocCtrl,
@@ -1810,7 +2016,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     },
                                   ),
                                 ],
-                                if (usaTabelaParcelas()) ...[
+                                if (!isAssinatura && usaTabelaParcelas()) ...[
                                   const SizedBox(height: 14),
                                   if (isCredito() || isFiado())
                                     DropdownButtonFormField<int>(
@@ -1934,21 +2140,33 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
                                   final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
                                   final forma = idFormaPagamentoSelecionada();
-                                  final backend = forma == 2
+                                  final backend = isAssinatura
                                       ? 'CREDITO'
-                                      : forma == 3
-                                          ? 'BOLETO'
-                                          : forma == 4
-                                              ? 'FIADO'
-                                              : 'AVISTA';
+                                      : forma == 2
+                                          ? 'CREDITO'
+                                          : forma == 3
+                                              ? 'BOLETO'
+                                              : forma == 4
+                                                  ? 'FIADO'
+                                                  : 'AVISTA';
                                   final baseOrigem =
                                       contaOrigem.isNotEmpty ? contaOrigem.split('_').first : (isFrete ? 'FRETE' : 'DESPESA');
+                                  final diasTipo = tipoSelecionado()?.diasEntreParcelas ?? 30;
                                   final pagamentoData = <String, dynamic>{
                                     'formaPagamento': backend,
-                                    'diasEntreParcelas': tipoSelecionado()?.diasEntreParcelas ?? 30,
+                                    'diasEntreParcelas': diasTipo >= 0 ? diasTipo : 30,
                                   };
 
-                                  if (isCredito() || isFiado() || isBoletoParcelado()) {
+                                  if (isAssinatura) {
+                                    pagamentoData['isAssinatura'] = true;
+                                    pagamentoData['assinaturaFrequencia'] = assinaturaFrequencia;
+                                    pagamentoData['assinaturaDataInicio'] = assinaturaDataInicio.toIso8601String().substring(0, 10);
+                                    if (assinaturaDataFim != null) {
+                                      pagamentoData['assinaturaDataFim'] = assinaturaDataFim!.toIso8601String().substring(0, 10);
+                                    }
+                                  }
+
+                                  if (!isAssinatura && (isCredito() || isFiado() || isBoletoParcelado())) {
                                     pagamentoData['parcelasDetalhadas'] = parcelas
                                         .map((p) => {
                                               'numero': p.numero,
@@ -1958,7 +2176,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                         .toList();
                                     pagamentoData['numeroParcelas'] = parcelas.length;
                                   }
-                                  if (isBoleto()) {
+                                  if (!isAssinatura && isBoleto()) {
                                     pagamentoData['boletoVencimento'] = vencimento.toIso8601String().substring(0, 10);
                                     pagamentoData['boletoNumeroDocumento'] = boletoDocCtrl.text.trim();
                                   }
@@ -1971,7 +2189,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       vencimento,
                                       categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
                                       fornecedorId: isFrete ? null : fornecedorId,
-                                      origemTipo: contaInicial.isParcela ? null : '${baseOrigem}_$backend',
+                                      origemTipo: contaInicial.isParcela
+                                          ? null
+                                          : (isAssinatura ? '${baseOrigem}_ASSINATURA' : '${baseOrigem}_$backend'),
+                                      assinatura: isAssinatura,
+                                      assinaturaFrequencia: isAssinatura ? assinaturaFrequencia : null,
+                                      assinaturaDataInicio: isAssinatura ? assinaturaDataInicio : null,
+                                      assinaturaDataFim: isAssinatura ? assinaturaDataFim : null,
                                       isParcela: contaInicial.isParcela,
                                     );
 
@@ -2181,6 +2405,100 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       _mostrarErro('Contas de compra não podem ser excluídas aqui. Gerencie pela página de Notas de Entrada.');
       return;
     }
+
+    final isAssinatura = conta.assinatura || (conta.origemTipo ?? '').toUpperCase().contains('ASSINATURA');
+    if (isAssinatura && conta.assinaturaDataFim != null && conta.id != null) {
+      final acao = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Excluir Assinatura'),
+          content: Text('O que deseja excluir em "${conta.descricao}"?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'somente'),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange.shade700),
+              child: const Text('Só esta cobrança'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'geral'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Excluir série inteira'),
+            ),
+          ],
+        ),
+      );
+
+      if (acao == null) return;
+
+      if (acao == 'somente') {
+        final ok = await ContaService.deletarConta(conta.id!, isParcela: false);
+        if (ok) {
+          _mostrarSucesso('Cobrança removida.');
+          _carregarDados();
+        } else {
+          _mostrarErro('Erro ao remover cobrança.');
+        }
+        return;
+      }
+
+      final resultado = await ContaService.deletarSerieAssinatura(conta.id!);
+      if (resultado['sucesso'] == true) {
+        _mostrarSucesso('Série da assinatura removida.');
+        _carregarDados();
+      } else {
+        _mostrarErro(resultado['mensagem']?.toString() ?? 'Não foi possível remover a série da assinatura.');
+      }
+      return;
+    }
+
+    if (conta.isParcela && conta.id != null) {
+      final acao = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Excluir Parcela'),
+          content: Text('O que deseja excluir em "${conta.descricao}"?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'somente'),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange.shade700),
+              child: const Text('Só esta parcela'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'restantes'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Esta e restantes'),
+            ),
+          ],
+        ),
+      );
+
+      if (acao == null) return;
+
+      if (acao == 'somente') {
+        final ok = await ContaService.deletarConta(conta.id!, isParcela: true);
+        if (ok) {
+          _mostrarSucesso('Parcela removida.');
+          _carregarDados();
+        } else {
+          _mostrarErro('Erro ao remover parcela.');
+        }
+        return;
+      }
+
+      final resultado = await ContaService.deletarParcelaERestantes(conta.id!);
+      if (resultado['sucesso'] == true) {
+        _mostrarSucesso('Parcelas restantes removidas.');
+        _carregarDados();
+      } else {
+        _mostrarErro(resultado['mensagem']?.toString() ?? 'Não foi possível remover as parcelas restantes.');
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2233,15 +2551,16 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final abaAtual = _indiceAbaAtual();
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      floatingActionButton: _abaAtual == 0 ? _buildFabAcoes() : null,
+      floatingActionButton: abaAtual == 0 ? _buildFabAcoes() : null,
       body: Column(
         children: [
           _buildHeader(),
-          if (_abaAtual == 0 && _contasAtrasadas.any((c) => c.isAPagar))
+          if (abaAtual == 0 && _contasAtrasadas.any((c) => c.isAPagar))
             _buildAlertaAtrasadasTipo('A_PAGAR')
-          else if (_abaAtual == 1 && _contasAtrasadas.any((c) => c.isAReceber))
+          else if (abaAtual == 1 && _contasAtrasadas.any((c) => c.isAReceber))
             _buildAlertaAtrasadasTipo('A_RECEBER'),
           _buildTabBar(),
           Expanded(
@@ -2427,13 +2746,14 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
   }
 
   Widget _buildTabBar() {
+    final abaAtual = _indiceAbaAtual();
     return Container(
       color: Colors.white,
       child: TabBar(
         controller: _tabController,
-        labelColor: _abaAtual == 0 ? _corPagar : _corReceber,
+        labelColor: abaAtual == 0 ? _corPagar : _corReceber,
         unselectedLabelColor: Colors.grey,
-        indicatorColor: _abaAtual == 0 ? _corPagar : _corReceber,
+        indicatorColor: abaAtual == 0 ? _corPagar : _corReceber,
         indicatorWeight: 3,
         tabs: [
           Tab(
@@ -3350,6 +3670,36 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                           ),
                         ],
                       ),
+                      if (conta.assinatura || (conta.origemTipo ?? '').toUpperCase().contains('ASSINATURA')) ...[
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: const Color(0xFF0F766E).withValues(alpha: 0.45)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.autorenew, size: 11, color: Color(0xFF0F766E)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'ASSINATURA',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F766E),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Row(
                         children: [

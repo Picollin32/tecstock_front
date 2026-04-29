@@ -147,6 +147,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
   bool _isAdmin = false;
   bool _isLoadingInitialData = true;
   bool _isSaving = false;
+  int _countOrcamentosAbertos = 0;
+  bool _filtrandoAbertos = false;
 
   @override
   void initState() {
@@ -324,6 +326,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       }
 
       await _carregarOrcamentosPaginados();
+      await _fetchCountOrcamentosAbertos();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -402,6 +405,35 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     if (page < 0 || page >= _totalPages) return;
     setState(() => _currentPage = page);
     _carregarOrcamentosPaginados();
+  }
+
+  Future<void> _fetchCountOrcamentosAbertos() async {
+    try {
+      final lista = await OrcamentoService.listarOrcamentosAbertos();
+      if (mounted) setState(() => _countOrcamentosAbertos = lista.length);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFiltroAbertos() async {
+    if (_filtrandoAbertos) {
+      setState(() {
+        _filtrandoAbertos = false;
+        _currentPage = 0;
+      });
+      await _carregarOrcamentosPaginados();
+    } else {
+      final lista = await OrcamentoService.listarOrcamentosAbertos();
+      if (mounted) {
+        setState(() {
+          _filtrandoAbertos = true;
+          _recent = lista;
+          _recentFiltrados = lista;
+          _totalPages = 1;
+          _totalElements = lista.length;
+          _currentPage = 0;
+        });
+      }
+    }
   }
 
   void _alterarPageSize(int size) {
@@ -812,6 +844,68 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     return expand ? SizedBox(width: double.infinity, child: button) : button;
   }
 
+  Widget _buildStatCard({
+    required String label,
+    required int count,
+    required bool ativo,
+    required VoidCallback onTap,
+    required Color cor,
+    required IconData icone,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: ativo ? cor : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: ativo ? cor : cor.withValues(alpha: 0.4), width: ativo ? 2 : 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: cor.withValues(alpha: ativo ? 0.25 : 0.08),
+              blurRadius: ativo ? 12 : 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 18, color: ativo ? Colors.white : cor),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: ativo ? Colors.white.withValues(alpha: 0.9) : Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: ativo ? Colors.white : cor,
+                  ),
+                ),
+              ],
+            ),
+            if (ativo) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.close, size: 14, color: Colors.white.withValues(alpha: 0.8)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchSection(ColorScheme colorScheme) {
     final isMobile = MediaQuery.of(context).size.width < 768;
 
@@ -841,6 +935,15 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
                     ),
+              ),
+              const Spacer(),
+              _buildStatCard(
+                label: 'Orçamentos em Aberto',
+                count: _countOrcamentosAbertos,
+                ativo: _filtrandoAbertos,
+                onTap: _toggleFiltroAbertos,
+                cor: Colors.blue.shade600,
+                icone: Icons.request_quote_outlined,
               ),
             ],
           ),

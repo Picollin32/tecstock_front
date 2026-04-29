@@ -94,7 +94,6 @@ class RelatorioServicos {
   final int totalOrdensServico;
   final int ordensFinalizadas;
   final int ordensEmAndamento;
-  final int ordensCanceladas;
   final double descontoServicos;
   final double valorMedioPorOrdem;
   final double tempoMedioExecucao;
@@ -108,7 +107,6 @@ class RelatorioServicos {
     required this.totalOrdensServico,
     required this.ordensFinalizadas,
     required this.ordensEmAndamento,
-    required this.ordensCanceladas,
     required this.descontoServicos,
     required this.valorMedioPorOrdem,
     required this.tempoMedioExecucao,
@@ -124,7 +122,6 @@ class RelatorioServicos {
       totalOrdensServico: json['totalOrdensServico'] ?? 0,
       ordensFinalizadas: json['ordensFinalizadas'] ?? 0,
       ordensEmAndamento: json['ordensEmAndamento'] ?? 0,
-      ordensCanceladas: json['ordensCanceladas'] ?? 0,
       descontoServicos: (json['descontoServicos'] ?? 0).toDouble(),
       valorMedioPorOrdem: (json['valorMedioPorOrdem'] ?? 0).toDouble(),
       tempoMedioExecucao: (json['tempoMedioExecucao'] ?? 0).toDouble(),
@@ -389,6 +386,9 @@ class GarantiaItem {
   final String? consultorNome;
   final bool emAberto;
   final String statusDescricao;
+  final String statusGarantia;
+  final String? retornoMotivo;
+  final String? retornoServicoNome;
 
   GarantiaItem({
     required this.id,
@@ -408,6 +408,9 @@ class GarantiaItem {
     this.consultorNome,
     required this.emAberto,
     required this.statusDescricao,
+    required this.statusGarantia,
+    this.retornoMotivo,
+    this.retornoServicoNome,
   });
 
   factory GarantiaItem.fromJson(Map<String, dynamic> json) {
@@ -429,6 +432,9 @@ class GarantiaItem {
       consultorNome: json['consultorNome'],
       emAberto: json['emAberto'] ?? false,
       statusDescricao: json['statusDescricao'] ?? '',
+      statusGarantia: json['statusGarantia'] ?? json['statusDescricao'] ?? '',
+      retornoMotivo: json['retornoMotivo'],
+      retornoServicoNome: json['retornoServicoNome'],
     );
   }
 }
@@ -439,6 +445,9 @@ class RelatorioGarantias {
   final int totalGarantias;
   final int garantiasEmAberto;
   final int garantiasEncerradas;
+  final int garantiasAtivas;
+  final int garantiasReclamadas;
+  final int garantiasExpiradas;
   final List<GarantiaItem> garantias;
 
   RelatorioGarantias({
@@ -447,6 +456,9 @@ class RelatorioGarantias {
     required this.totalGarantias,
     required this.garantiasEmAberto,
     required this.garantiasEncerradas,
+    required this.garantiasAtivas,
+    required this.garantiasReclamadas,
+    required this.garantiasExpiradas,
     required this.garantias,
   });
 
@@ -457,6 +469,9 @@ class RelatorioGarantias {
       totalGarantias: json['totalGarantias'] ?? 0,
       garantiasEmAberto: json['garantiasEmAberto'] ?? 0,
       garantiasEncerradas: json['garantiasEncerradas'] ?? 0,
+      garantiasAtivas: json['garantiasAtivas'] ?? json['garantiasEmAberto'] ?? 0,
+      garantiasReclamadas: json['garantiasReclamadas'] ?? 0,
+      garantiasExpiradas: json['garantiasExpiradas'] ?? json['garantiasEncerradas'] ?? 0,
       garantias: (json['garantias'] as List?)?.map((item) => GarantiaItem.fromJson(item)).toList() ?? [],
     );
   }
@@ -667,6 +682,137 @@ class RelatorioConsultores {
       valorTotalGeral: (json['valorTotalGeral'] ?? 0).toDouble(),
       valorMedioGeral: (json['valorMedioGeral'] ?? 0).toDouble(),
       taxaConversaoGeral: (json['taxaConversaoGeral'] ?? 0).toDouble(),
+    );
+  }
+}
+
+class ClienteItem {
+  final String clienteNome;
+  final String clienteCpf;
+  final String? clienteTelefone;
+  final int totalOS;
+  final int totalOSEncerradas;
+  final double valorTotal;
+  final double ticketMedio;
+  final DateTime? primeiraVisita;
+  final DateTime? ultimaVisita;
+  final List<String> placasVeiculos;
+
+  ClienteItem({
+    required this.clienteNome,
+    required this.clienteCpf,
+    this.clienteTelefone,
+    required this.totalOS,
+    required this.totalOSEncerradas,
+    required this.valorTotal,
+    required this.ticketMedio,
+    this.primeiraVisita,
+    this.ultimaVisita,
+    required this.placasVeiculos,
+  });
+
+  factory ClienteItem.fromJson(Map<String, dynamic> json) {
+    return ClienteItem(
+      clienteNome: json['clienteNome'] ?? '',
+      clienteCpf: json['clienteCpf'] ?? '',
+      clienteTelefone: json['clienteTelefone'],
+      totalOS: json['totalOS'] ?? 0,
+      totalOSEncerradas: json['totalOSEncerradas'] ?? 0,
+      valorTotal: (json['valorTotal'] ?? 0).toDouble(),
+      ticketMedio: (json['ticketMedio'] ?? 0).toDouble(),
+      primeiraVisita: json['primeiraVisita'] != null ? DateTime.parse(json['primeiraVisita']) : null,
+      ultimaVisita: json['ultimaVisita'] != null ? DateTime.parse(json['ultimaVisita']) : null,
+      placasVeiculos: (json['placasVeiculos'] as List?)?.map((e) => e.toString()).toList() ?? [],
+    );
+  }
+}
+
+class RelatorioClientes {
+  final DateTime dataInicio;
+  final DateTime dataFim;
+  final int totalClientes;
+  final List<ClienteItem> clientes;
+
+  RelatorioClientes({
+    required this.dataInicio,
+    required this.dataFim,
+    required this.totalClientes,
+    required this.clientes,
+  });
+
+  factory RelatorioClientes.fromJson(Map<String, dynamic> json) {
+    return RelatorioClientes(
+      dataInicio: DateTime.parse(json['dataInicio']),
+      dataFim: DateTime.parse(json['dataFim']),
+      totalClientes: json['totalClientes'] ?? 0,
+      clientes: (json['clientes'] as List?)?.map((e) => ClienteItem.fromJson(e)).toList() ?? [],
+    );
+  }
+}
+
+class VeiculoItem {
+  final String veiculoPlaca;
+  final String veiculoNome;
+  final String? veiculoMarca;
+  final String? veiculoAno;
+  final String proprietarioNome;
+  final String? proprietarioCpf;
+  final int totalOS;
+  final int totalOSEncerradas;
+  final double valorTotal;
+  final DateTime? primeiraVisita;
+  final DateTime? ultimaVisita;
+
+  VeiculoItem({
+    required this.veiculoPlaca,
+    required this.veiculoNome,
+    this.veiculoMarca,
+    this.veiculoAno,
+    required this.proprietarioNome,
+    this.proprietarioCpf,
+    required this.totalOS,
+    required this.totalOSEncerradas,
+    required this.valorTotal,
+    this.primeiraVisita,
+    this.ultimaVisita,
+  });
+
+  factory VeiculoItem.fromJson(Map<String, dynamic> json) {
+    return VeiculoItem(
+      veiculoPlaca: json['veiculoPlaca'] ?? '',
+      veiculoNome: json['veiculoNome'] ?? '',
+      veiculoMarca: json['veiculoMarca'],
+      veiculoAno: json['veiculoAno'],
+      proprietarioNome: json['proprietarioNome'] ?? '',
+      proprietarioCpf: json['proprietarioCpf'],
+      totalOS: json['totalOS'] ?? 0,
+      totalOSEncerradas: json['totalOSEncerradas'] ?? 0,
+      valorTotal: (json['valorTotal'] ?? 0).toDouble(),
+      primeiraVisita: json['primeiraVisita'] != null ? DateTime.parse(json['primeiraVisita']) : null,
+      ultimaVisita: json['ultimaVisita'] != null ? DateTime.parse(json['ultimaVisita']) : null,
+    );
+  }
+}
+
+class RelatorioVeiculos {
+  final DateTime dataInicio;
+  final DateTime dataFim;
+  final int totalVeiculos;
+  final List<VeiculoItem> veiculos;
+
+  RelatorioVeiculos({
+    required this.dataInicio,
+    required this.dataFim,
+    required this.totalVeiculos,
+    required this.veiculos,
+  });
+
+  factory RelatorioVeiculos.fromJson(Map<String, dynamic> json) {
+    return RelatorioVeiculos(
+      dataInicio: DateTime.parse(json['dataInicio']),
+      dataFim: DateTime.parse(json['dataFim']),
+      totalVeiculos: json['totalVeiculos'] ?? 0,
+      veiculos: (json['veiculos'] as List?)?.map((e) => VeiculoItem.fromJson(e)).toList() ?? [],
     );
   }
 }

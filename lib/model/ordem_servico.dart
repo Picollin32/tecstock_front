@@ -48,6 +48,7 @@ class OrdemServico {
   String? numeroOrcamentoOrigem;
   DateTime? createdAt;
   DateTime? updatedAt;
+  bool temGarantiaReclamada;
 
   OrdemServico({
     this.id,
@@ -91,6 +92,7 @@ class OrdemServico {
     this.numeroOrcamentoOrigem,
     this.createdAt,
     this.updatedAt,
+    this.temGarantiaReclamada = false,
   });
 
   factory OrdemServico.fromJson(Map<String, dynamic> json) {
@@ -139,6 +141,7 @@ class OrdemServico {
       numeroOrcamentoOrigem: json['numeroOrcamentoOrigem'],
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      temGarantiaReclamada: json['temGarantiaReclamada'] == true,
     );
   }
 

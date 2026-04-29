@@ -167,4 +167,44 @@ class RelatorioService {
       throw Exception('Erro ao conectar com o servidor: $e');
     }
   }
+
+  Future<RelatorioClientes> getRelatorioClientes(DateTime dataInicio, DateTime dataFim) async {
+    try {
+      final inicio = DateFormat('yyyy-MM-dd').format(dataInicio);
+      final fim = DateFormat('yyyy-MM-dd').format(dataFim);
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/clientes?dataInicio=$inicio&dataFim=$fim'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return RelatorioClientes.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      } else {
+        throw Exception('Erro ao buscar relatório de clientes: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao conectar com o servidor: $e');
+    }
+  }
+
+  Future<RelatorioVeiculos> getRelatorioVeiculos(DateTime dataInicio, DateTime dataFim) async {
+    try {
+      final inicio = DateFormat('yyyy-MM-dd').format(dataInicio);
+      final fim = DateFormat('yyyy-MM-dd').format(dataFim);
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/veiculos?dataInicio=$inicio&dataFim=$fim'),
+        headers: await AuthService.getAuthHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        return RelatorioVeiculos.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      } else {
+        throw Exception('Erro ao buscar relatório de veículos: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Erro ao conectar com o servidor: $e');
+    }
+  }
 }

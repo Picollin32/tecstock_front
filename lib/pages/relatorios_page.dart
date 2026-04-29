@@ -50,6 +50,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   DateTime? _dataInicio;
   DateTime? _dataFim;
   String _tipoRelatorio = 'consultores';
+  String _periodoRapido = 'ultimos_30_dias';
   bool _isLoading = false;
   bool _isGeneratingPdf = false;
 
@@ -59,15 +60,13 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   int? _mecanicoSelecionadoId;
   bool _isLoadingFuncionarios = false;
   DateTime _mesContas = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  String _filtroGarantiaRelatorio = 'TODOS';
 
   @override
   void initState() {
     super.initState();
 
-    _dataFim = DateTime.now();
-    _dataInicio = DateTime(_dataFim!.year, _dataFim!.month - 1, _dataFim!.day);
-    _dataInicioController.text = DateFormat('dd/MM/yyyy').format(_dataInicio!);
-    _dataFimController.text = DateFormat('dd/MM/yyyy').format(_dataFim!);
+    _aplicarPeriodoRapido('ultimos_30_dias');
     _carregarFuncionarios();
     _preloadLogo();
   }
@@ -138,8 +137,58 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     }
   }
 
+  void _atualizarPeriodo(DateTime inicio, DateTime fim) {
+    final start = DateTime(inicio.year, inicio.month, inicio.day);
+    final end = DateTime(fim.year, fim.month, fim.day);
+
+    _dataInicio = start;
+    _dataFim = end;
+    _dataInicioController.text = DateFormat('dd/MM/yyyy').format(start);
+    _dataFimController.text = DateFormat('dd/MM/yyyy').format(end);
+  }
+
+  void _aplicarPeriodoRapido(String periodo) {
+    final hoje = DateTime.now();
+    late DateTime inicio;
+    late DateTime fim;
+
+    switch (periodo) {
+      case 'hoje':
+        inicio = hoje;
+        fim = hoje;
+        break;
+      case 'ultimos_7_dias':
+        inicio = hoje.subtract(const Duration(days: 6));
+        fim = hoje;
+        break;
+      case 'ultimos_30_dias':
+        inicio = hoje.subtract(const Duration(days: 29));
+        fim = hoje;
+        break;
+      case 'ultimos_90_dias':
+        inicio = hoje.subtract(const Duration(days: 89));
+        fim = hoje;
+        break;
+      case 'mes_atual':
+        inicio = DateTime(hoje.year, hoje.month, 1);
+        fim = hoje;
+        break;
+      case 'mes_anterior':
+        final primeiroDiaMesAtual = DateTime(hoje.year, hoje.month, 1);
+        fim = primeiroDiaMesAtual.subtract(const Duration(days: 1));
+        inicio = DateTime(fim.year, fim.month, 1);
+        break;
+      default:
+        inicio = hoje.subtract(const Duration(days: 29));
+        fim = hoje;
+    }
+
+    _atualizarPeriodo(inicio, fim);
+    _periodoRapido = periodo;
+  }
+
   Future<void> _gerarRelatorio() async {
-    if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado') {
+    if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado' && _tipoRelatorio != 'garantias') {
       if (_dataInicio == null || _dataFim == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Selecione as datas de início e fim')),
@@ -185,7 +234,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           relatorio = await _relatorioService.getRelatorioComissao(_dataInicio!, _dataFim!, _mecanicoSelecionadoId!);
           break;
         case 'garantias':
-          relatorio = await _relatorioService.getRelatorioGarantias(_dataInicio!, _dataFim!);
+          relatorio = await _relatorioService.getRelatorioGarantias(DateTime(2000, 1, 1), DateTime.now());
           break;
         case 'consultores':
           relatorio = await _relatorioService.getRelatorioConsultores(_dataInicio!, _dataFim!);
@@ -209,6 +258,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             contasAtrasadas: results[2] as List<Conta>,
             resumo: results[3] as Map<String, double>,
           );
+          break;
+        case 'clientes':
+          relatorio = await _relatorioService.getRelatorioClientes(_dataInicio!, _dataFim!);
+          break;
+        case 'veiculos':
+          relatorio = await _relatorioService.getRelatorioVeiculos(_dataInicio!, _dataFim!);
           break;
       }
 
@@ -440,12 +495,37 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ],
                   ),
                 ),
+                DropdownMenuItem(
+                  value: 'clientes',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório de Clientes'),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'veiculos',
+                  child: Row(
+                    children: [
+                      Icon(Icons.directions_car, size: 20),
+                      SizedBox(width: 12),
+                      Text('Relatório de Veículos'),
+                    ],
+                  ),
+                ),
               ],
               onChanged: (value) {
                 setState(() {
                   _tipoRelatorio = value!;
                   _relatorioAtual = null;
                   _mecanicoSelecionadoId = null;
+                  _filtroGarantiaRelatorio = 'TODOS';
+
+                  if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado' && _tipoRelatorio != 'garantias') {
+                    _aplicarPeriodoRapido('ultimos_30_dias');
+                  }
                 });
               },
             ),
@@ -503,19 +583,19 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               color: Colors.teal,
               child: _buildMesContasPicker(),
             )
-          else
+          else if (_tipoRelatorio != 'garantias')
             _buildModernCard(
               context,
               title: 'Período',
               icon: Icons.date_range,
               color: Colors.green,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 400;
-                  final dataInicio = TextField(
-                    controller: _dataInicioController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _periodoRapido,
                     decoration: InputDecoration(
-                      labelText: 'Data Início',
+                      labelText: 'Período rápido',
                       filled: true,
                       fillColor: Colors.grey[50],
                       border: OutlineInputBorder(
@@ -526,51 +606,135 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
-                      suffixIcon: const Icon(Icons.calendar_today),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                    readOnly: true,
-                    onTap: () => _selecionarData(context, true),
-                  );
-                  final dataFim = TextField(
-                    controller: _dataFimController,
-                    decoration: InputDecoration(
-                      labelText: 'Data Fim',
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      suffixIcon: const Icon(Icons.calendar_today),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    readOnly: true,
-                    onTap: () => _selecionarData(context, false),
-                  );
-                  if (isNarrow) {
-                    return Column(
-                      children: [
-                        dataInicio,
-                        const SizedBox(height: 12),
-                        dataFim,
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: dataInicio),
-                      const SizedBox(width: 16),
-                      Expanded(child: dataFim),
+                    items: const [
+                      DropdownMenuItem(value: 'hoje', child: Text('Hoje')),
+                      DropdownMenuItem(value: 'ultimos_7_dias', child: Text('Últimos 7 dias')),
+                      DropdownMenuItem(value: 'ultimos_30_dias', child: Text('Últimos 30 dias')),
+                      DropdownMenuItem(value: 'ultimos_90_dias', child: Text('Últimos 90 dias')),
+                      DropdownMenuItem(value: 'mes_atual', child: Text('Mês atual')),
+                      DropdownMenuItem(value: 'mes_anterior', child: Text('Mês anterior')),
                     ],
-                  );
-                },
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _aplicarPeriodoRapido(value);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Dica: escolha um período rápido e ajuste as datas manualmente apenas se necessário.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 400;
+                      final dataInicio = TextField(
+                        controller: _dataInicioController,
+                        decoration: InputDecoration(
+                          labelText: 'Data Início',
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          suffixIcon: const Icon(Icons.calendar_today),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        readOnly: true,
+                        onTap: () => _selecionarData(context, true),
+                      );
+                      final dataFim = TextField(
+                        controller: _dataFimController,
+                        decoration: InputDecoration(
+                          labelText: 'Data Fim',
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          suffixIcon: const Icon(Icons.calendar_today),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        readOnly: true,
+                        onTap: () => _selecionarData(context, false),
+                      );
+                      if (isNarrow) {
+                        return Column(
+                          children: [
+                            dataInicio,
+                            const SizedBox(height: 12),
+                            dataFim,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: dataInicio),
+                          const SizedBox(width: 16),
+                          Expanded(child: dataFim),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
+          if (_tipoRelatorio == 'garantias') ...[
+            const SizedBox(height: 16),
+            _buildModernCard(
+              context,
+              title: 'Filtro de Garantias',
+              icon: Icons.filter_alt_outlined,
+              color: Colors.teal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildChipFiltroGarantia(value: 'TODOS', label: 'Todos', color: Colors.teal),
+                      _buildChipFiltroGarantia(value: 'ATIVA', label: 'Ativa', color: Colors.green),
+                      _buildChipFiltroGarantia(value: 'INATIVA', label: 'Inativa', color: Colors.blueGrey),
+                      _buildChipFiltroGarantia(value: 'RECLAMADA', label: 'Reclamada', color: Colors.amber),
+                      _buildChipFiltroGarantia(
+                        value: 'PROXIMA_VENCIMENTO',
+                        label: 'Próx. ao Vencimento (30d)',
+                        color: Colors.deepOrange,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Este filtro será aplicado antes da geração do relatório e também no PDF.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           Container(
             height: 56,
@@ -732,6 +896,12 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             break;
           case 'contas':
             await _printRelatorioContas(_relatorioAtual as RelatorioContasMes);
+            break;
+          case 'clientes':
+            await _printRelatorioClientes(_relatorioAtual as RelatorioClientes);
+            break;
+          case 'veiculos':
+            await _printRelatorioVeiculos(_relatorioAtual as RelatorioVeiculos);
             break;
         }
       } catch (e) {
@@ -1111,6 +1281,11 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
   Future<void> _printRelatorioGarantias(RelatorioGarantias relatorio) async {
     final doc = pw.Document();
+    final garantiasFiltradas = _filtrarGarantiasRelatorio(relatorio.garantias);
+    final totalAtivas = relatorio.garantias.where(_isGarantiaAtiva).length;
+    final totalInativas = relatorio.garantias.where(_isGarantiaInativa).length;
+    final totalReclamadas = relatorio.garantias.where(_isGarantiaReclamada).length;
+    final totalProximas = relatorio.garantias.where(_isGarantiaProximaVencimento).length;
 
     doc.addPage(
       pw.MultiPage(
@@ -1124,23 +1299,44 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           pw.SizedBox(height: 16),
           _buildPdfSectionTitle('Resumo'),
           pw.SizedBox(height: 10),
-          _buildPdfMetricCard('Total de Garantias', relatorio.totalGarantias.toString()),
-          _buildPdfMetricCard('Em Aberto', relatorio.garantiasEmAberto.toString()),
-          _buildPdfMetricCard('Encerradas', relatorio.garantiasEncerradas.toString()),
+          _buildPdfMetricCard('Ativas', totalAtivas.toString()),
+          _buildPdfMetricCard('Inativas', totalInativas.toString()),
+          _buildPdfMetricCard('Reclamadas', totalReclamadas.toString()),
+          _buildPdfMetricCard('Próx. ao vencimento (30 dias)', totalProximas.toString()),
           pw.SizedBox(height: 16),
-          _buildPdfSectionTitle('Garantias no Período'),
+          _buildPdfSectionTitle('Garantias Filtradas'),
           pw.SizedBox(height: 10),
-          if (relatorio.garantias.isEmpty)
+          if (garantiasFiltradas.isEmpty)
             pw.Center(
-              child: pw.Text('Nenhuma garantia encontrada no período selecionado', style: const pw.TextStyle(fontSize: 11)),
+              child: pw.Text('Nenhuma garantia encontrada para o filtro selecionado', style: const pw.TextStyle(fontSize: 11)),
             )
           else
-            ...relatorio.garantias.map((garantia) => pw.Container(
+            ...garantiasFiltradas.map((garantia) {
+              final bool isReclamada = _isGarantiaReclamada(garantia);
+              final bool isInativa = _isGarantiaInativa(garantia);
+              final bool isProxima = _isGarantiaProximaVencimento(garantia);
+              final int diasRestantes = _diasRestantesGarantia(garantia);
+
+              return pw.Container(
                   margin: const pw.EdgeInsets.only(bottom: 10),
                   padding: const pw.EdgeInsets.all(12),
                   decoration: pw.BoxDecoration(
-                    color: garantia.emAberto ? PdfColors.green50 : PdfColors.red50,
-                    border: pw.Border.all(color: garantia.emAberto ? PdfColors.green : PdfColors.red, width: 1.5),
+                  color: isReclamada
+                      ? PdfColors.amber50
+                      : isInativa
+                          ? PdfColors.blueGrey50
+                          : isProxima
+                              ? PdfColors.orange50
+                              : PdfColors.green50,
+                  border: pw.Border.all(
+                      color: isReclamada
+                          ? PdfColors.amber
+                          : isInativa
+                              ? PdfColors.blueGrey
+                              : isProxima
+                                  ? PdfColors.orange
+                                  : PdfColors.green,
+                      width: 1.5),
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                   ),
                   child: pw.Column(
@@ -1150,11 +1346,22 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('OS #${garantia.numeroOS}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                          pw.Text(garantia.statusDescricao,
+                        pw.Text(
+                            isReclamada
+                                ? 'Reclamada'
+                                : isInativa
+                                    ? 'Inativa'
+                                    : 'Ativa',
                               style: pw.TextStyle(
                                   fontSize: 10,
                                   fontWeight: pw.FontWeight.bold,
-                                  color: garantia.emAberto ? PdfColors.green : PdfColors.red)),
+                                color: isReclamada
+                                    ? PdfColors.amber
+                                    : isInativa
+                                        ? PdfColors.blueGrey
+                                        : isProxima
+                                            ? PdfColors.orange
+                                            : PdfColors.green)),
                         ],
                       ),
                       pw.SizedBox(height: 5),
@@ -1171,11 +1378,16 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                       pw.Text(
                           'Período: ${DateFormat('dd/MM/yyyy').format(garantia.dataInicioGarantia)} - ${DateFormat('dd/MM/yyyy').format(garantia.dataFimGarantia)}',
                           style: const pw.TextStyle(fontSize: 9)),
+                    if (isProxima)
+                      pw.Text('Próxima ao vencimento: $diasRestantes dia(s)', style: pw.TextStyle(fontSize: 9, color: PdfColors.orange700)),
+                    if ((garantia.retornoMotivo ?? '').isNotEmpty)
+                      pw.Text('Motivo: ${garantia.retornoMotivo}', style: const pw.TextStyle(fontSize: 9)),
                       if (garantia.mecanicoNome != null && garantia.mecanicoNome!.isNotEmpty)
                         pw.Text('Mecânico: ${garantia.mecanicoNome}', style: const pw.TextStyle(fontSize: 9)),
                     ],
                   ),
-                )),
+              );
+            }),
         ],
       ),
     );
@@ -1469,6 +1681,10 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         return _buildRelatorioFiado(_relatorioAtual as List<Conta>);
       case 'contas':
         return _buildRelatorioContas(_relatorioAtual as RelatorioContasMes);
+      case 'clientes':
+        return _buildRelatorioClientes(_relatorioAtual as RelatorioClientes);
+      case 'veiculos':
+        return _buildRelatorioVeiculos(_relatorioAtual as RelatorioVeiculos);
       default:
         return const SizedBox();
     }
@@ -2660,7 +2876,96 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
+  bool _isGarantiaReclamada(GarantiaItem garantia) {
+    final status = garantia.statusGarantia.isNotEmpty ? garantia.statusGarantia : garantia.statusDescricao;
+    return status.toLowerCase().contains('reclamad');
+  }
+
+  bool _isGarantiaInativa(GarantiaItem garantia) {
+    final status = garantia.statusGarantia.isNotEmpty ? garantia.statusGarantia : garantia.statusDescricao;
+    final hoje = DateTime.now();
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final fimSemHora = DateTime(
+      garantia.dataFimGarantia.year,
+      garantia.dataFimGarantia.month,
+      garantia.dataFimGarantia.day,
+    );
+
+    return status.toLowerCase().contains('expirad') || status.toLowerCase().contains('inativ') || fimSemHora.isBefore(hojeSemHora);
+  }
+
+  bool _isGarantiaAtiva(GarantiaItem garantia) {
+    return !_isGarantiaReclamada(garantia) && !_isGarantiaInativa(garantia);
+  }
+
+  int _diasRestantesGarantia(GarantiaItem garantia) {
+    final hoje = DateTime.now();
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final fimSemHora = DateTime(
+      garantia.dataFimGarantia.year,
+      garantia.dataFimGarantia.month,
+      garantia.dataFimGarantia.day,
+    );
+    return fimSemHora.difference(hojeSemHora).inDays;
+  }
+
+  bool _isGarantiaProximaVencimento(GarantiaItem garantia) {
+    if (!_isGarantiaAtiva(garantia)) return false;
+    final dias = _diasRestantesGarantia(garantia);
+    return dias >= 0 && dias <= 30;
+  }
+
+  List<GarantiaItem> _filtrarGarantiasRelatorio(List<GarantiaItem> garantias) {
+    switch (_filtroGarantiaRelatorio) {
+      case 'TODOS':
+        return garantias;
+      case 'ATIVA':
+        return garantias.where(_isGarantiaAtiva).toList();
+      case 'INATIVA':
+        return garantias.where(_isGarantiaInativa).toList();
+      case 'RECLAMADA':
+        return garantias.where(_isGarantiaReclamada).toList();
+      case 'PROXIMA_VENCIMENTO':
+        return garantias.where(_isGarantiaProximaVencimento).toList();
+      default:
+        return garantias;
+    }
+  }
+
+  Widget _buildChipFiltroGarantia({
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    final isSelected = _filtroGarantiaRelatorio == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() {
+          _filtroGarantiaRelatorio = value;
+        });
+      },
+      selectedColor: color.withValues(alpha: 0.18),
+      backgroundColor: Colors.grey.shade100,
+      side: BorderSide(
+        color: isSelected ? color.withValues(alpha: 0.6) : Colors.grey.shade300,
+      ),
+      labelStyle: TextStyle(
+        color: isSelected ? color : Colors.grey.shade700,
+        fontWeight: FontWeight.w700,
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
   Widget _buildRelatorioGarantias(RelatorioGarantias relatorio) {
+    final garantiasFiltradas = _filtrarGarantiasRelatorio(relatorio.garantias);
+    final totalAtivas = relatorio.garantias.where(_isGarantiaAtiva).length;
+    final totalInativas = relatorio.garantias.where(_isGarantiaInativa).length;
+    final totalReclamadas = relatorio.garantias.where(_isGarantiaReclamada).length;
+    final totalProximas = relatorio.garantias.where(_isGarantiaProximaVencimento).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2705,29 +3010,44 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           children: [
             Expanded(
               child: _buildMetricCardEnhanced(
-                'Total de Garantias',
-                relatorio.totalGarantias.toString(),
-                Icons.assignment_outlined,
-                Colors.teal,
+                'Ativas',
+                totalAtivas.toString(),
+                Icons.check_circle_outlined,
+                Colors.green,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _buildMetricCardEnhanced(
-                'Em Aberto',
-                relatorio.garantiasEmAberto.toString(),
-                Icons.check_circle_outlined,
-                Colors.green,
+                'Inativas',
+                totalInativas.toString(),
+                Icons.timer_off,
+                Colors.blueGrey,
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        _buildMetricCardEnhanced(
-          'Encerradas',
-          relatorio.garantiasEncerradas.toString(),
-          Icons.cancel_outlined,
-          Colors.red,
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Reclamadas',
+                totalReclamadas.toString(),
+                Icons.undo,
+                Colors.amber,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Próx. Vencimento (30d)',
+                totalProximas.toString(),
+                Icons.schedule,
+                Colors.deepOrange,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 32),
         Container(
@@ -2752,7 +3072,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           ),
         ),
         const SizedBox(height: 16),
-        if (relatorio.garantias.isEmpty)
+        if (garantiasFiltradas.isEmpty)
           Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
@@ -2761,7 +3081,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                   Icon(Icons.info_outline, size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   Text(
-                    'Nenhuma garantia encontrada no período selecionado',
+                    'Nenhuma garantia encontrada para o filtro selecionado',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -2772,10 +3092,25 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               ),
             ),
           ),
-        ...relatorio.garantias.map((garantia) {
-          final Color statusColor = garantia.emAberto ? Colors.green : Colors.red;
-          final Color backgroundColor = garantia.emAberto ? Colors.green.shade50 : Colors.red.shade50;
-          final Color borderColor = garantia.emAberto ? Colors.green.shade200 : Colors.red.shade200;
+        ...garantiasFiltradas.map((garantia) {
+          final bool isReclamada = _isGarantiaReclamada(garantia);
+          final bool isInativa = _isGarantiaInativa(garantia);
+          final bool isProximaVencimento = _isGarantiaProximaVencimento(garantia);
+          final int diasRestantes = _diasRestantesGarantia(garantia);
+          final Color statusColor = isReclamada
+              ? Colors.amber
+              : isInativa
+                  ? Colors.blueGrey
+                  : isProximaVencimento
+                      ? Colors.deepOrange
+                      : Colors.green;
+          final Color backgroundColor = statusColor.withValues(alpha: 0.08);
+          final Color borderColor = statusColor.withValues(alpha: 0.3);
+          final String statusVisual = isReclamada
+              ? 'Reclamada'
+              : isInativa
+                  ? 'Inativa'
+                  : 'Ativa';
 
           return Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -2838,7 +3173,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                garantia.statusDescricao,
+                                statusVisual,
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -2846,6 +3181,24 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                                 ),
                               ),
                             ),
+                            if (isProximaVencimento) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.deepOrange.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  'Próxima ao vencimento: $diasRestantes dias',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.deepOrange,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -2935,6 +3288,15 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                         DateFormat('dd/MM/yyyy').format(garantia.dataFimGarantia),
                         statusColor,
                       ),
+                      if (isReclamada && (garantia.retornoMotivo ?? '').isNotEmpty) ...[
+                        const Divider(height: 24),
+                        _buildInfoRow(
+                          Icons.undo,
+                          'Motivo',
+                          garantia.retornoMotivo!,
+                          statusColor,
+                        ),
+                      ],
                       const Divider(height: 24),
                       if (garantia.mecanicoNome != null && garantia.mecanicoNome!.isNotEmpty)
                         _buildInfoRow(
@@ -4007,6 +4369,527 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         ],
       ),
     );
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Widget _buildRelatorioClientes(RelatorioClientes relatorio) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade500, Colors.blue.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.people, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Text(
+                  'Relatório de Clientes',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Resumo Geral', Icons.assessment, Colors.blue),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total de Clientes',
+                relatorio.totalClientes.toString(),
+                Icons.people,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total de OS',
+                relatorio.clientes.fold(0, (s, c) => s + c.totalOS).toString(),
+                Icons.assignment,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Faturamento Total',
+                'R\$ ${relatorio.clientes.fold(0.0, (s, c) => s + c.valorTotal).toStringAsFixed(2)}',
+                Icons.attach_money,
+                Colors.purple,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Ticket Médio',
+                'R\$ ${relatorio.clientes.isEmpty ? '0.00' : (relatorio.clientes.fold(0.0, (s, c) => s + c.ticketMedio) / relatorio.clientes.length).toStringAsFixed(2)}',
+                Icons.analytics,
+                Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+        _buildSectionHeader('Top Clientes', Icons.emoji_events, Colors.amber),
+        const SizedBox(height: 16),
+        ...relatorio.clientes.asMap().entries.map((entry) {
+          final index = entry.key;
+          final cliente = entry.value;
+          final rankColor = index == 0
+              ? Colors.amber
+              : index == 1
+                  ? Colors.grey
+                  : index == 2
+                      ? Colors.brown
+                      : Colors.blue;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: rankColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: rankColor.withValues(alpha: 0.3), width: 2),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: rankColor.withValues(alpha: 0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: rankColor.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: index < 3
+                              ? Icon(Icons.emoji_events, color: rankColor, size: 22)
+                              : Text(
+                                  '${index + 1}º',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: rankColor),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cliente.clienteNome,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'CPF: ${cliente.clienteCpf}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                            if (cliente.clienteTelefone != null && cliente.clienteTelefone!.isNotEmpty)
+                              Text(
+                                'Tel: ${cliente.clienteTelefone}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'R\$ ${cliente.valorTotal.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: rankColor),
+                          ),
+                          Text(
+                            '${cliente.totalOS} OS',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Ticket Médio',
+                              'R\$ ${cliente.ticketMedio.toStringAsFixed(2)}',
+                              Icons.analytics,
+                              Colors.purple,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Última Visita',
+                              cliente.ultimaVisita != null ? DateFormat('dd/MM/yyyy').format(cliente.ultimaVisita!) : '—',
+                              Icons.calendar_today,
+                              Colors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (cliente.placasVeiculos.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: cliente.placasVeiculos
+                              .map((v) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.blue.shade200),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.directions_car, size: 14, color: Colors.blue.shade700),
+                                        const SizedBox(width: 4),
+                                        Text(v, style: TextStyle(fontSize: 12, color: Colors.blue.shade700)),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildRelatorioVeiculos(RelatorioVeiculos relatorio) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.indigo.shade500, Colors.indigo.shade700],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.directions_car, color: Colors.white, size: 32),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Text(
+                  'Relatório de Veículos',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Resumo Geral', Icons.assessment, Colors.indigo),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total de Veículos',
+                relatorio.totalVeiculos.toString(),
+                Icons.directions_car,
+                Colors.indigo,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildMetricCardEnhanced(
+                'Total de OS',
+                relatorio.veiculos.fold(0, (s, v) => s + v.totalOS).toString(),
+                Icons.assignment,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildMetricCard(
+          'Faturamento Total',
+          'R\$ ${relatorio.veiculos.fold(0.0, (s, v) => s + v.valorTotal).toStringAsFixed(2)}',
+          Icons.attach_money,
+          color: Colors.indigo,
+        ),
+        const SizedBox(height: 24),
+        _buildSectionHeader('Veículos Atendidos', Icons.list_alt, Colors.indigo),
+        const SizedBox(height: 16),
+        ...relatorio.veiculos.asMap().entries.map((entry) {
+          final index = entry.key;
+          final veiculo = entry.value;
+          final rankColor = index == 0
+              ? Colors.amber
+              : index == 1
+                  ? Colors.grey
+                  : index == 2
+                      ? Colors.brown
+                      : Colors.indigo;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: rankColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: rankColor.withValues(alpha: 0.3), width: 2),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: rankColor.withValues(alpha: 0.1),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: rankColor.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: index < 3
+                              ? Icon(Icons.emoji_events, color: rankColor, size: 22)
+                              : Text(
+                                  '${index + 1}º',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: rankColor),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              veiculo.veiculoNome,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: rankColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    veiculo.veiculoPlaca,
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: rankColor),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if ((veiculo.veiculoMarca ?? '').isNotEmpty)
+                                  Text(veiculo.veiculoMarca!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                if ((veiculo.veiculoAno ?? '').isNotEmpty) ...[
+                                  const SizedBox(width: 4),
+                                  Text('(${veiculo.veiculoAno!})', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                ],
+                              ],
+                            ),
+                            Text(
+                              'Dono: ${veiculo.proprietarioNome}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'R\$ ${veiculo.valorTotal.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: rankColor),
+                          ),
+                          Text(
+                            '${veiculo.totalOS} OS',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'Última Visita',
+                              veiculo.ultimaVisita != null ? DateFormat('dd/MM/yyyy').format(veiculo.ultimaVisita!) : '—',
+                              Icons.calendar_today,
+                              Colors.teal,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildConsultorMetricItem(
+                              'CPF Proprietário',
+                              veiculo.proprietarioCpf ?? '—',
+                              Icons.badge,
+                              Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Future<void> _printRelatorioClientes(RelatorioClientes relatorio) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Clientes', Icons.people, PdfColors.blue600, logoImage: PdfLogoHelper.getCachedLogo()),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo Geral'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Clientes', relatorio.totalClientes.toString()),
+          _buildPdfMetricCard('Total de OS', relatorio.clientes.fold(0, (s, c) => s + c.totalOS).toString()),
+          _buildPdfMetricCard('Faturamento Total', 'R\$ ${relatorio.clientes.fold(0.0, (s, c) => s + c.valorTotal).toStringAsFixed(2)}'),
+          _buildPdfMetricCard('Ticket Médio Geral',
+              'R\$ ${relatorio.clientes.isEmpty ? '0.00' : (relatorio.clientes.fold(0.0, (s, c) => s + c.ticketMedio) / relatorio.clientes.length).toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Top Clientes'),
+          pw.SizedBox(height: 10),
+          _buildPdfTable(
+            headers: ['Cliente', 'CPF', 'OS', 'Total Gasto', 'Ticket Médio', 'Última Visita'],
+            rows: relatorio.clientes
+                .map((c) => [
+                      c.clienteNome,
+                      c.clienteCpf,
+                      c.totalOS.toString(),
+                      'R\$ ${c.valorTotal.toStringAsFixed(2)}',
+                      'R\$ ${c.ticketMedio.toStringAsFixed(2)}',
+                      c.ultimaVisita != null ? DateFormat('dd/MM/yyyy').format(c.ultimaVisita!) : '—',
+                    ])
+                .toList(),
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
+  Future<void> _printRelatorioVeiculos(RelatorioVeiculos relatorio) async {
+    final doc = pw.Document();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) => [
+          _buildPdfHeader('Relatório de Veículos', Icons.directions_car, PdfColors.indigo600, logoImage: PdfLogoHelper.getCachedLogo()),
+          pw.SizedBox(height: 16),
+          _buildPdfInfoRow('Período',
+              '${DateFormat('dd/MM/yyyy').format(relatorio.dataInicio)} até ${DateFormat('dd/MM/yyyy').format(relatorio.dataFim)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Resumo Geral'),
+          pw.SizedBox(height: 10),
+          _buildPdfMetricCard('Total de Veículos', relatorio.totalVeiculos.toString()),
+          _buildPdfMetricCard('Total de OS', relatorio.veiculos.fold(0, (s, v) => s + v.totalOS).toString()),
+          _buildPdfMetricCard('Faturamento Total', 'R\$ ${relatorio.veiculos.fold(0.0, (s, v) => s + v.valorTotal).toStringAsFixed(2)}'),
+          pw.SizedBox(height: 16),
+          _buildPdfSectionTitle('Veículos Atendidos'),
+          pw.SizedBox(height: 10),
+          _buildPdfTable(
+            headers: ['Placa', 'Veículo', 'Marca', 'Ano', 'Proprietário', 'OS', 'Total Gasto', 'Última Visita'],
+            rows: relatorio.veiculos
+                .map((v) => [
+                      v.veiculoPlaca,
+                      v.veiculoNome,
+                      v.veiculoMarca ?? '',
+                      v.veiculoAno ?? '',
+                      v.proprietarioNome,
+                      v.totalOS.toString(),
+                      'R\$ ${v.valorTotal.toStringAsFixed(2)}',
+                      v.ultimaVisita != null ? DateFormat('dd/MM/yyyy').format(v.ultimaVisita!) : '—',
+                    ])
+                .toList(),
+          ),
+        ],
+      ),
+    );
+
     await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 

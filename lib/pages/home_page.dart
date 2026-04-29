@@ -11,6 +11,7 @@ import 'package:tecstock/pages/cadastro_tipo_pagamento_page.dart';
 import 'package:tecstock/pages/checklist_page.dart';
 import 'package:tecstock/pages/contas_page.dart';
 import 'package:tecstock/pages/gerenciar_usuarios_page.dart';
+import 'package:tecstock/pages/garantias_page.dart';
 import 'package:tecstock/pages/login_page.dart';
 import 'package:tecstock/pages/ordem_servico_page.dart';
 import 'package:tecstock/pages/orcamento_page.dart';
@@ -157,6 +158,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'items': [
         {'title': 'Agendamento', 'icon': Icons.support_agent, 'page': const AgendamentoPage()},
         {'title': 'Checklist', 'icon': Icons.checklist, 'page': const ChecklistPage()},
+        {'title': 'Garantias', 'icon': Icons.verified_user, 'page': const GarantiasPage()},
         {'title': 'Orçamento', 'icon': Icons.receipt_long, 'page': const OrcamentoPage()},
         {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
       ],

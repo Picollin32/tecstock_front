@@ -143,6 +143,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   final TextEditingController _valorDiagnosticoController = TextEditingController();
   String? _categoriaSelecionada;
   bool _isViewMode = false;
+  int _countOsAbertas = 0;
+  bool _filtrandoAbertas = false;
+  int _countOsReclamadas = 0;
+  bool _filtrandoReclamadas = false;
   double _descontoServicos = 0.0;
   double _descontoPecas = 0.0;
   final TextEditingController _descontoServicosController = TextEditingController();
@@ -324,6 +328,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       }
 
       await _carregarOrdensPaginadas();
+      await _fetchCountOsAbertas();
+      await _fetchCountOsReclamadas();
     } catch (e) {
       if (kDebugMode) {
         print('Erro ao carregar dados: $e');
@@ -388,6 +394,68 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     if (page < 0 || page >= _totalPages) return;
     setState(() => _currentPage = page);
     _carregarOrdensPaginadas();
+  }
+
+  Future<void> _fetchCountOsAbertas() async {
+    try {
+      final lista = await OrdemServicoService.buscarPorStatus('Aberta');
+      if (mounted) setState(() => _countOsAbertas = lista.length);
+    } catch (_) {}
+  }
+
+  Future<void> _fetchCountOsReclamadas() async {
+    try {
+      final todas = await OrdemServicoService.listarOrdensServico();
+      final lista = todas.where((os) => os.temGarantiaReclamada || os.status.trim() == 'Reclamada').toList();
+      if (mounted) setState(() => _countOsReclamadas = lista.length);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFiltroReclamadas() async {
+    if (_filtrandoReclamadas) {
+      setState(() {
+        _filtrandoReclamadas = false;
+        _currentPage = 0;
+      });
+      await _carregarOrdensPaginadas();
+    } else {
+      final todas = await OrdemServicoService.listarOrdensServico();
+      final lista = todas.where((os) => os.temGarantiaReclamada || os.status.trim() == 'Reclamada').toList();
+      if (mounted) {
+        setState(() {
+          _filtrandoReclamadas = true;
+          _filtrandoAbertas = false;
+          _recent = lista;
+          _recentFiltrados = lista;
+          _totalPages = 1;
+          _totalElements = lista.length;
+          _currentPage = 0;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleFiltroAbertas() async {
+    if (_filtrandoAbertas) {
+      setState(() {
+        _filtrandoAbertas = false;
+        _currentPage = 0;
+      });
+      await _carregarOrdensPaginadas();
+    } else {
+      final lista = await OrdemServicoService.buscarPorStatus('Aberta');
+      if (mounted) {
+        setState(() {
+          _filtrandoAbertas = true;
+          _filtrandoReclamadas = false;
+          _recent = lista;
+          _recentFiltrados = lista;
+          _totalPages = 1;
+          _totalElements = lista.length;
+          _currentPage = 0;
+        });
+      }
+    }
   }
 
   void _alterarPageSize(int size) {
@@ -1171,6 +1239,68 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     return expand ? SizedBox(width: double.infinity, child: button) : button;
   }
 
+  Widget _buildStatCard({
+    required String label,
+    required int count,
+    required bool ativo,
+    required VoidCallback onTap,
+    required Color cor,
+    required IconData icone,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: ativo ? cor : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: ativo ? cor : cor.withValues(alpha: 0.4), width: ativo ? 2 : 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: cor.withValues(alpha: ativo ? 0.25 : 0.08),
+              blurRadius: ativo ? 12 : 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 18, color: ativo ? Colors.white : cor),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: ativo ? Colors.white.withValues(alpha: 0.9) : Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: ativo ? Colors.white : cor,
+                  ),
+                ),
+              ],
+            ),
+            if (ativo) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.close, size: 14, color: Colors.white.withValues(alpha: 0.8)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchSection(ColorScheme colorScheme) {
     final isMobile = MediaQuery.of(context).size.width < 768;
 
@@ -1200,6 +1330,29 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
                     ),
+              ),
+              const Spacer(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildStatCard(
+                    label: 'OS em Aberto',
+                    count: _countOsAbertas,
+                    ativo: _filtrandoAbertas,
+                    onTap: _toggleFiltroAbertas,
+                    cor: Colors.blue.shade600,
+                    icone: Icons.assignment_outlined,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatCard(
+                    label: 'OS Reclamadas',
+                    count: _countOsReclamadas,
+                    ativo: _filtrandoReclamadas,
+                    onTap: _toggleFiltroReclamadas,
+                    cor: Colors.orange.shade700,
+                    icone: Icons.warning_amber_rounded,
+                  ),
+                ],
               ),
             ],
           ),
@@ -1520,6 +1673,74 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
+  Widget _buildStatusBadges(String status, Color statusColor, IconData statusIcon, {bool temGarantiaReclamada = false}) {
+    final bool isClosed = _isOSEncerrada(status);
+    final bool isReclamada = status.trim() == 'Reclamada' || temGarantiaReclamada;
+
+    Widget statusBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isClosed ? Colors.grey.withValues(alpha: 0.15) : statusColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isClosed ? Colors.grey.shade400 : statusColor.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isClosed ? Icons.lock : statusIcon,
+            size: 12,
+            color: isClosed ? Colors.grey[600] : statusColor,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isClosed ? 'Fechada' : _getStatusDisplayText(status),
+            style: TextStyle(
+              color: isClosed ? Colors.grey[700] : statusColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!isReclamada) return statusBadge;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        statusBadge,
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.amber.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.amber.shade400),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 12, color: Colors.amber[700]),
+              const SizedBox(width: 4),
+              Text(
+                'Reclamada',
+                style: TextStyle(
+                  color: Colors.amber[700],
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildOSListItem(OrdemServico os) {
     final isMobile = MediaQuery.of(context).size.width < 768;
 
@@ -1584,38 +1805,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Builder(
-                    builder: (context) {
-                      final bool isClosed = _isOSEncerrada(os.status);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isClosed ? Colors.red.withValues(alpha: 0.1) : statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isClosed ? Colors.red.withValues(alpha: 0.3) : statusColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isClosed ? Icons.lock : statusIcon,
-                              size: 12,
-                              color: isClosed ? Colors.red[700] : statusColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
-                              style: TextStyle(
-                                color: isClosed ? Colors.red[700] : statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  _buildStatusBadges(os.status, statusColor, statusIcon, temGarantiaReclamada: os.temGarantiaReclamada),
                 ],
               )
             : Row(
@@ -1628,38 +1818,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Builder(
-                    builder: (context) {
-                      final bool isClosed = _isOSEncerrada(os.status);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isClosed ? Colors.red.withValues(alpha: 0.1) : statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isClosed ? Colors.red.withValues(alpha: 0.3) : statusColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isClosed ? Icons.lock : statusIcon,
-                              size: 12,
-                              color: isClosed ? Colors.red[700] : statusColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isClosed ? 'Fechado' : _getStatusDisplayText(os.status),
-                              style: TextStyle(
-                                color: isClosed ? Colors.red[700] : statusColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                  _buildStatusBadges(os.status, statusColor, statusIcon, temGarantiaReclamada: os.temGarantiaReclamada),
                 ],
               ),
         subtitle: Column(
@@ -1914,6 +2073,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           ),
         );
       }
+
       actions.add(
         Container(
           decoration: BoxDecoration(
@@ -6486,6 +6646,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     final int parcelasParaExibir =
         formaPagamento == 1 ? 1 : (formaPagamento == 3 ? _maxParcelasTipo(tipoPagamento) : (numeroParcelas ?? 1));
     final bool mostrarParcelamento = formaPagamento != 1 && parcelasParaExibir > 0;
+    final bool mostrarCronograma = formaPagamento == 3 || formaPagamento == 4;
     final String cronogramaParcelas = _cronogramaParcelas(tipoPagamento, parcelasParaExibir);
     final String rotuloParcelamento = formaPagamento == 3 ? 'BOLETO:' : (formaPagamento == 4 ? 'FIADO:' : 'PARCELAMENTO:');
     final String resumoValoresBoleto = parcelasDetalhadasBoleto.isEmpty
@@ -6631,14 +6792,16 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                 ],
               ),
             ),
-            pw.SizedBox(height: 3),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Cronograma:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                pw.Text('$cronogramaParcelas dias', style: pw.TextStyle(fontSize: 8, color: PdfColors.blue700)),
-              ],
-            ),
+            if (mostrarCronograma) ...[
+              pw.SizedBox(height: 3),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('Cronograma:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                  pw.Text('$cronogramaParcelas dias', style: pw.TextStyle(fontSize: 8, color: PdfColors.blue700)),
+                ],
+              ),
+            ],
             if (formaPagamento == 3 && resumoValoresBoleto.isNotEmpty) ...[
               pw.SizedBox(height: 2),
               pw.Text(
@@ -7454,8 +7617,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
   }
 
+
+
   bool _isOSEncerrada(String? status) {
     if (status == null) return false;
-    return status.trim() == 'Encerrada';
+    final s = status.trim();
+    return s == 'Encerrada' || s == 'Reclamada';
   }
 }

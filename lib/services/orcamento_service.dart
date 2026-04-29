@@ -57,6 +57,22 @@ class OrcamentoService {
     }
   }
 
+  static Future<List<Orcamento>> listarOrcamentosAbertos() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/abertos'), headers: await AuthService.getAuthHeaders());
+      if (response.statusCode == 200) {
+        final List jsonList = jsonDecode(utf8.decode(response.bodyBytes));
+        return jsonList.map((e) => Orcamento.fromJson(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao listar orçamentos abertos: $e');
+      }
+      return [];
+    }
+  }
+
   static Future<bool> excluirOrcamento(int id) async {
     try {
       final response = await http.delete(Uri.parse('$baseUrl/deletar/$id'), headers: await AuthService.getAuthHeaders());

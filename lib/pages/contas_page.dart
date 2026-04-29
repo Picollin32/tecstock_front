@@ -1032,7 +1032,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     if (!marcando && conta.isAReceber && !conta.isFiado) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não é possível desmarcar recebimentos de OS (apenas fiados podem ser revertidos).'),
+          content: Text('Não é possível desmarcar recebimentos de OS (apenas crediário próprio pode ser revertido).'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1097,7 +1097,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'As parcelas futuras deste fiado serão removidas automaticamente.',
+                          'As parcelas futuras deste crediário próprio serão removidas automaticamente.',
                           style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                         ),
                       ),
@@ -1182,7 +1182,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
     if (result['sucesso'] == true) {
       if (conta.isFiado && !conta.pago) {
-        _mostrarSucesso('Fiado marcado como recebido! Entradas futuras removidas automaticamente.');
+        _mostrarSucesso('Crediário Próprio marcado como recebido! Entradas futuras removidas automaticamente.');
       } else {
         _mostrarSucesso(conta.pago ? 'Pagamento desmarcado.' : 'Marcado como pago!');
       }
@@ -1197,9 +1197,12 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     final regexDoc = RegExp(r'\s*\[Doc\.?\s*[^\]]+\]\s*$', caseSensitive: false);
     final semDoc = descricao.replaceAll(regexDoc, '').trim();
 
-    final regexPagamento =
-        RegExp(r'\s*\((Crédito|Boleto|Fiado|AVISTA|A_VISTA|À vista|AVista|PIX|Dinheiro|Débito).+\)\s*$', caseSensitive: false);
-    return semDoc.replaceAll(regexPagamento, '').trim();
+    final regexPagamento = RegExp(
+      r'\s*\((Crédito|Boleto|Fiado|Crediário Próprio|AVISTA|A_VISTA|À vista|AVista|PIX|Dinheiro|Débito).+\)\s*$',
+      caseSensitive: false,
+    );
+    final descricaoNormalizada = semDoc.replaceAll(regexPagamento, '').trim();
+    return descricaoNormalizada.replaceAll(RegExp(r'\bfiado\b', caseSensitive: false), 'Crediário Próprio');
   }
 
   String? _labelPagamentoConta(Conta conta) {
@@ -1222,7 +1225,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
     } else if (origem.contains('BOLETO')) {
       base = total != null && total > 1 ? 'Boleto (${total}x)' : 'Boleto';
     } else if (origem.contains('FIADO')) {
-      base = total != null && total > 1 ? 'Fiado ($total meses)' : 'Fiado';
+      base = total != null && total > 1 ? 'Crediário Próprio ($total meses)' : 'Crediário Próprio';
     } else if (origem.contains('CREDITO') || origem.contains('PARCELADO')) {
       base = total != null && total > 1 ? 'Crédito (${total}x)' : 'Crédito';
     } else if (origem.contains('AVISTA')) {
@@ -2351,7 +2354,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Este fiado está com vencimento em atraso.',
+                          'Este crediário próprio está com vencimento em atraso.',
                           style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                         ),
                       ),
@@ -2383,7 +2386,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
               if (result['sucesso'] == true) {
                 final contaAtualizada = result['conta'] as Conta?;
                 if (contaAtualizada?.pago == true) {
-                  _mostrarSucesso('Fiado quitado! Entradas futuras removidas automaticamente.');
+                  _mostrarSucesso('Crediário Próprio quitado! Entradas futuras removidas automaticamente.');
                 } else {
                   final restante = contaAtualizada?.valorPendente ?? 0;
                   _mostrarSucesso('R\$ ${valor.toStringAsFixed(2).replaceAll(".", ",")} registrado. '
@@ -2505,7 +2508,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text('Confirmar Exclusão'),
         content: Text('Deseja remover "${conta.descricao}"?\n'
-            '${conta.isFiado ? 'Todas as entradas mensais deste fiado serão removidas.' : ''}'),
+            '${conta.isFiado ? 'Todas as entradas mensais deste crediário próprio serão removidas.' : ''}'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           TextButton(

@@ -188,7 +188,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Future<void> _gerarRelatorio() async {
-    if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado' && _tipoRelatorio != 'garantias') {
+    if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'garantias') {
       if (_dataInicio == null || _dataFim == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Selecione as datas de início e fim')),
@@ -238,10 +238,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
           break;
         case 'consultores':
           relatorio = await _relatorioService.getRelatorioConsultores(_dataInicio!, _dataFim!);
-          break;
-        case 'fiado':
-          final todasAReceber = await ContaService.listarAReceberPorMesAno(_mesContas.month, _mesContas.year);
-          relatorio = todasAReceber.where((c) => c.isFiado).toList();
           break;
         case 'contas':
           final results = await Future.wait([
@@ -476,16 +472,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                   ),
                 ),
                 DropdownMenuItem(
-                  value: 'fiado',
-                  child: Row(
-                    children: [
-                      Icon(Icons.receipt_long, size: 20),
-                      SizedBox(width: 12),
-                      Text('Relatório de Fiados'),
-                    ],
-                  ),
-                ),
-                DropdownMenuItem(
                   value: 'contas',
                   child: Row(
                     children: [
@@ -523,7 +509,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                   _mecanicoSelecionadoId = null;
                   _filtroGarantiaRelatorio = 'TODOS';
 
-                  if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'fiado' && _tipoRelatorio != 'garantias') {
+                  if (_tipoRelatorio != 'contas' && _tipoRelatorio != 'garantias') {
                     _aplicarPeriodoRapido('ultimos_30_dias');
                   }
                 });
@@ -575,7 +561,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
                     ),
             ),
           if (_tipoRelatorio == 'comissao') const SizedBox(height: 16),
-          if (_tipoRelatorio == 'contas' || _tipoRelatorio == 'fiado')
+          if (_tipoRelatorio == 'contas')
             _buildModernCard(
               context,
               title: 'Mês de Referência',
@@ -890,9 +876,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
             break;
           case 'consultores':
             await _printRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
-            break;
-          case 'fiado':
-            await _printRelatorioFiado(_relatorioAtual as List<Conta>);
             break;
           case 'contas':
             await _printRelatorioContas(_relatorioAtual as RelatorioContasMes);
@@ -1677,8 +1660,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         return _buildRelatorioGarantias(_relatorioAtual as RelatorioGarantias);
       case 'consultores':
         return _buildRelatorioConsultores(_relatorioAtual as RelatorioConsultores);
-      case 'fiado':
-        return _buildRelatorioFiado(_relatorioAtual as List<Conta>);
       case 'contas':
         return _buildRelatorioContas(_relatorioAtual as RelatorioContasMes);
       case 'clientes':
@@ -3893,166 +3874,16 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
     );
   }
 
-  Widget _buildRelatorioFiado(List<Conta> fiados) {
-    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(_mesContas.year, _mesContas.month));
-
-    final pagos = fiados.where((c) => c.pago).toList();
-    final pendentes = fiados.where((c) => !c.pago).toList();
-    final atrasados = fiados.where((c) => c.isAtrasada).toList();
-    final noPrazo = fiados.where((c) => !c.pago && !c.isAtrasada).toList();
-
-    final valorTotal = fiados.fold(0.0, (s, c) => s + c.valor);
-    final valorPago = pagos.fold(0.0, (s, c) => s + c.valor);
-    final valorPendente = pendentes.fold(0.0, (s, c) => s + c.valorPendente);
-    final valorAtrasado = atrasados.fold(0.0, (s, c) => s + c.valorPendente);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepOrange.shade400, Colors.deepOrange.shade600],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.receipt_long, color: Colors.white, size: 32),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Relatório de Fiados',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    Text(mesLabel, style: const TextStyle(fontSize: 14, color: Colors.white70)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        _buildSectionHeader('Resumo', Icons.assessment, Colors.deepOrange),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCardEnhanced(
-                'Total de Fiados',
-                fiados.length.toString(),
-                Icons.receipt_long,
-                Colors.deepOrange,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCardEnhanced(
-                'No Prazo',
-                noPrazo.length.toString(),
-                Icons.check_circle_outline,
-                Colors.green,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCardEnhanced(
-                'Atrasados',
-                atrasados.length.toString(),
-                Icons.warning_amber_rounded,
-                Colors.red,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCardEnhanced(
-                'Pagos',
-                pagos.length.toString(),
-                Icons.done_all,
-                Colors.teal,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        _buildSectionHeader('Valores', Icons.attach_money, Colors.blue),
-        const SizedBox(height: 12),
-        _buildMetricCard(
-          'Valor Total em Fiado',
-          'R\$ ${valorTotal.toStringAsFixed(2)}',
-          Icons.monetization_on,
-          color: Colors.deepOrange,
-        ),
-        _buildMetricCard(
-          'Valor Recebido',
-          'R\$ ${valorPago.toStringAsFixed(2)}',
-          Icons.payments,
-          color: Colors.green,
-        ),
-        _buildMetricCard(
-          'Valor Pendente',
-          'R\$ ${valorPendente.toStringAsFixed(2)}',
-          Icons.pending_actions,
-          color: Colors.red,
-        ),
-        if (valorAtrasado > 0)
-          _buildMetricCard(
-            'Valor Atrasado',
-            'R\$ ${valorAtrasado.toStringAsFixed(2)}',
-            Icons.warning,
-            color: Colors.red.shade700,
-          ),
-        const SizedBox(height: 24),
-        if (fiados.isNotEmpty) ...[
-          _buildSectionHeader('Fiados do Mês', Icons.list_alt, Colors.deepOrange),
-          const SizedBox(height: 12),
-          ...fiados.map((conta) => _buildContaItem(conta)),
-        ] else
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(Icons.receipt_long, size: 64, color: Colors.grey.shade400),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhum fiado encontrado para este mês',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildRelatorioContas(RelatorioContasMes dados) {
     final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(dados.ano, dados.mes));
 
     final totalAPagarPendente = dados.contasAPagar.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
     final totalAReceberPendente = dados.contasAReceber.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
-    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
-    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
-    final saldo = (totalAReceberRecebido + totalAReceberPendente) - (totalAPagarPago + totalAPagarPendente);
+    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor) +
+        dados.contasAPagar.where((c) => !c.pago && c.temPagamentoParcial).fold(0.0, (s, c) => s + c.valorPagoParcial);
+    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor) +
+        dados.contasAReceber.where((c) => !c.pago && c.temPagamentoParcial).fold(0.0, (s, c) => s + c.valorPagoParcial);
+    final saldo = totalAReceberRecebido - totalAPagarPago;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4237,6 +4068,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
   }
 
   Widget _buildContaItem(Conta conta) {
+    final descricaoConta = conta.descricao.replaceAll(RegExp(r'\bfiado\b', caseSensitive: false), 'Crediário Próprio');
     final Color cor = conta.isAPagar ? Colors.red : Colors.green;
     final bool atrasada = conta.isAtrasada;
     return Container(
@@ -4262,7 +4094,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  conta.descricao,
+                  descricaoConta,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -4308,68 +4140,6 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _printRelatorioFiado(List<Conta> fiados) async {
-    final String mesLabel = DateFormat('MMMM yyyy', 'pt_BR').format(DateTime(_mesContas.year, _mesContas.month));
-    final pagos = fiados.where((c) => c.pago).toList();
-    final pendentes = fiados.where((c) => !c.pago).toList();
-    final atrasados = fiados.where((c) => c.isAtrasada).toList();
-    final noPrazo = fiados.where((c) => !c.pago && !c.isAtrasada).toList();
-    final valorTotal = fiados.fold(0.0, (s, c) => s + c.valor);
-    final valorPago = pagos.fold(0.0, (s, c) => s + c.valor);
-    final valorPendente = pendentes.fold(0.0, (s, c) => s + c.valorPendente);
-    final valorAtrasado = atrasados.fold(0.0, (s, c) => s + c.valorPendente);
-
-    final doc = pw.Document();
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(24),
-        build: (pw.Context context) => [
-          _buildPdfHeader(
-            'Relatório de Fiados',
-            Icons.receipt_long,
-            PdfColors.deepOrange600,
-            logoImage: PdfLogoHelper.getCachedLogo(),
-          ),
-          pw.SizedBox(height: 16),
-          _buildPdfInfoRow('Mês de Referência', mesLabel),
-          pw.SizedBox(height: 16),
-          _buildPdfSectionTitle('Resumo'),
-          pw.SizedBox(height: 10),
-          _buildPdfMetricCard('Total de Fiados', fiados.length.toString()),
-          _buildPdfMetricCard('No Prazo', noPrazo.length.toString()),
-          _buildPdfMetricCard('Atrasados', atrasados.length.toString()),
-          _buildPdfMetricCard('Pagos / Recebidos', pagos.length.toString()),
-          pw.SizedBox(height: 16),
-          _buildPdfSectionTitle('Valores'),
-          pw.SizedBox(height: 10),
-          _buildPdfMetricCard('Valor Total em Fiado', 'R\$ ${valorTotal.toStringAsFixed(2)}'),
-          _buildPdfMetricCard('Valor Recebido', 'R\$ ${valorPago.toStringAsFixed(2)}'),
-          _buildPdfMetricCard('Valor Pendente', 'R\$ ${valorPendente.toStringAsFixed(2)}'),
-          if (valorAtrasado > 0) _buildPdfMetricCard('Valor Atrasado', 'R\$ ${valorAtrasado.toStringAsFixed(2)}'),
-          if (fiados.isNotEmpty) ...[
-            pw.SizedBox(height: 16),
-            _buildPdfSectionTitle('Fiados do Mês'),
-            pw.SizedBox(height: 10),
-            _buildPdfTable(
-              headers: ['Descrição', 'OS', 'Vencimento', 'Valor', 'Status'],
-              rows: fiados
-                  .map((c) => [
-                        c.descricao,
-                        c.ordemServicoNumero ?? '—',
-                        c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
-                        'R\$ ${c.valor.toStringAsFixed(2)}',
-                        c.pago ? 'Recebido' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),
-                      ])
-                  .toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
   }
 
   Widget _buildRelatorioClientes(RelatorioClientes relatorio) {
@@ -4899,9 +4669,11 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
 
     final totalAPagarPendente = dados.contasAPagar.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
     final totalAReceberPendente = dados.contasAReceber.where((c) => !c.pago).fold(0.0, (s, c) => s + c.valorPendente);
-    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
-    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor);
-    final saldo = (totalAReceberRecebido + totalAReceberPendente) - (totalAPagarPago + totalAPagarPendente);
+    final totalAPagarPago = dados.contasAPagar.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor) +
+        dados.contasAPagar.where((c) => !c.pago && c.temPagamentoParcial).fold(0.0, (s, c) => s + c.valorPagoParcial);
+    final totalAReceberRecebido = dados.contasAReceber.where((c) => c.pago).fold(0.0, (s, c) => s + c.valor) +
+        dados.contasAReceber.where((c) => !c.pago && c.temPagamentoParcial).fold(0.0, (s, c) => s + c.valorPagoParcial);
+    final saldo = totalAReceberRecebido - totalAPagarPago;
 
     doc.addPage(
       pw.MultiPage(
@@ -4954,7 +4726,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               headers: ['Descrição', 'Tipo', 'Vencimento', 'Valor Pendente'],
               rows: dados.contasAtrasadas
                   .map((c) => [
-                        c.descricao,
+                        c.descricao.replaceAll(RegExp(r'\bfiado\b', caseSensitive: false), 'Crediário Próprio'),
                         c.isAPagar ? 'A Pagar' : 'A Receber',
                         c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
                         'R\$ ${c.valorPendente.toStringAsFixed(2)}',
@@ -4970,7 +4742,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               headers: ['Descrição', 'Vencimento', 'Valor', 'Status'],
               rows: dados.contasAPagar
                   .map((c) => [
-                        c.descricao,
+                        c.descricao.replaceAll(RegExp(r'\bfiado\b', caseSensitive: false), 'Crediário Próprio'),
                         c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
                         'R\$ ${c.valor.toStringAsFixed(2)}',
                         c.pago ? 'Pago' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),
@@ -4986,7 +4758,7 @@ class _RelatoriosPageState extends State<RelatoriosPage> {
               headers: ['Descrição', 'Vencimento', 'Valor', 'Status'],
               rows: dados.contasAReceber
                   .map((c) => [
-                        c.descricao,
+                        c.descricao.replaceAll(RegExp(r'\bfiado\b', caseSensitive: false), 'Crediário Próprio'),
                         c.dataVencimento != null ? DateFormat('dd/MM/yyyy').format(c.dataVencimento!) : '—',
                         'R\$ ${c.valor.toStringAsFixed(2)}',
                         c.pago ? 'Recebido' : (c.isAtrasada ? 'Atrasado' : 'Pendente'),

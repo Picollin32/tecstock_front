@@ -70,6 +70,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   bool _isAdmin = false;
   bool _isLoadingInitialData = true;
 
+  int _activeTabIndex = 0;
+  final Set<int> _tabsWithErrors = {};
+  late AnimationController _tabBlinkController;
+  late Animation<double> _tabBlinkAnimation;
+
   final Map<String, String> _inspecaoVisualStatus = {
     'Para-choque Dianteiro': '',
     'Para-choque Traseiro': '',
@@ -184,6 +189,10 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
     _itensVeiculo.updateAll((key, value) => '');
 
+    _activeTabIndex = 0;
+    _tabsWithErrors.clear();
+    _tabBlinkController.stop();
+
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
   }
@@ -286,6 +295,15 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
 
     _fadeController.forward();
     _slideController.forward();
+
+    _tabBlinkController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _tabBlinkAnimation = CurvedAnimation(
+      parent: _tabBlinkController,
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _initializeData() async {
@@ -332,6 +350,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
       _searchDebounce?.cancel();
       _searchController.removeListener(_onSearchChanged);
       _searchController.dispose();
+      _tabBlinkController.dispose();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
     }
@@ -1973,6 +1992,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                     ],
                   ),
           ),
+          _buildChecklistTabBar(),
           AbsorbPointer(
             absorbing: _isViewMode,
             child: Padding(
@@ -2003,23 +2023,7 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
                       ),
                     ),
                   if (_editingChecklistId != null) const SizedBox(height: 24),
-                  _buildFormSection('1. Dados do Cliente e Veículo', Icons.person_outline),
-                  const SizedBox(height: 16),
-                  _buildClientVehicleInfo(),
-                  const SizedBox(height: 32),
-                  _buildFormSection('2. Queixa Principal / Serviço Solicitado', Icons.report_problem_outlined),
-                  const SizedBox(height: 16),
-                  _buildComplaintSection(),
-                  const SizedBox(height: 32),
-                  _buildFormSection('3. Inspeção Visual (Avarias)', Icons.visibility_outlined),
-                  const SizedBox(height: 16),
-                  _buildVisualInspection(),
-                  const SizedBox(height: 32),
-                  _buildTestsAndItems(),
-                  const SizedBox(height: 32),
-                  _buildFormSection('6. Nível de Combustível', Icons.local_gas_station_outlined),
-                  const SizedBox(height: 16),
-                  _buildFuelLevel(),
+                  _buildActiveChecklistTabContent(),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -2078,6 +2082,125 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
         ),
       ),
     );
+  }
+
+  void _setChecklistTabError(int tabIndex, String message) {
+    setState(() {
+      _tabsWithErrors
+        ..clear()
+        ..add(tabIndex);
+      _activeTabIndex = tabIndex;
+    });
+    if (!_tabBlinkController.isAnimating) _tabBlinkController.repeat(reverse: true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade600,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Widget _buildChecklistTabBar() {
+    const tabs = [
+      (label: 'Cliente/Veículo', icon: Icons.person_outline),
+      (label: 'Queixa', icon: Icons.report_problem_outlined),
+      (label: 'Inspeção Visual', icon: Icons.visibility_outlined),
+      (label: 'Testes e Itens', icon: Icons.build_outlined),
+      (label: 'Combustível', icon: Icons.local_gas_station_outlined),
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: List.generate(tabs.length, (i) {
+            final tab = tabs[i];
+            final isActive = i == _activeTabIndex;
+            final hasError = _tabsWithErrors.contains(i);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _activeTabIndex = i),
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.purple.shade600 : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isActive ? Colors.purple.shade600 : Colors.grey[300]!,
+                        ),
+                        boxShadow: isActive
+                            ? [BoxShadow(color: Colors.purple.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                            : [],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tab.icon, size: 15, color: isActive ? Colors.white : Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${i + 1}. ${tab.label}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                              color: isActive ? Colors.white : Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasError)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: AnimatedBuilder(
+                          animation: _tabBlinkAnimation,
+                          builder: (_, __) => Opacity(
+                            opacity: _tabBlinkAnimation.value,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveChecklistTabContent() {
+    const tabs = ['Cliente/Veículo', 'Queixa', 'Inspeção Visual', 'Testes e Itens', 'Combustível'];
+    final safeIndex = _activeTabIndex.clamp(0, tabs.length - 1);
+    return switch (tabs[safeIndex]) {
+      'Cliente/Veículo' => _buildClientVehicleInfo(),
+      'Queixa' => _buildComplaintSection(),
+      'Inspeção Visual' => _buildVisualInspection(),
+      'Testes e Itens' => _buildTestsAndItems(),
+      'Combustível' => _buildFuelLevel(),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   Widget _buildFormSection(String title, IconData icon) {
@@ -2409,58 +2532,45 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
   }
 
   bool _validarCamposObrigatorios() {
-    List<String> camposVazios = [];
-
-    if (_dateController.text.trim().isEmpty) camposVazios.add('Data');
-    if (_timeController.text.trim().isEmpty) camposVazios.add('Hora');
-    if (_clienteNomeController.text.trim().isEmpty) camposVazios.add('Nome do Cliente');
-    if (_clienteCpfController.text.trim().isEmpty) camposVazios.add('CPF');
-    if (_clienteTelefoneController.text.trim().isEmpty) camposVazios.add('Telefone');
-    if (_clienteEmailController.text.trim().isEmpty) camposVazios.add('E-mail');
-    if (_veiculoNomeController.text.trim().isEmpty) camposVazios.add('Veículo');
-    if (_veiculoMarcaController.text.trim().isEmpty) camposVazios.add('Marca');
-    if (_veiculoAnoController.text.trim().isEmpty) camposVazios.add('Ano/Modelo');
-    if (_veiculoCorController.text.trim().isEmpty) camposVazios.add('Cor');
-    if (_veiculoPlacaController.text.trim().isEmpty) camposVazios.add('Placa');
-    if (_veiculoQuilometragemController.text.trim().isEmpty) camposVazios.add('Quilometragem');
-    if (_queixaPrincipalController.text.trim().isEmpty) camposVazios.add('Queixa Principal');
-    if (_consultorSelecionado == null) camposVazios.add('Consultor');
-
-    _inspecaoVisualStatus.forEach((item, status) {
-      if (status.isEmpty) {
-        camposVazios.add('Inspeção Visual - $item');
-      }
-    });
-
-    _testesFuncionamento.forEach((item, status) {
-      if (status.isEmpty) {
-        camposVazios.add('Teste de Funcionamento - $item');
-      }
-    });
-
-    _itensVeiculo.forEach((item, status) {
-      if (status.isEmpty) {
-        camposVazios.add('Item do Veículo - $item');
-      }
-    });
-
-    if (camposVazios.isNotEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Campos Obrigatórios'),
-          content: const Text('Por favor, preencha todos os dados necessários antes de salvar o checklist.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+    if (_dateController.text.trim().isEmpty || _timeController.text.trim().isEmpty) {
+      _setChecklistTabError(0, 'Preencha a data e hora');
       return false;
     }
-
+    if (_clienteNomeController.text.trim().isEmpty ||
+        _clienteCpfController.text.trim().isEmpty ||
+        _clienteTelefoneController.text.trim().isEmpty ||
+        _clienteEmailController.text.trim().isEmpty) {
+      _setChecklistTabError(0, 'Preencha os dados do cliente');
+      return false;
+    }
+    if (_veiculoNomeController.text.trim().isEmpty ||
+        _veiculoMarcaController.text.trim().isEmpty ||
+        _veiculoAnoController.text.trim().isEmpty ||
+        _veiculoCorController.text.trim().isEmpty ||
+        _veiculoPlacaController.text.trim().isEmpty ||
+        _veiculoQuilometragemController.text.trim().isEmpty) {
+      _setChecklistTabError(0, 'Preencha os dados do veículo');
+      return false;
+    }
+    if (_consultorSelecionado == null) {
+      _setChecklistTabError(0, 'Selecione o consultor responsável');
+      return false;
+    }
+    if (_queixaPrincipalController.text.trim().isEmpty) {
+      _setChecklistTabError(1, 'Preencha a queixa principal');
+      return false;
+    }
+    final hasEmptyInspecao = _inspecaoVisualStatus.values.any((v) => v.isEmpty);
+    if (hasEmptyInspecao) {
+      _setChecklistTabError(2, 'Preencha todos os itens da Inspeção Visual');
+      return false;
+    }
+    final hasEmptyTestes = _testesFuncionamento.values.any((v) => v.isEmpty);
+    final hasEmptyItens = _itensVeiculo.values.any((v) => v.isEmpty);
+    if (hasEmptyTestes || hasEmptyItens) {
+      _setChecklistTabError(3, 'Preencha todos os testes de funcionamento e itens do veículo');
+      return false;
+    }
     return true;
   }
 
@@ -2468,6 +2578,11 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
     if (!_validarCamposObrigatorios()) {
       return;
     }
+
+    setState(() {
+      _tabsWithErrors.clear();
+    });
+    _tabBlinkController.stop();
 
     final numeroParaUsar = _editingChecklistId != null ? _checklistNumberController.text : '';
     String getStatusForBackend(String key, Map<String, String> source) {

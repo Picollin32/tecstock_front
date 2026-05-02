@@ -150,7 +150,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       'items': [
         {'title': 'Finanças', 'icon': Icons.account_balance_wallet, 'page': const ContasPage()},
         {'title': 'Notas de Entrada', 'icon': Icons.receipt_long, 'page': const NotasEntradaPage()},
-        {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
       ],
     },
     {
@@ -161,6 +160,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         {'title': 'Garantias', 'icon': Icons.verified_user, 'page': const GarantiasPage()},
         {'title': 'Orçamento', 'icon': Icons.receipt_long, 'page': const OrcamentoPage()},
         {'title': 'Ordem de Serviço', 'icon': Icons.description, 'page': const OrdemServicoPage()},
+      ],
+    },
+    {
+      'group': 'Relatórios',
+      'items': [
+        {'title': 'Relatórios', 'icon': Icons.analytics, 'page': const RelatoriosPage()},
       ],
     },
   ];

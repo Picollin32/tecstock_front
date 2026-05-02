@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../model/tipo_pagamento.dart';
 import '../services/movimentacao_estoque_service.dart';
 import '../services/tipo_pagamento_service.dart';
+import 'entrada_estoque_page.dart';
 
 class _ParcelaNotaDraft {
   _ParcelaNotaDraft({
@@ -802,6 +803,17 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab_nova_nota',
+        backgroundColor: _primaryColor,
+        foregroundColor: Colors.white,
+        tooltip: 'Nova Entrada de Nota',
+        onPressed: () async {
+          await EntradaEstoquePage.showModal(context);
+          _carregarDados();
+        },
+        child: const Icon(Icons.add),
+      ),
       appBar: AppBar(
         title: const Text(
           'Notas de Entrada',

@@ -165,6 +165,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   bool _isLoading = false;
   bool _isLoadingPecas = false;
   bool _canSubmit = false;
+  bool _livreDeBito = false;
 
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -379,10 +380,10 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     final totalCompra = _pecasAdicionadas.fold(0.0, (s, p) => s + p.valorTotal);
     _sincronizarParcelasCompra(totalCompra);
 
-    bool pagamentoValido = _formaPagamento != null;
-    if (pagamentoValido && _isBoletoUnico(_formaPagamento)) {
+    bool pagamentoValido = _livreDeBito || _formaPagamento != null;
+    if (!_livreDeBito && pagamentoValido && _isBoletoUnico(_formaPagamento)) {
       pagamentoValido = _boletoVencimento != null;
-    } else if (pagamentoValido && _isBoletoParcelado(_formaPagamento)) {
+    } else if (!_livreDeBito && pagamentoValido && _isBoletoParcelado(_formaPagamento)) {
       pagamentoValido = _parcelasValidas(
         parcelas: _boletoParcelasCompra,
         valorTotal: totalCompra,
@@ -516,7 +517,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           .toList();
 
       Map<String, dynamic>? pagamentoData;
-      if (_formaPagamento != null) {
+      if (!_livreDeBito && _formaPagamento != null) {
         pagamentoData = {
           'formaPagamento': _backendFormaPagamento(_formaPagamento!),
           'diasEntreParcelas': _formaPagamento?.diasEntreParcelas ?? 30,
@@ -621,6 +622,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
       _freteNumeroParcelas = 1;
       _freteBoletoVencimento = null;
       _boletoParcelasFrete = [];
+      _livreDeBito = false;
       _canSubmit = false;
     });
     if (controllersToDispose.isNotEmpty) {
@@ -1377,9 +1379,74 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
               validator: (v) => v!.isEmpty ? 'Informe o número da nota fiscal' : null,
             ),
             const SizedBox(height: 16),
-            _buildFormaPagamento(),
-            const SizedBox(height: 16),
-            _buildFrete(),
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _livreDeBito = !_livreDeBito;
+                  if (_livreDeBito) {
+                    _formaPagamento = null;
+                    _boletoVencimento = null;
+                    _boletoParcelasCompra = [];
+                    _freteAtivo = false;
+                    _freteValorController.clear();
+                    _fretePagamento = null;
+                    _freteBoletoVencimento = null;
+                    _boletoParcelasFrete = [];
+                  }
+                });
+                _updateSubmitState();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _livreDeBito ? Colors.teal[50] : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _livreDeBito ? Colors.teal[300]! : Colors.grey[300]!),
+                ),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _livreDeBito,
+                      onChanged: (v) {
+                        setState(() {
+                          _livreDeBito = v ?? false;
+                          if (_livreDeBito) {
+                            _formaPagamento = null;
+                            _boletoVencimento = null;
+                            _boletoParcelasCompra = [];
+                          }
+                        });
+                        _updateSubmitState();
+                      },
+                      activeColor: Colors.teal,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    Icon(Icons.check_circle_outline, color: _livreDeBito ? Colors.teal : Colors.grey[600], size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Livre de débito', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                          Text(
+                            'Entrada sem gerar conta a pagar (migração de estoque existente)',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!_livreDeBito) ...[
+              const SizedBox(height: 16),
+              _buildFormaPagamento(),
+              const SizedBox(height: 16),
+              _buildFrete(),
+            ],
             const SizedBox(height: 16),
             _buildTextField(
               controller: _observacoesController,

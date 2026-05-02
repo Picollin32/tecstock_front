@@ -11,7 +11,6 @@ import '../services/fabricante_service.dart';
 import '../services/fornecedor_service.dart';
 import '../services/peca_service.dart';
 import '../services/ordem_servico_service.dart';
-import 'entrada_estoque_page.dart';
 
 class CadastroPecaPage extends StatefulWidget {
   const CadastroPecaPage({super.key});
@@ -1425,18 +1424,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
                       },
                       tooltip: 'Nova Peça',
                     ),
-                    const SizedBox(width: 8),
-                    _buildToolbarActionButton(
-                      backgroundColor: successColor,
-                      shadowBaseColor: successColor,
-                      icon: Icons.add_box,
-                      compact: true,
-                      onPressed: () async {
-                        await EntradaEstoquePage.showModal(context);
-                        await _carregarPecas();
-                      },
-                      tooltip: 'Entrada de Estoque',
-                    ),
+
                   ],
                 ),
                 AnimatedSize(
@@ -2143,16 +2131,7 @@ class _CadastroPecaPageState extends State<CadastroPecaPage> with TickerProvider
         },
         tooltip: 'Nova Peça',
       ),
-      _buildToolbarActionButton(
-        backgroundColor: successColor,
-        shadowBaseColor: successColor,
-        icon: Icons.add_box,
-        onPressed: () async {
-          await EntradaEstoquePage.showModal(context);
-          await _carregarPecas();
-        },
-        tooltip: 'Entrada de Estoque',
-      ),
+
       _buildToolbarFilterButton(
         filterValue: 'critico',
         icon: Icons.warning_amber,

@@ -1764,7 +1764,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                     controlAffinity: ListTileControlAffinity.leading,
-                                    title: const Text('É assinatura?'),
+                                    title: const Text('É recorrente?'),
                                     onChanged: (value) => setDialogState(() {
                                       final novoValor = value ?? false;
                                       if (novoValor) {

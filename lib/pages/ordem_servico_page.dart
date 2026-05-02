@@ -155,6 +155,11 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
   bool _isLoadingInitialData = true;
   bool _isSaving = false;
 
+  int _activeTabIndex = 0;
+  final Set<int> _tabsWithErrors = {};
+  late AnimationController _tabBlinkController;
+  late Animation<double> _tabBlinkAnimation;
+
   @override
   void initState() {
     super.initState();
@@ -196,6 +201,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
     _fadeController.forward();
     _slideController.forward();
+
+    _tabBlinkController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _tabBlinkAnimation = CurvedAnimation(
+      parent: _tabBlinkController,
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _initializeData() async {
@@ -254,6 +268,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         c.dispose();
       }
       _boletoParcelasControllers.clear();
+      _tabBlinkController.dispose();
     } catch (e) {
       // Erro ao fazer dispose (ignorado)
     }
@@ -989,7 +1004,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _descontoPecas = 0.0;
       _tipoOrdem = null;
       _precoDiagnostico = 0.0;
+      _activeTabIndex = 0;
+      _tabsWithErrors.clear();
     });
+    _tabBlinkController.stop();
     for (final c in _boletoParcelasControllers) {
       c.dispose();
     }
@@ -2210,6 +2228,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ],
                   ),
           ),
+          _buildOsTabBar(),
           Padding(
             padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
@@ -2242,43 +2261,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                     ),
                   ),
                 if (_editingOSId != null) const SizedBox(height: 24),
-                _buildFormSection('1. Dados do Cliente e Veículo', Icons.person_outline),
-                const SizedBox(height: 16),
-                _buildClientVehicleInfo(),
-                const SizedBox(height: 32),
-                _buildFormSection('2. Responsáveis', Icons.people_outlined),
-                const SizedBox(height: 16),
-                _buildResponsibleSection(),
-                const SizedBox(height: 32),
-                _buildFormSection('3. Checklist Relacionado', Icons.assignment_outlined),
-                const SizedBox(height: 16),
-                _buildChecklistSelection(),
-                const SizedBox(height: 32),
-                _buildFormSection('4. Queixa Principal / Problema Relatado', Icons.report_problem_outlined),
-                const SizedBox(height: 16),
-                _buildComplaintSection(),
-                const SizedBox(height: 32),
-                _buildFormSection('5. Serviços a Executar', Icons.build_outlined),
-                const SizedBox(height: 16),
-                _buildServicesSelection(),
-                const SizedBox(height: 32),
-                if (_tipoOrdem != 'diagnostico') ...[
-                  _buildFormSection('6. Peças Utilizadas', Icons.inventory_outlined),
-                  const SizedBox(height: 16),
-                  _buildPartsSelection(),
-                ],
-                const SizedBox(height: 32),
-                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '6' : '7'}. Resumo de Valores', Icons.receipt_long_outlined),
-                const SizedBox(height: 16),
-                _buildPriceSummarySection(),
-                const SizedBox(height: 32),
-                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '7' : '8'}. Garantia e Forma de Pagamento', Icons.payment_outlined),
-                const SizedBox(height: 16),
-                _buildWarrantyAndPayment(),
-                const SizedBox(height: 32),
-                _buildFormSection('${_tipoOrdem == 'diagnostico' ? '8' : '9'}. Observações Adicionais', Icons.notes_outlined),
-                const SizedBox(height: 16),
-                _buildObservationsSection(),
+                _buildActiveOsTabContent(),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -2396,30 +2379,129 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     );
   }
 
-  Widget _buildFormSection(String title, IconData icon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Colors.orange.shade600, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
+  List<({String label, IconData icon})> get _osTabs {
+    return [
+      (label: 'Cliente/Veículo', icon: Icons.person_outline),
+      (label: 'Responsáveis', icon: Icons.people_outlined),
+      (label: 'Checklist', icon: Icons.assignment_outlined),
+      (label: 'Queixa', icon: Icons.report_problem_outlined),
+      (label: 'Serviços', icon: Icons.build_outlined),
+      if (_tipoOrdem != 'diagnostico') (label: 'Peças', icon: Icons.inventory_outlined),
+      (label: 'Resumo', icon: Icons.receipt_long_outlined),
+      (label: 'Pagamento', icon: Icons.payment_outlined),
+      (label: 'Observações', icon: Icons.notes_outlined),
+    ];
+  }
+
+  void _setOsTabError(int tabIndex, String message) {
+    setState(() {
+      _tabsWithErrors
+        ..clear()
+        ..add(tabIndex);
+      _activeTabIndex = tabIndex;
+    });
+    if (!_tabBlinkController.isAnimating) _tabBlinkController.repeat(reverse: true);
+    _showErrorSnackBar(message);
+  }
+
+  Widget _buildOsTabBar() {
+    final tabs = _osTabs;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: List.generate(tabs.length, (i) {
+            final tab = tabs[i];
+            final isActive = i == _activeTabIndex;
+            final hasError = _tabsWithErrors.contains(i);
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: () => setState(() => _activeTabIndex = i),
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.orange.shade600 : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isActive ? Colors.orange.shade600 : Colors.grey[300]!,
+                        ),
+                        boxShadow: isActive
+                            ? [BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                            : [],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tab.icon, size: 15, color: isActive ? Colors.white : Colors.grey[600]),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${i + 1}. ${tab.label}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                              color: isActive ? Colors.white : Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hasError)
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: AnimatedBuilder(
+                          animation: _tabBlinkAnimation,
+                          builder: (_, __) => Opacity(
+                            opacity: _tabBlinkAnimation.value,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-          ),
+              ),
+            );
+          }),
         ),
-      ],
+      ),
     );
+  }
+
+  Widget _buildActiveOsTabContent() {
+    final tabs = _osTabs;
+    final safeIndex = _activeTabIndex.clamp(0, tabs.length - 1);
+    final label = tabs[safeIndex].label;
+    return switch (label) {
+      'Cliente/Veículo' => _buildClientVehicleInfo(),
+      'Responsáveis' => _buildResponsibleSection(),
+      'Checklist' => _buildChecklistSelection(),
+      'Queixa' => _buildComplaintSection(),
+      'Serviços' => _buildServicesSelection(),
+      'Peças' => _buildPartsSelection(),
+      'Resumo' => _buildPriceSummarySection(),
+      'Pagamento' => _buildWarrantyAndPayment(),
+      'Observações' => _buildObservationsSection(),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   Widget _buildClientVehicleInfo() {
@@ -5881,48 +5963,50 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     }
 
     if (_clienteNomeController.text.isEmpty || _clienteCpfController.text.isEmpty) {
-      _showErrorSnackBar('Por favor, preencha os dados do cliente');
+      _setOsTabError(0, 'Por favor, preencha os dados do cliente');
       return;
     }
 
     if (_veiculoPlacaController.text.isEmpty) {
-      _showErrorSnackBar('Por favor, preencha os dados do veículo');
+      _setOsTabError(0, 'Por favor, preencha os dados do veículo');
       return;
     }
 
     if (_categoriaSelecionada == null) {
-      _showErrorSnackBar('Por favor, selecione um veículo para definir a categoria');
+      _setOsTabError(0, 'Por favor, selecione um veículo para definir a categoria');
       return;
     }
 
     if (_checklistSelecionado == null) {
-      _showErrorSnackBar('Por favor, selecione um checklist. Toda OS deve ter um checklist vinculado.');
+      _setOsTabError(2, 'Por favor, selecione um checklist. Toda OS deve ter um checklist vinculado.');
       return;
     }
 
     if (_tipoOrdem == 'diagnostico') {
       if (_diagnosticosSelecionados.isEmpty) {
-        _showErrorSnackBar('Por favor, adicione ao menos um diagnóstico');
+        _setOsTabError(4, 'Por favor, adicione ao menos um diagnóstico');
         return;
       }
     } else if (_servicosSelecionados.isEmpty) {
-      _showErrorSnackBar('Por favor, selecione pelo menos um serviço');
+      _setOsTabError(4, 'Por favor, selecione pelo menos um serviço');
       return;
     }
 
     if (_tipoOrdem == 'diagnostico_servico' && _diagnosticosSelecionados.isEmpty) {
-      _showErrorSnackBar('Por favor, adicione ao menos um diagnóstico');
+      _setOsTabError(4, 'Por favor, adicione ao menos um diagnóstico');
       return;
     }
 
     if (_tipoOrdem == 'diagnostico_servico' && _pecasSelecionadas.isEmpty) {
-      _showErrorSnackBar('Por favor, adicione pelo menos uma peça para realizar o serviço');
+      _setOsTabError(5, 'Por favor, adicione pelo menos uma peça para realizar o serviço');
       return;
     }
 
     setState(() {
       _isSaving = true;
+      _tabsWithErrors.clear();
     });
+    _tabBlinkController.stop();
 
     try {
       final formaPagamento = _tipoPagamentoSelecionado?.idFormaPagamento ?? 1;
@@ -5930,9 +6014,10 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       final int parcelasCalculadas =
           pagamentoAVista ? 1 : (formaPagamento == 3 ? _maxParcelasTipo(_tipoPagamentoSelecionado) : (_numeroParcelas ?? 1));
 
+      final int pagamentoTabIndex = _tipoOrdem != 'diagnostico' ? 7 : 6;
       if (formaPagamento == 3) {
         if (parcelasCalculadas <= 1 && _boletoVencimento == null) {
-          _showErrorSnackBar('Informe o vencimento do boleto.');
+          _setOsTabError(pagamentoTabIndex, 'Informe o vencimento do boleto.');
           setState(() => _isSaving = false);
           return;
         }
@@ -5940,7 +6025,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
           _parcelasDetalhadasBoleto = '${_precoTotal.toStringAsFixed(2)}@${_boletoVencimento!.toIso8601String().substring(0, 10)}';
         } else {
           if (!_boletoParcelasValidas(_precoTotal)) {
-            _showErrorSnackBar('Preencha os valores das parcelas do boleto e garanta que a soma seja igual ao total.');
+            _setOsTabError(pagamentoTabIndex, 'Preencha os valores das parcelas do boleto e garanta que a soma seja igual ao total.');
             setState(() => _isSaving = false);
             return;
           }

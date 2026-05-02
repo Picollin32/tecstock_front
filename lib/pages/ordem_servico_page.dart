@@ -1338,42 +1338,90 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.search, color: Colors.orange.shade600),
-              const SizedBox(width: 12),
-              Text(
-                'Buscar Ordens de Serviço',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.orange.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Buscar Ordens de Serviço',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                      ),
                     ),
-              ),
-              const Spacer(),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildStatCard(
-                    label: 'OS em Aberto',
-                    count: _countOsAbertas,
-                    ativo: _filtrandoAbertas,
-                    onTap: _toggleFiltroAbertas,
-                    cor: Colors.blue.shade600,
-                    icone: Icons.assignment_outlined,
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildStatCard(
+                        label: 'OS em Aberto',
+                        count: _countOsAbertas,
+                        ativo: _filtrandoAbertas,
+                        onTap: _toggleFiltroAbertas,
+                        cor: Colors.blue.shade600,
+                        icone: Icons.assignment_outlined,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildStatCard(
+                        label: 'OS Reclamadas',
+                        count: _countOsReclamadas,
+                        ativo: _filtrandoReclamadas,
+                        onTap: _toggleFiltroReclamadas,
+                        cor: Colors.orange.shade700,
+                        icone: Icons.warning_amber_rounded,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  _buildStatCard(
-                    label: 'OS Reclamadas',
-                    count: _countOsReclamadas,
-                    ativo: _filtrandoReclamadas,
-                    onTap: _toggleFiltroReclamadas,
-                    cor: Colors.orange.shade700,
-                    icone: Icons.warning_amber_rounded,
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Icon(Icons.search, color: Colors.orange.shade600),
+                const SizedBox(width: 12),
+                Text(
+                  'Buscar Ordens de Serviço',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                ),
+                const Spacer(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildStatCard(
+                      label: 'OS em Aberto',
+                      count: _countOsAbertas,
+                      ativo: _filtrandoAbertas,
+                      onTap: _toggleFiltroAbertas,
+                      cor: Colors.blue.shade600,
+                      icone: Icons.assignment_outlined,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildStatCard(
+                      label: 'OS Reclamadas',
+                      count: _countOsReclamadas,
+                      ativo: _filtrandoReclamadas,
+                      onTap: _toggleFiltroReclamadas,
+                      cor: Colors.orange.shade700,
+                      icone: Icons.warning_amber_rounded,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           isMobile
               ? Column(

@@ -943,28 +943,62 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.search, color: Colors.blue.shade600),
-              const SizedBox(width: 12),
-              Text(
-                'Buscar Orçamentos',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.blue.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Buscar Orçamentos',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                      ),
                     ),
-              ),
-              const Spacer(),
-              _buildStatCard(
-                label: 'Orçamentos em Aberto',
-                count: _countOrcamentosAbertos,
-                ativo: _filtrandoAbertos,
-                onTap: _toggleFiltroAbertos,
-                cor: Colors.blue.shade600,
-                icone: Icons.request_quote_outlined,
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _buildStatCard(
+                    label: 'Orçamentos em Aberto',
+                    count: _countOrcamentosAbertos,
+                    ativo: _filtrandoAbertos,
+                    onTap: _toggleFiltroAbertos,
+                    cor: Colors.blue.shade600,
+                    icone: Icons.request_quote_outlined,
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Icon(Icons.search, color: Colors.blue.shade600),
+                const SizedBox(width: 12),
+                Text(
+                  'Buscar Orçamentos',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                ),
+                const Spacer(),
+                _buildStatCard(
+                  label: 'Orçamentos em Aberto',
+                  count: _countOrcamentosAbertos,
+                  ativo: _filtrandoAbertos,
+                  onTap: _toggleFiltroAbertos,
+                  cor: Colors.blue.shade600,
+                  icone: Icons.request_quote_outlined,
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           isMobile
               ? Column(

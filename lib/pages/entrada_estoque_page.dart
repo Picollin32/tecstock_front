@@ -154,6 +154,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
   int _freteNumeroParcelas = 1;
   DateTime? _freteBoletoVencimento;
   List<_ParcelaPagamentoDraft> _boletoParcelasFrete = [];
+  Fornecedor? _fornecedorFrete;
   Fornecedor? _fornecedorSelecionado;
   List<Fornecedor> _fornecedores = [];
   List<Peca> _pecasDisponiveis = [];
@@ -546,7 +547,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           'formaPagamento': _backendFormaPagamento(_fretePagamento!),
           'diasEntreParcelas': _fretePagamento?.diasEntreParcelas ?? 30,
           'origemTipoBase': 'FRETE',
-          'fornecedorId': _fornecedorSelecionado!.id,
+          'fornecedorId': _fornecedorFrete?.id ?? _fornecedorSelecionado!.id,
         };
         if (_isCredito(_fretePagamento)) {
           fretePagData['numeroParcelas'] = _freteNumeroParcelas;
@@ -611,6 +612,7 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
     final controllersToDispose = _quantidadeControllers.values.toList();
     setState(() {
       _fornecedorSelecionado = null;
+      _fornecedorFrete = null;
       _pecasAdicionadas.clear();
       _quantidadeControllers.clear();
       _formaPagamento = null;
@@ -1712,6 +1714,42 @@ class _EntradaEstoqueFormState extends State<_EntradaEstoqueForm> with TickerPro
           ),
         ),
         if (_freteAtivo) ...[
+          const SizedBox(height: 12),
+          Builder(builder: (_) {
+            final fornecedoresServico = _fornecedores.where((f) => f.servico).toList()..sort((a, b) => a.nome.compareTo(b.nome));
+            return DropdownButtonFormField<Fornecedor?>(
+              initialValue: _fornecedorFrete,
+              decoration: InputDecoration(
+                labelText: 'Fornecedor do Frete (opcional)',
+                prefixIcon: Icon(Icons.store_outlined, color: freteColor),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: freteBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: freteColor, width: 2),
+                ),
+                filled: true,
+                fillColor: freteFill,
+              ),
+              items: [
+                const DropdownMenuItem<Fornecedor?>(
+                  value: null,
+                  child: Text('Sem fornecedor específico'),
+                ),
+                ...fornecedoresServico.map((f) => DropdownMenuItem<Fornecedor?>(
+                      value: f,
+                      child: Text(f.nome),
+                    )),
+              ],
+              onChanged: (v) {
+                setState(() => _fornecedorFrete = v);
+                _updateSubmitState();
+              },
+            );
+          }),
           const SizedBox(height: 12),
           TextFormField(
             controller: _freteValorController,

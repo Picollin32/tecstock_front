@@ -1980,7 +1980,22 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                 );
               },
             );
-            if (picked != null) setDialogState(() => start = picked);
+            if (picked != null) {
+              if (!_isAdmin && _selectedDay != null) {
+                final hoje = DateTime.now();
+                final dataSel = DateTime(_selectedDay!.year, _selectedDay!.month, _selectedDay!.day);
+                final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
+                if (dataSel == dataHoje) {
+                  final nowMinutes = hoje.hour * 60 + hoje.minute;
+                  final pickedMinutes = picked.hour * 60 + picked.minute;
+                  if (pickedMinutes < nowMinutes) {
+                    if (context.mounted) ErrorUtils.showVisibleError(context, 'Não é possível selecionar horário já passado');
+                    return;
+                  }
+                }
+              }
+              setDialogState(() => start = picked);
+            }
           }
 
           Future<void> pickEnd() async {
@@ -2546,6 +2561,18 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                                 ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
                                 return;
                               }
+
+                              if (!_isAdmin && dataSelecionada == dataHoje) {
+                                final parts = horaInicioFormatada.split(':');
+                                if (parts.length == 2) {
+                                  final inicioMin = (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+                                  final nowMin = hoje.hour * 60 + hoje.minute;
+                                  if (inicioMin < nowMin) {
+                                    ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em horário já passado');
+                                    return;
+                                  }
+                                }
+                              }
                             }
 
                             final agendamento = Agendamento(
@@ -2654,6 +2681,18 @@ class _AgendamentoPageState extends State<AgendamentoPage> with TickerProviderSt
                               if (dataSelecionada.isBefore(dataHoje)) {
                                 ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em datas passadas');
                                 return;
+                              }
+
+                              if (!_isAdmin && dataSelecionada == dataHoje) {
+                                final parts = horaInicioFormatada.split(':');
+                                if (parts.length == 2) {
+                                  final inicioMin = (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+                                  final nowMin = hoje.hour * 60 + hoje.minute;
+                                  if (inicioMin < nowMin) {
+                                    ErrorUtils.showVisibleError(context, 'Não é possível criar agendamentos em horário já passado');
+                                    return;
+                                  }
+                                }
                               }
                             }
 

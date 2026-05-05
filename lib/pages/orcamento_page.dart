@@ -102,7 +102,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
 
   final TextEditingController _codigoPecaController = TextEditingController();
   final TextEditingController _servicoSearchController = TextEditingController();
-  late TextEditingController _pecaSearchController;
+  int _pecaAutocompleteRebuildKey = 0;
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
   final Map<String, dynamic> _veiculoByPlaca = {};
@@ -188,7 +188,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     _timeController.text = DateFormat('HH:mm').format(DateTime.now());
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
-    _pecaSearchController = TextEditingController();
 
     _initializeData();
     _searchController.addListener(_onSearchChanged);
@@ -251,7 +250,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _descricaoDiagnosticoController.dispose();
       _valorDiagnosticoController.dispose();
       _codigoPecaController.dispose();
-      _pecaSearchController.dispose();
       _scrollController.dispose();
       _servicosSliderController.dispose();
       _clienteFocusNode.dispose();
@@ -608,6 +606,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       _tipoOrdem = null;
       _activeTabIndex = 0;
       _tabsWithErrors.clear();
+      _pecaAutocompleteRebuildKey++;
     });
     _tabBlinkController.stop();
 
@@ -1334,6 +1333,8 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                   children: [
                     if (_isViewMode) ...[
                       if (isMobile) Expanded(child: _buildCloseButton()) else _buildCloseButton(),
+                    ] else if (_activeTabIndex < 7) ...[
+                      if (isMobile) Expanded(child: _buildNextButton()) else _buildNextButton(),
                     ] else ...[
                       if (isMobile) Expanded(child: _buildSaveButton()) else _buildSaveButton(),
                     ],
@@ -3178,6 +3179,14 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                       const SizedBox(height: 12),
                       _buildTipoCheckboxOrcamento(
+                        label: 'Apenas Serviço',
+                        value: 'servico',
+                        icon: Icons.build_outlined,
+                        iconColor: Colors.orange,
+                        useExpanded: false,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTipoCheckboxOrcamento(
                         label: 'Diagnóstico + Serviço',
                         value: 'diagnostico_servico',
                         icon: Icons.build,
@@ -3196,6 +3205,13 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       ),
                       const SizedBox(width: 12),
                       _buildTipoCheckboxOrcamento(
+                        label: 'Apenas Serviço',
+                        value: 'servico',
+                        icon: Icons.build_outlined,
+                        iconColor: Colors.orange,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildTipoCheckboxOrcamento(
                         label: 'Diagnóstico + Serviço',
                         value: 'diagnostico_servico',
                         icon: Icons.build,
@@ -3207,10 +3223,11 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
             const Divider(height: 1),
             const SizedBox(height: 16),
           ],
-          if (_tipoOrdem != null) ...[
+          if (_tipoOrdem == 'diagnostico' || _tipoOrdem == 'diagnostico_servico') ...[
             _buildDiagnosticoPanelOrcamento(),
             if (_tipoOrdem == 'diagnostico_servico') const SizedBox(height: 16),
           ],
+          if (_tipoOrdem == 'servico' || _tipoOrdem == 'diagnostico_servico') ...[
           isMobile
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3430,6 +3447,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                 ),
               ],
             ),
+          ],
         ],
       ),
     );
@@ -5018,6 +5036,38 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
     );
   }
 
+  Widget _buildNextButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade500, Colors.blue.shade700],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () => setState(() => _activeTabIndex++),
+        icon: const Icon(Icons.arrow_forward, color: Colors.white),
+        label: const Text(
+          'Próximo',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSaveButton() {
     return Container(
       decoration: BoxDecoration(
@@ -5358,9 +5408,19 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
       return;
     }
 
+    if (_tipoOrdem == null) {
+      _setOrcamentoTabError(3, 'Por favor, selecione o tipo de atendimento');
+      return;
+    }
+
     if (_tipoOrdem == 'diagnostico') {
       if (_diagnosticosSelecionados.isEmpty) {
         _setOrcamentoTabError(3, 'Adicione ao menos um diagnóstico');
+        return;
+      }
+    } else if (_tipoOrdem == 'servico') {
+      if (_servicosSelecionados.isEmpty) {
+        _setOrcamentoTabError(3, 'Selecione ao menos um serviço');
         return;
       }
     } else if (_tipoOrdem == 'diagnostico_servico') {
@@ -5372,9 +5432,6 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         _setOrcamentoTabError(3, 'Selecione ao menos um serviço');
         return;
       }
-    } else if (_servicosSelecionados.isEmpty && _pecasSelecionadas.isEmpty) {
-      _setOrcamentoTabError(3, 'Selecione pelo menos um serviço ou uma peça para orçar');
-      return;
     }
 
     setState(() {
@@ -5425,7 +5482,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         queixaPrincipal: _queixaPrincipalController.text.trim(),
         servicosOrcados: _tipoOrdem == 'diagnostico' ? [] : _servicosSelecionados,
         pecasOrcadas: _tipoOrdem == 'diagnostico' ? [] : _pecasSelecionadas,
-        diagnosticosOrcados: _tipoOrdem != null ? _diagnosticosSelecionados : [],
+        diagnosticosOrcados: (_tipoOrdem == 'diagnostico' || _tipoOrdem == 'diagnostico_servico') ? _diagnosticosSelecionados : [],
         precoTotal: _precoTotal,
         precoTotalServicos: _precoTotalServicos,
         precoTotalPecas: _calcularTotalPecas(),
@@ -5877,7 +5934,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       setState(() {
                         _modoBuscaPeca = 'CODIGO';
                         _textoBuscaPecaAtual = '';
-                        _pecaSearchController.clear();
+                        _pecaAutocompleteRebuildKey++;
                         _codigoPecaController.clear();
                         _pecaEncontrada = null;
                       });
@@ -5892,7 +5949,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       setState(() {
                         _modoBuscaPeca = 'NOME';
                         _textoBuscaPecaAtual = '';
-                        _pecaSearchController.clear();
+                        _pecaAutocompleteRebuildKey++;
                         _codigoPecaController.clear();
                         _pecaEncontrada = null;
                       });
@@ -5902,6 +5959,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
         ),
         const SizedBox(height: 10),
         Autocomplete<Peca>(
+          key: ValueKey('peca_$_pecaAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             final searchText = textEditingValue.text.toLowerCase().trim();
             if (searchText.isEmpty) return const Iterable<Peca>.empty();
@@ -5918,11 +5976,10 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
               _pecaEncontrada = selection;
               _codigoPecaController.text = selection.codigoFabricante;
               _textoBuscaPecaAtual = selection.codigoFabricante;
-              _pecaSearchController.clear();
+              _pecaAutocompleteRebuildKey++;
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            _pecaSearchController = controller;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -5980,7 +6037,7 @@ class _OrcamentoScreenState extends State<OrcamentoScreen> with TickerProviderSt
                       setState(() {
                         _textoBuscaPecaAtual = '';
                       });
-                      _pecaSearchController.clear();
+                      controller.clear();
                     },
             );
           },

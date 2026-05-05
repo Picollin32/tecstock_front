@@ -102,7 +102,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   final TextEditingController _codigoPecaController = TextEditingController();
   final TextEditingController _servicoSearchController = TextEditingController();
-  late TextEditingController _pecaSearchController;
+  int _pecaAutocompleteRebuildKey = 0;
 
   Peca? _pecaEncontrada;
   final Map<String, dynamic> _clienteByCpf = {};
@@ -195,7 +195,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _initializeData();
     _searchController.addListener(_onSearchChanged);
     _servicoSearchController.addListener(_onServicoSearchChanged);
-    _pecaSearchController = TextEditingController();
     _clienteCpfController.addListener(_onClienteCpfChanged);
     _veiculoPlacaController.addListener(_onVeiculoPlacaChanged);
 
@@ -224,6 +223,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   Future<void> _verificarPermissoes() async {
     final isAdmin = await AuthService.isAdmin();
+    if (!mounted) return;
     setState(() {
       _isAdmin = isAdmin;
     });
@@ -231,47 +231,54 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
 
   @override
   void dispose() {
-    try {
-      _fadeController.dispose();
-      _slideController.dispose();
-      _dateController.dispose();
-      _timeController.dispose();
-      _osNumberController.dispose();
-      _clienteNomeController.dispose();
-      _clienteCpfController.dispose();
-      _clienteTelefoneController.dispose();
-      _clienteEmailController.dispose();
-      _veiculoNomeController.dispose();
-      _veiculoMarcaController.dispose();
-      _veiculoAnoController.dispose();
-      _veiculoCorController.dispose();
-      _veiculoPlacaController.dispose();
-      _veiculoQuilometragemController.dispose();
-      _queixaPrincipalController.dispose();
-      _observacoesController.dispose();
-      _checklistController.dispose();
-      _searchDebounce?.cancel();
-      _searchController.removeListener(_onSearchChanged);
-      _searchController.dispose();
-      _servicoSearchDebounce?.cancel();
-      _servicoSearchController.removeListener(_onServicoSearchChanged);
-      _servicoSearchController.dispose();
-      _servicosSliderController.dispose();
-      _clienteCpfController.removeListener(_onClienteCpfChanged);
-      _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
-      _descontoServicosController.dispose();
-      _descontoPecasController.dispose();
-      _precoDiagnosticoController.dispose();
-      _descricaoDiagnosticoController.dispose();
-      _valorDiagnosticoController.dispose();
-      for (final c in _boletoParcelasControllers) {
-        c.dispose();
-      }
-      _boletoParcelasControllers.clear();
-      _tabBlinkController.dispose();
-    } catch (e) {
-      // Erro ao fazer dispose (ignorado)
+    _searchDebounce?.cancel();
+    _servicoSearchDebounce?.cancel();
+
+    _searchController.removeListener(_onSearchChanged);
+    _servicoSearchController.removeListener(_onServicoSearchChanged);
+    _clienteCpfController.removeListener(_onClienteCpfChanged);
+    _veiculoPlacaController.removeListener(_onVeiculoPlacaChanged);
+
+    _fadeController.dispose();
+    _slideController.dispose();
+    _tabBlinkController.dispose();
+
+    _dateController.dispose();
+    _timeController.dispose();
+    _osNumberController.dispose();
+
+    _clienteNomeController.dispose();
+    _clienteCpfController.dispose();
+    _clienteTelefoneController.dispose();
+    _clienteEmailController.dispose();
+
+    _veiculoNomeController.dispose();
+    _veiculoMarcaController.dispose();
+    _veiculoAnoController.dispose();
+    _veiculoCorController.dispose();
+    _veiculoPlacaController.dispose();
+    _veiculoQuilometragemController.dispose();
+
+    _queixaPrincipalController.dispose();
+    _observacoesController.dispose();
+    _checklistController.dispose();
+    _codigoPecaController.dispose();
+
+    _searchController.dispose();
+    _servicoSearchController.dispose();
+    _descontoServicosController.dispose();
+    _descontoPecasController.dispose();
+    _precoDiagnosticoController.dispose();
+    _descricaoDiagnosticoController.dispose();
+    _valorDiagnosticoController.dispose();
+
+    _servicosSliderController.dispose();
+
+    for (final c in _boletoParcelasControllers) {
+      c.dispose();
     }
+    _boletoParcelasControllers.clear();
+
     super.dispose();
   }
 
@@ -971,7 +978,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
     _osNumberController.clear();
     _checklistController.clear();
     _codigoPecaController.clear();
-    _pecaSearchController.clear();
     _servicoSearchController.clear();
     _textoBuscaPecaAtual = '';
     _descontoServicosController.clear();
@@ -1006,6 +1012,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       _precoDiagnostico = 0.0;
       _activeTabIndex = 0;
       _tabsWithErrors.clear();
+      _pecaAutocompleteRebuildKey++;
     });
     _tabBlinkController.stop();
     for (final c in _boletoParcelasControllers) {
@@ -2316,6 +2323,8 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                   children: [
                     if (_isViewMode) ...[
                       if (isMobile) Expanded(child: _buildCloseButton()) else _buildCloseButton(),
+                    ] else if (_activeTabIndex < _osTabs.length - 1) ...[
+                      if (isMobile) Expanded(child: _buildNextButton()) else _buildNextButton(),
                     ] else ...[
                       if (isMobile) Expanded(child: _buildSaveButton()) else _buildSaveButton(),
                     ],
@@ -2374,6 +2383,38 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         icon: const Icon(Icons.close, color: Colors.white),
         label: const Text(
           'Fechar',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNextButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade500, Colors.orange.shade700],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () => setState(() => _activeTabIndex++),
+        icon: const Icon(Icons.arrow_forward, color: Colors.white),
+        label: const Text(
+          'Próximo',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         style: ElevatedButton.styleFrom(
@@ -3117,7 +3158,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       setState(() {
                         _modoBuscaPeca = 'CODIGO';
                         _textoBuscaPecaAtual = '';
-                        _pecaSearchController.clear();
+                        _pecaAutocompleteRebuildKey++;
                         _codigoPecaController.clear();
                         _pecaEncontrada = null;
                       });
@@ -3132,7 +3173,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       setState(() {
                         _modoBuscaPeca = 'NOME';
                         _textoBuscaPecaAtual = '';
-                        _pecaSearchController.clear();
+                        _pecaAutocompleteRebuildKey++;
                         _codigoPecaController.clear();
                         _pecaEncontrada = null;
                       });
@@ -3142,6 +3183,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
         ),
         const SizedBox(height: 10),
         Autocomplete<Peca>(
+          key: ValueKey('peca_$_pecaAutocompleteRebuildKey'),
           optionsBuilder: (TextEditingValue textEditingValue) {
             final searchText = textEditingValue.text.toLowerCase().trim();
             if (searchText.isEmpty) return const Iterable<Peca>.empty();
@@ -3161,7 +3203,6 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
             });
           },
           fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-            _pecaSearchController = controller;
             return TextField(
               controller: controller,
               focusNode: focusNode,
@@ -3667,6 +3708,14 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         ),
                         const SizedBox(height: 12),
                         _buildTipoCheckbox(
+                          label: 'Apenas Serviço',
+                          value: 'servico',
+                          icon: Icons.build_outlined,
+                          iconColor: Colors.orange,
+                          useExpanded: false,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTipoCheckbox(
                           label: 'Diagnóstico + Serviço',
                           value: 'diagnostico_servico',
                           icon: Icons.build,
@@ -3685,6 +3734,13 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                         ),
                         const SizedBox(width: 12),
                         _buildTipoCheckbox(
+                          label: 'Apenas Serviço',
+                          value: 'servico',
+                          icon: Icons.build_outlined,
+                          iconColor: Colors.orange,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildTipoCheckbox(
                           label: 'Diagnóstico + Serviço',
                           value: 'diagnostico_servico',
                           icon: Icons.build,
@@ -3696,24 +3752,15 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
               const Divider(height: 1),
               const SizedBox(height: 16),
             ]),
-          if (_tipoOrdem == 'diagnostico')
-            ...([
-              _buildDiagnosticoPanel(
-                title: 'Diagnósticos da OS',
-                iconColor: Colors.indigo,
-                containerColor: Colors.indigo,
-              ),
-            ])
-          else ...[
-            if (_tipoOrdem == 'diagnostico_servico')
-              ...([
-                _buildDiagnosticoPanel(
-                  title: 'Diagnósticos da OS',
-                  iconColor: Colors.teal,
-                  containerColor: Colors.teal,
-                ),
-                const SizedBox(height: 16),
-              ]),
+          if (_tipoOrdem == 'diagnostico' || _tipoOrdem == 'diagnostico_servico') ...[
+            _buildDiagnosticoPanel(
+              title: 'Diagnósticos da OS',
+              iconColor: _tipoOrdem == 'diagnostico' ? Colors.indigo : Colors.teal,
+              containerColor: _tipoOrdem == 'diagnostico' ? Colors.indigo : Colors.teal,
+            ),
+            if (_tipoOrdem == 'diagnostico_servico') const SizedBox(height: 16),
+          ],
+          if (_tipoOrdem == 'servico' || _tipoOrdem == 'diagnostico_servico') ...[
             isMobile
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -6030,19 +6077,30 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
       return;
     }
 
+    if (_tipoOrdem == null) {
+      _setOsTabError(4, 'Por favor, selecione o tipo de atendimento');
+      return;
+    }
+
     if (_tipoOrdem == 'diagnostico') {
       if (_diagnosticosSelecionados.isEmpty) {
         _setOsTabError(4, 'Por favor, adicione ao menos um diagnóstico');
         return;
       }
-    } else if (_servicosSelecionados.isEmpty) {
-      _setOsTabError(4, 'Por favor, selecione pelo menos um serviço');
-      return;
-    }
-
-    if (_tipoOrdem == 'diagnostico_servico' && _diagnosticosSelecionados.isEmpty) {
-      _setOsTabError(4, 'Por favor, adicione ao menos um diagnóstico');
-      return;
+    } else if (_tipoOrdem == 'servico') {
+      if (_servicosSelecionados.isEmpty) {
+        _setOsTabError(4, 'Por favor, selecione pelo menos um serviço');
+        return;
+      }
+    } else if (_tipoOrdem == 'diagnostico_servico') {
+      if (_diagnosticosSelecionados.isEmpty) {
+        _setOsTabError(4, 'Por favor, adicione ao menos um diagnóstico');
+        return;
+      }
+      if (_servicosSelecionados.isEmpty) {
+        _setOsTabError(4, 'Por favor, selecione pelo menos um serviço');
+        return;
+      }
     }
 
     if (_tipoOrdem == 'diagnostico_servico' && _pecasSelecionadas.isEmpty) {
@@ -6340,7 +6398,7 @@ class _OrdemServicoScreenState extends State<OrdemServicoScreen> with TickerProv
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          'TecStock - Sistema de Gerenciamento Automotivo',
+                          'TecStock - Sistema de Gerenciamento de Oficina',
                           style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                         ),
                         pw.Text(

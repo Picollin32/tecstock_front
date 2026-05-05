@@ -1313,6 +1313,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
     int? categoriaFinanceiraId = contaInicial?.categoriaId;
     int? fornecedorId = contaInicial?.fornecedorId;
+    int? fornecedorFreteId = isFrete ? contaInicial?.fornecedorId : null;
     int numeroParcelas = 1;
     List<_ParcelaDraft> parcelas = [];
     DateTime vencimento = contaInicial?.dataVencimento ?? DateTime(hoje.year, hoje.month, hoje.day);
@@ -1555,6 +1556,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                                   valorCtrl.clear();
                                                   tipoPagamentoId = null;
                                                   fornecedorId = null;
+                                                  fornecedorFreteId = null;
                                                   isAssinatura = false;
                                                   numeroParcelas = 1;
                                                   parcelas = [];
@@ -1594,6 +1596,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                                   valorCtrl.clear();
                                                   tipoPagamentoId = null;
                                                   fornecedorId = null;
+                                                  fornecedorFreteId = null;
                                                   isAssinatura = false;
                                                   numeroParcelas = 1;
                                                   parcelas = [];
@@ -1784,6 +1787,64 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       }
                                       isAssinatura = novoValor;
                                     }),
+                                  ),
+                                ],
+                                if (isFrete) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: DropdownButtonFormField<int?>(
+                                          key: ValueKey('fornecedorFrete_$fornecedorFreteId'),
+                                          initialValue: fornecedorFreteId,
+                                          decoration: InputDecoration(
+                                            labelText: 'Fornecedor do Frete (opcional)',
+                                            prefixIcon: Icon(Icons.store_outlined, color: Colors.orange.shade700),
+                                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          items: [
+                                            const DropdownMenuItem<int?>(value: null, child: Text('Sem fornecedor')),
+                                            ...fornecedoresServico.map(
+                                              (f) => DropdownMenuItem<int?>(
+                                                value: f.id,
+                                                child: Text(f.nome),
+                                              ),
+                                            ),
+                                          ],
+                                          onChanged: (v) => setDialogState(() => fornecedorFreteId = v),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      SizedBox(
+                                        height: 56,
+                                        child: Tooltip(
+                                          message: 'Gerenciar fornecedores de serviço',
+                                          child: ElevatedButton(
+                                            onPressed: () async {
+                                              final fornecedorSelecionado = await _abrirCadastroRapidoFornecedorServico(ctx2);
+                                              if (!ctx2.mounted) return;
+                                              setDialogState(() {
+                                                if (fornecedorSelecionado?.id != null) {
+                                                  fornecedorFreteId = fornecedorSelecionado!.id;
+                                                } else if (fornecedorFreteId != null &&
+                                                    !_fornecedores.any((f) => f.servico && f.id == fornecedorFreteId)) {
+                                                  fornecedorFreteId = null;
+                                                }
+                                              });
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.orange.shade700,
+                                              foregroundColor: Colors.white,
+                                              elevation: 1,
+                                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            child: const Icon(Icons.add),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                                 const SizedBox(height: 12),
@@ -2191,7 +2252,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       valor,
                                       vencimento,
                                       categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
-                                      fornecedorId: isFrete ? null : fornecedorId,
+                                      fornecedorId: isFrete ? fornecedorFreteId : fornecedorId,
                                       origemTipo: contaInicial.isParcela
                                           ? null
                                           : (isAssinatura ? '${baseOrigem}_ASSINATURA' : '${baseOrigem}_$backend'),
@@ -2215,7 +2276,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       origem: isFrete ? 'FRETE' : 'DESPESA',
                                       pagamento: pagamentoData,
                                       categoriaFinanceiraId: isFrete ? null : categoriaFinanceiraId,
-                                      fornecedorId: isFrete ? null : fornecedorId,
+                                      fornecedorId: isFrete ? fornecedorFreteId : fornecedorId,
                                     );
 
                                     if (result['sucesso'] == true) {

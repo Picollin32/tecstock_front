@@ -2034,11 +2034,49 @@ class _ChecklistScreenState extends State<ChecklistScreen> with TickerProviderSt
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (isMobile) Expanded(child: _buildSubmitButton()) else _buildSubmitButton(),
+                if (!_isViewMode && _activeTabIndex < 4)
+                  if (isMobile) Expanded(child: _buildNextButton()) else _buildNextButton()
+                else
+                  if (isMobile)
+                  Expanded(child: _buildSubmitButton())
+                else
+                  _buildSubmitButton(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNextButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.shade500, Colors.deepPurple.shade500],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () => setState(() => _activeTabIndex++),
+        icon: const Icon(Icons.arrow_forward, color: Colors.white),
+        label: const Text(
+          'Próximo',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }

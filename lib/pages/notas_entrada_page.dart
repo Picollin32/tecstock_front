@@ -803,17 +803,33 @@ class _NotasEntradaPageState extends State<NotasEntradaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'fab_nova_nota',
-        backgroundColor: _primaryColor,
-        foregroundColor: Colors.white,
-        tooltip: 'Nova Entrada de Nota',
-        onPressed: () async {
+      floatingActionButton: Builder(builder: (context) {
+        final isMobile = MediaQuery.of(context).size.width < 600;
+
+        Future<void> abrirNovaEntrada() async {
           await EntradaEstoquePage.showModal(context);
           _carregarDados();
-        },
-        child: const Icon(Icons.add),
-      ),
+        }
+
+        if (isMobile) {
+          return FloatingActionButton(
+            heroTag: 'fab_nova_nota',
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            tooltip: 'Nova Entrada',
+            onPressed: abrirNovaEntrada,
+            child: const Icon(Icons.add),
+          );
+        }
+        return FloatingActionButton.extended(
+          heroTag: 'fab_nova_nota',
+          backgroundColor: _primaryColor,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add),
+          label: const Text('Nova Entrada'),
+          onPressed: abrirNovaEntrada,
+        );
+      }),
       appBar: AppBar(
         title: const Text(
           'Notas de Entrada',

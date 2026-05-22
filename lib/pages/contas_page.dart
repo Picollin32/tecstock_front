@@ -1327,13 +1327,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
       'MENSAL': 'Mensal',
       'ANUAL': 'Anual',
     };
-    if (isAssinatura && tipoPagamentoId == null) {
-      tipoPagamentoId = tiposPagamentoOrdenados.where((t) => t.idFormaPagamento == 2).map((t) => t.id).cast<int?>().firstWhere(
-            (id) => id != null,
-            orElse: () => null,
-          );
-    }
-
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1345,15 +1338,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
           final categoriaFinanceiraIdDropdown = categoriaFinanceiraIdValido ? categoriaFinanceiraId : null;
           final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
           final podeAlterarOrigem = !isEditing;
-
-          TipoPagamento? tipoCredito() {
-            for (final tipo in tiposPagamentoOrdenados) {
-              if (tipo.idFormaPagamento == 2) {
-                return tipo;
-              }
-            }
-            return null;
-          }
 
           TipoPagamento? tipoSelecionado() {
             if (tipoPagamentoId == null) return null;
@@ -1423,7 +1407,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
             final valor = double.tryParse(valorCtrl.text.replaceAll(',', '.')) ?? 0;
             if (descricaoCtrl.text.trim().isEmpty || valor <= 0 || tipoPagamentoId == null) return false;
             if (isAssinatura) {
-              if (idFormaPagamentoSelecionada() != 2) return false;
               if (assinaturaFrequencia == null || assinaturaFrequencia!.isEmpty) return false;
               if (assinaturaDataFim != null && assinaturaDataFim!.isBefore(assinaturaDataInicio)) return false;
               return true;
@@ -1771,12 +1754,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     onChanged: (value) => setDialogState(() {
                                       final novoValor = value ?? false;
                                       if (novoValor) {
-                                        final credito = tipoCredito();
-                                        if (credito?.id == null) {
-                                          _mostrarErro('Cadastre uma forma de pagamento de Cartão de Crédito antes de usar assinatura.');
-                                          return;
-                                        }
-                                        tipoPagamentoId = credito!.id;
                                         assinaturaFrequencia ??= 'MENSAL';
                                         assinaturaDataInicio =
                                             assinaturaDataInicio.isBefore(hojeSemHora) ? hojeSemHora : assinaturaDataInicio;
@@ -1873,7 +1850,6 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                     prefixIcon: Icon(Icons.payment, color: isFrete ? Colors.orange.shade700 : _corPagar),
                                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                                     filled: true,
-                                    fillColor: isAssinatura ? Colors.grey.shade100 : null,
                                   ),
                                   items: tiposPagamentoOrdenados.map((tipo) {
                                     return DropdownMenuItem<int>(
@@ -1887,17 +1863,15 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                       ),
                                     );
                                   }).toList(),
-                                  onChanged: isAssinatura
-                                      ? null
-                                      : (v) => setDialogState(() {
-                                            tipoPagamentoId = v;
-                                            numeroParcelas = 1;
-                                            boletoDocCtrl.clear();
-                                            if (isBoletoParcelado()) {
-                                              numeroParcelas = totalParcelasTipo();
-                                            }
-                                            recalcularParcelas();
-                                          }),
+                                  onChanged: (v) => setDialogState(() {
+                                    tipoPagamentoId = v;
+                                    numeroParcelas = 1;
+                                    boletoDocCtrl.clear();
+                                    if (isBoletoParcelado()) {
+                                      numeroParcelas = totalParcelasTipo();
+                                    }
+                                    recalcularParcelas();
+                                  }),
                                   validator: (v) => v == null ? 'Selecione a forma de pagamento' : null,
                                 ),
                                 if (isAssinatura) ...[
@@ -2204,15 +2178,13 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
 
                                   final valor = double.parse(valorCtrl.text.replaceAll(',', '.'));
                                   final forma = idFormaPagamentoSelecionada();
-                                  final backend = isAssinatura
+                                  final backend = forma == 2
                                       ? 'CREDITO'
-                                      : forma == 2
-                                          ? 'CREDITO'
-                                          : forma == 3
-                                              ? 'BOLETO'
-                                              : forma == 4
-                                                  ? 'FIADO'
-                                                  : 'AVISTA';
+                                      : forma == 3
+                                          ? 'BOLETO'
+                                          : forma == 4
+                                              ? 'FIADO'
+                                              : 'AVISTA';
                                   final baseOrigem =
                                       contaOrigem.isNotEmpty ? contaOrigem.split('_').first : (isFrete ? 'FRETE' : 'DESPESA');
                                   final diasTipo = tipoSelecionado()?.diasEntreParcelas ?? 30;
@@ -3751,7 +3723,7 @@ class _ContasPageState extends State<ContasPage> with SingleTickerProviderStateM
                                 Icon(Icons.autorenew, size: 11, color: Color(0xFF0F766E)),
                                 SizedBox(width: 4),
                                 Text(
-                                  'ASSINATURA',
+                                  'RECORRENTE',
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.w800,

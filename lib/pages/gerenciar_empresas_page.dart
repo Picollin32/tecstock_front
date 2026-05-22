@@ -2029,7 +2029,9 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
 
   List<Usuario> _admins = [];
   Usuario? _adminEmEdicao;
+  bool _mostrarFormulario = false;
   bool _isLoading = false;
+  bool _adminAtivo = true;
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
 
@@ -2084,6 +2086,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
         id: _adminEmEdicao?.id,
         nomeUsuario: _nomeController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
+        ativo: _adminAtivo,
         nivelAcesso: 1,
         consultor: null,
         empresa: widget.empresa,
@@ -2129,6 +2132,22 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
       _senhaController.clear();
       _confirmarSenhaController.clear();
       _adminEmEdicao = null;
+      _adminAtivo = true;
+      _mostrarFormulario = false;
+      _senhaVisivel = false;
+      _confirmarSenhaVisivel = false;
+    });
+  }
+
+  void _abrirNovoAdmin() {
+    _formKey.currentState?.reset();
+    setState(() {
+      _nomeController.clear();
+      _senhaController.clear();
+      _confirmarSenhaController.clear();
+      _adminEmEdicao = null;
+      _adminAtivo = true;
+      _mostrarFormulario = true;
       _senhaVisivel = false;
       _confirmarSenhaVisivel = false;
     });
@@ -2140,7 +2159,72 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
       _nomeController.text = admin.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
+      _adminAtivo = admin.ativo;
+      _mostrarFormulario = true;
     });
+  }
+
+  Future<void> _alternarStatusAdmin(Usuario admin) async {
+    final novoStatus = !admin.ativo;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(novoStatus ? 'Ativar administrador' : 'Desativar administrador'),
+        content: Text(
+          novoStatus
+              ? 'Deseja ativar o administrador "${admin.nomeUsuario}"?'
+              : 'Deseja desativar o administrador "${admin.nomeUsuario}"? Ele não conseguirá fazer login.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: novoStatus ? Colors.green : Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(novoStatus ? 'Ativar' : 'Desativar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final usuarioAtualizado = Usuario(
+        id: admin.id,
+        nomeUsuario: admin.nomeUsuario,
+        nivelAcesso: 1,
+        ativo: novoStatus,
+        empresa: widget.empresa,
+      );
+
+      final resultado = await UsuarioService.atualizarUsuario(admin.id!, usuarioAtualizado);
+      if (resultado['success'] == true) {
+        await _carregarAdmins();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(novoStatus ? 'Administrador ativado com sucesso' : 'Administrador desativado com sucesso'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ErrorUtils.showVisibleError(context, resultado['message'] ?? 'Erro ao atualizar status do administrador');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ErrorUtils.showVisibleError(context, 'Erro ao atualizar status do administrador: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _excluirAdmin(Usuario admin) async {
@@ -2198,6 +2282,10 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final Color adminColor = Colors.orange.shade700;
+    final Color adminSoft = Colors.orange.shade50;
+    final Color adminBorder = Colors.orange.shade100;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -2208,7 +2296,7 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.green.shade600,
+                color: adminColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
@@ -2252,15 +2340,46 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Form(
-                            key: _formKey,
-                            child: Column(
-                              children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _abrirNovoAdmin,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Adicionar Admin'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: adminColor,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Use o menu de ações em cada administrador para editar ou excluir.',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          ),
+                          if (_mostrarFormulario) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: adminSoft,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: adminBorder),
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  children: [
                                 TextFormField(
                                   controller: _nomeController,
                                   decoration: InputDecoration(
                                     labelText: 'Nome do Administrador',
                                     prefixIcon: const Icon(Icons.person),
+                                        filled: true,
+                                        fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -2282,6 +2401,8 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                   decoration: InputDecoration(
                                     labelText: _adminEmEdicao != null ? 'Nova Senha (deixe vazio para manter)' : 'Senha',
                                     prefixIcon: const Icon(Icons.lock),
+                                        filled: true,
+                                        fillColor: Colors.white,
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _senhaVisivel ? Icons.visibility_off : Icons.visibility,
@@ -2314,6 +2435,8 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                   decoration: InputDecoration(
                                     labelText: 'Confirmar Senha',
                                     prefixIcon: const Icon(Icons.lock_outline),
+                                        filled: true,
+                                        fillColor: Colors.white,
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _confirmarSenhaVisivel ? Icons.visibility_off : Icons.visibility,
@@ -2335,15 +2458,18 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                 ),
                                 const SizedBox(height: 16),
                                 Row(
-                                  children: [
-                                    if (_adminEmEdicao != null)
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: _limparFormulario,
-                                          child: const Text('Cancelar'),
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: _limparFormulario,
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                            child: const Text('Cancelar'),
+                                          ),
                                         ),
-                                      ),
-                                    if (_adminEmEdicao != null) const SizedBox(width: 12),
+                                        const SizedBox(width: 12),
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: _salvarAdmin,
@@ -2352,25 +2478,51 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                                           _adminEmEdicao == null ? 'Adicionar Admin' : 'Atualizar Admin',
                                         ),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.green.shade600,
+                                              backgroundColor: adminColor,
                                           foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              ],
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                           const SizedBox(height: 24),
-                          const Divider(),
+                          Divider(color: Colors.grey.shade300),
                           const SizedBox(height: 16),
-                          Text(
-                            'Administradores Cadastrados (${_admins.length})',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          Row(
+                            children: [
+                              const Text(
+                                'Administradores Cadastrados',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: adminSoft,
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(color: adminBorder),
+                                ),
+                                child: Text(
+                                  '${_admins.length}',
+                                  style: TextStyle(
+                                    color: adminColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
                           if (_admins.isEmpty)
@@ -2390,31 +2542,99 @@ class _AdminManagementDialogState extends State<_AdminManagementDialog> {
                           else
                             ...(_admins.map((admin) => Card(
                                   margin: const EdgeInsets.only(bottom: 8),
+                                  elevation: 0,
+                                  color: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(color: Colors.grey.shade200),
+                                  ),
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: Colors.green.shade100,
+                                      backgroundColor: adminSoft,
                                       child: Icon(
                                         Icons.person,
-                                        color: Colors.green.shade700,
+                                        color: adminColor,
                                       ),
                                     ),
                                     title: Text(
                                       admin.nomeUsuario,
                                       style: const TextStyle(fontWeight: FontWeight.w600),
                                     ),
-                                    subtitle: const Text('Administrador - Nível 1'),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.edit, color: Colors.blue),
-                                          onPressed: () => _editarAdmin(admin),
-                                          tooltip: 'Editar',
+                                        Text(admin.ativo ? 'Administrador - Nível 1 (Ativo)' : 'Administrador - Nível 1 (Inativo)'),
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: adminSoft,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: adminBorder),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                admin.ativo ? Icons.toggle_on : Icons.toggle_off,
+                                                color: adminColor,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              const Text('Login'),
+                                              const Spacer(),
+                                              Text(
+                                                admin.ativo ? 'Ativo' : 'Inativo',
+                                                style: TextStyle(
+                                                  color: admin.ativo ? Colors.green.shade700 : Colors.red.shade700,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Switch.adaptive(
+                                                value: admin.ativo,
+                                                activeThumbColor: adminColor,
+                                                activeTrackColor: adminColor.withValues(alpha: 0.35),
+                                                onChanged: (_) => _alternarStatusAdmin(admin),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete, color: Colors.red),
-                                          onPressed: () => _excluirAdmin(admin),
-                                          tooltip: 'Excluir',
+                                      ],
+                                    ),
+                                    trailing: PopupMenuButton<String>(
+                                      icon: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: adminSoft,
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: Icon(Icons.more_vert, color: adminColor, size: 18),
+                                      ),
+                                      tooltip: 'Ações',
+                                      onSelected: (value) {
+                                        if (value == 'edit') _editarAdmin(admin);
+                                        if (value == 'delete') _excluirAdmin(admin);
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem<String>(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit, size: 18),
+                                              SizedBox(width: 8),
+                                              Text('Editar'),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.delete, size: 18, color: Colors.red),
+                                              SizedBox(width: 8),
+                                              Text('Excluir', style: TextStyle(color: Colors.red)),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),

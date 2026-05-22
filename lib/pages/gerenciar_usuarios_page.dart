@@ -34,6 +34,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
 
   bool _isLoading = false;
   bool _isLoadingUsuarios = true;
+  bool _usuarioAtivo = true;
   bool _senhaVisivel = false;
   bool _confirmarSenhaVisivel = false;
 
@@ -178,6 +179,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
         id: _usuarioEmEdicao?.id,
         nomeUsuario: _nomeUsuarioController.text.trim(),
         senha: _senhaController.text.isNotEmpty ? _senhaController.text : null,
+        ativo: _usuarioAtivo,
         nivelAcesso: 2,
         consultor: _consultorSelecionado,
       );
@@ -223,6 +225,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _senhaController.clear();
       _confirmarSenhaController.clear();
       _usuarioEmEdicao = null;
+      _usuarioAtivo = true;
       _senhaVisivel = false;
       _confirmarSenhaVisivel = false;
       if (_consultores.isNotEmpty) {
@@ -255,6 +258,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
       _nomeUsuarioController.text = usuario.nomeUsuario;
       _senhaController.clear();
       _confirmarSenhaController.clear();
+      _usuarioAtivo = usuario.ativo;
 
       if (usuario.consultor != null) {
         _consultorSelecionado = _consultores.firstWhere(
@@ -476,6 +480,16 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
               return null;
             },
           ),
+          if (_usuarioEmEdicao != null) ...[
+            const SizedBox(height: 12),
+            SwitchListTile.adaptive(
+              value: _usuarioAtivo,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Usuário ativo'),
+              subtitle: const Text('Quando desativado, o usuário não consegue mais fazer login.'),
+              onChanged: (value) => setModalState(() => _usuarioAtivo = value),
+            ),
+          ],
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -713,7 +727,14 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                     ),
                     if (usuario.nivelAcesso != 1)
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        icon: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Icon(Icons.more_vert, color: Colors.grey[700], size: 18),
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         onSelected: (value) {
                           if (value == 'edit') _editarUsuario(usuario);
@@ -754,6 +775,28 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                   ],
                 ),
                 const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: usuario.ativo ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: usuario.ativo ? Colors.green.shade100 : Colors.red.shade100,
+                      ),
+                    ),
+                    child: Text(
+                      usuario.ativo ? 'Ativo' : 'Inativo',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: usuario.ativo ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
@@ -766,9 +809,13 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                     children: [
                       Icon(Icons.schedule, size: 12, color: Colors.grey[600]),
                       const SizedBox(width: 6),
-                      Text(
-                        'Cadastrado: ${_formatDate(usuario.createdAt)}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                      Expanded(
+                        child: Text(
+                          'Cadastrado: ${_formatDate(usuario.createdAt)}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
@@ -850,7 +897,7 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisExtent: 140,
+            mainAxisExtent: 176,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
@@ -920,7 +967,14 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                     ),
                     if (usuario.nivelAcesso != 1)
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        icon: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Icon(Icons.more_vert, color: Colors.grey[700], size: 18),
+                        ),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         onSelected: (value) {
                           if (value == 'edit') {
@@ -976,6 +1030,28 @@ class _GerenciarUsuariosPageState extends State<GerenciarUsuariosPage> with Tick
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: usuario.ativo ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: usuario.ativo ? Colors.green.shade100 : Colors.red.shade100,
+                      ),
+                    ),
+                    child: Text(
+                      usuario.ativo ? 'Ativo' : 'Inativo',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: usuario.ativo ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 Container(

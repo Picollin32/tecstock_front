@@ -6,6 +6,7 @@ class Usuario {
   String nomeUsuario;
   String? senha;
   String? nomeCompleto;
+  bool ativo;
   int? nivelAcesso;
   Funcionario? consultor;
   Empresa? empresa;
@@ -17,6 +18,7 @@ class Usuario {
     required this.nomeUsuario,
     this.senha,
     this.nomeCompleto,
+    this.ativo = true,
     this.nivelAcesso,
     this.consultor,
     this.empresa,
@@ -30,6 +32,7 @@ class Usuario {
       nomeUsuario: json['nomeUsuario'],
       senha: json['senha'],
       nomeCompleto: json['nomeCompleto'],
+      ativo: json['ativo'] ?? true,
       nivelAcesso: json['nivelAcesso'],
       consultor: json['consultor'] != null ? Funcionario.fromJson(json['consultor']) : null,
       empresa: json['empresa'] != null ? Empresa.fromJson(json['empresa']) : null,
@@ -53,6 +56,8 @@ class Usuario {
     if (nivelAcesso != null) {
       data['nivelAcesso'] = nivelAcesso;
     }
+
+    data['ativo'] = ativo;
 
     if (consultor != null && consultor!.id != null) {
       data['consultor'] = {'id': consultor!.id};

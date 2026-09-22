@@ -37,13 +37,10 @@ class CepService {
     final body = utf8.decode(response.bodyBytes);
     final data = jsonDecode(body) as Map<String, dynamic>;
 
-    String codigoIbge = '';
-    if (data.containsKey('city_ibge_code')) {
-      codigoIbge = data['city_ibge_code']?.toString() ?? '';
-    } else if (data.containsKey('ibge')) {
-      codigoIbge = data['ibge']?.toString() ?? '';
-    } else if (data.containsKey('city') && data['city'] is Map && data['city'].containsKey('ibge')) {
-      codigoIbge = data['city']['ibge']?.toString() ?? '';
+    String codigoIbge = _extrairCodigoIbge(data['city_ibge_code']);
+    if (codigoIbge.isEmpty) codigoIbge = _extrairCodigoIbge(data['ibge']);
+    if (codigoIbge.isEmpty && data['city'] is Map) {
+      codigoIbge = _extrairCodigoIbge(data['city']['ibge'] ?? data['city']['city']);
     }
 
     if (codigoIbge.isEmpty) {
@@ -52,16 +49,16 @@ class CepService {
         final viaResp = await http.get(viaCepUri).timeout(const Duration(seconds: 8));
         if (viaResp.statusCode == 200) {
           final viaData = jsonDecode(utf8.decode(viaResp.bodyBytes)) as Map<String, dynamic>;
-          if (viaData.containsKey('ibge')) {
-            codigoIbge = viaData['ibge']?.toString() ?? '';
-          }
+          codigoIbge = _extrairCodigoIbge(viaData['ibge']);
         }
       } catch (_) {}
 
       if (codigoIbge.isEmpty) {
         try {
           final state = data['state']?.toString() ?? '';
-          final city = data['city']?.toString() ?? '';
+          final cityValue = data['city'];
+          final city =
+              cityValue is Map ? cityValue['name']?.toString() ?? cityValue['city']?.toString() ?? '' : cityValue?.toString() ?? '';
           if (state.isNotEmpty && city.isNotEmpty) {
             final ibgeUri = Uri.parse('https://servicodados.ibge.gov.br/api/v1/localidades/estados/$state/municipios');
             final ibgeResp = await http.get(ibgeUri).timeout(const Duration(seconds: 8));
@@ -83,9 +80,18 @@ class CepService {
       logradouro: data['street'] as String? ?? '',
       complemento: data['complement'] as String? ?? '',
       bairro: data['neighborhood'] as String? ?? '',
-      cidade: data['city'] as String? ?? '',
+      cidade: data['city'] is Map
+          ? (data['city']['name']?.toString() ?? data['city']['city']?.toString() ?? '')
+          : data['city']?.toString() ?? '',
       uf: data['state'] as String? ?? '',
       codigoIBGE: codigoIbge,
     );
+  }
+
+  static String _extrairCodigoIbge(dynamic value) {
+    if (value is Map) {
+      return _extrairCodigoIbge(value['city'] ?? value['ibge'] ?? value['code']);
+    }
+    return value?.toString() ?? '';
   }
 }
